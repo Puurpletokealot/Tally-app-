@@ -67,23 +67,105 @@
 
   .sync-dot.syncing { background: var(--amber); }
 
-  .add-form {
-    background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: 12px;
-    padding: 14px;
-    margin-bottom: 18px;
-  }
-
-  .add-form-title {
-    font-size: 12px;
-    color: var(--text-dim);
+  .top-row {
+    display: flex;
+    gap: 8px;
     margin-bottom: 10px;
   }
 
-  .add-row {
+  .mini-box {
+    flex: 1;
+    min-width: 0;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 10px;
+  }
+
+  .mini-box-title {
+    font-size: 11px;
+    color: var(--text-dim);
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+
+  .mini-box input {
+    width: 100%;
+    font-size: 12px;
+    padding: 7px 8px;
+  }
+
+  .mini-box-row {
     display: flex;
+    gap: 6px;
+    margin-top: 6px;
+  }
+
+  .mini-box-row input {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .add-btn-mini {
+    background: var(--amber);
+    color: #2a1c05;
+    border: none;
+    border-radius: 7px;
+    padding: 0 12px;
+    font-family: inherit;
+    font-weight: 700;
+    font-size: 12px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .search-bar {
+    display: flex;
+    align-items: center;
     gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .search-icon-btn {
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    color: var(--text-dim);
+    border-radius: 10px;
+    width: 38px;
+    height: 38px;
+    flex-shrink: 0;
+    font-size: 15px;
+    cursor: pointer;
+  }
+
+  .search-bar.expanded .search-icon-btn {
+    background: var(--amber);
+    color: #2a1c05;
+    border-color: var(--amber);
+  }
+
+  .search-input-wrap {
+    flex: 1;
+    min-width: 0;
+    max-width: 0;
+    overflow: hidden;
+    transition: max-width 0.2s ease;
+  }
+
+  .search-bar.expanded .search-input-wrap {
+    max-width: 600px;
+  }
+
+  .search-input-wrap input {
+    width: 100%;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 8px 10px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 14px;
+    outline: none;
   }
 
   input[type="text"], input[type="number"] {
@@ -102,9 +184,6 @@
   input[type="text"]:focus, input[type="number"]:focus {
     border-color: var(--amber-dim);
   }
-
-  .add-row input[type="text"] { flex: 1.6; min-width: 0; }
-  .add-row input[type="number"] { flex: 1; min-width: 0; width: 0; }
 
   .add-btn {
     width: 100%;
@@ -468,41 +547,14 @@
     min-height: 14px;
   }
 
-  .command-bar {
-    background: var(--panel);
-    border: 2px solid var(--amber-dim);
-    border-radius: 14px;
-    padding: 12px;
-    margin-bottom: 18px;
-  }
-
-  .command-bar-title {
-    font-size: 12px;
-    color: var(--text-dim);
-    margin-bottom: 8px;
-    font-weight: 600;
-  }
-
-  .command-row {
-    display: flex;
-    gap: 8px;
-  }
-
-  .command-row input {
-    flex: 1;
-    min-width: 0;
-    font-size: 14px;
-    background: var(--panel-2);
-  }
-
   .command-mic {
     background: var(--amber);
     color: #fff;
     border: none;
-    border-radius: 10px;
-    width: 44px;
+    border-radius: 8px;
+    width: 36px;
     flex-shrink: 0;
-    font-size: 18px;
+    font-size: 14px;
     cursor: pointer;
   }
 
@@ -520,27 +572,20 @@
     background: var(--teal);
     color: #fff;
     border: none;
-    border-radius: 10px;
-    padding: 0 14px;
+    border-radius: 8px;
+    padding: 0 10px;
     font-family: inherit;
     font-weight: 700;
-    font-size: 13px;
+    font-size: 12px;
     cursor: pointer;
     flex-shrink: 0;
   }
 
-  .command-hint {
-    font-size: 11px;
-    color: var(--text-dim);
-    margin-top: 8px;
-    line-height: 1.5;
-  }
-
   .command-toast {
-    font-size: 12px;
+    font-size: 11px;
     color: var(--teal);
-    margin-top: 8px;
-    min-height: 14px;
+    margin-top: 6px;
+    min-height: 13px;
     font-weight: 600;
   }
 
@@ -564,28 +609,32 @@
   </div>
 </div>
 
-<div class="command-bar">
-  <div class="command-bar-title">&#127908; Talk to Tally</div>
-  <div class="command-row">
-    <input type="text" id="commandInput" placeholder="e.g. add 3 cases of napkins">
-    <button type="button" class="command-mic" id="commandMic" aria-label="Speak a command">&#127908;</button>
-    <button type="button" class="command-go" id="commandGo">Go</button>
+<div class="top-row">
+  <div class="mini-box">
+    <div class="mini-box-title">&#127908; Talk</div>
+    <input type="text" id="commandInput" placeholder="add 3 cases...">
+    <div class="mini-box-row">
+      <button type="button" class="command-mic" id="commandMic" aria-label="Speak a command">&#127908;</button>
+      <button type="button" class="command-go" id="commandGo">Go</button>
+    </div>
+    <div class="command-toast" id="commandToast"></div>
   </div>
-  <div class="command-hint">Try: "add 3 cases of napkins" &middot; "remove 5 towels" &middot; "add item plates, 24 per case"</div>
-  <div class="command-toast" id="commandToast"></div>
+
+  <div class="mini-box">
+    <div class="mini-box-title">&#10133; Add item</div>
+    <input type="text" id="newName" placeholder="Item name">
+    <div class="mini-box-row">
+      <input type="number" id="newCaseSize" placeholder="Per case" min="1">
+      <button type="button" class="add-btn-mini" id="addBtn">Add</button>
+    </div>
+  </div>
 </div>
 
-<div class="add-form">
-  <div class="add-form-title">Add an item</div>
-  <div class="add-row">
-    <input type="text" id="newName" placeholder="Item name">
-    <input type="number" id="newCaseSize" placeholder="Units per case" min="1">
+<div class="search-bar" id="searchBar">
+  <button type="button" class="search-icon-btn" id="searchToggle" aria-label="Search items">&#128269;</button>
+  <div class="search-input-wrap">
+    <input type="text" id="searchInput" placeholder="Search items...">
   </div>
-  <div class="mode-toggle" id="newModeToggle" style="margin-top: 10px; margin-bottom: 0;">
-    <button type="button" class="active" data-mode="case">Count by case</button>
-    <button type="button" data-mode="unit">Count by unit</button>
-  </div>
-  <button class="add-btn" id="addBtn">Add item</button>
 </div>
 
 <div class="setup-banner" id="setupBanner" style="display:none;">
@@ -619,6 +668,7 @@
   let items = [];
   let expanded = new Set();
   let minimized = new Set();
+  let searchQuery = '';
   let myName = localStorage.getItem(NAME_KEY) || '';
 </script>
 <script>
@@ -637,7 +687,18 @@
       list.innerHTML = '<div class="empty">No items yet. Add one above to start counting.</div>';
       return;
     }
-    list.innerHTML = items.map(function(item, idx) {
+    const q = searchQuery.trim().toLowerCase();
+    const visibleIdx = q
+      ? items.map(function(it, i) { return i; }).filter(function(i) { return items[i].name.toLowerCase().includes(q); })
+      : items.map(function(it, i) { return i; });
+
+    if (!visibleIdx.length) {
+      list.innerHTML = '<div class="empty">No items match "' + escapeHtml(searchQuery.trim()) + '".</div>';
+      return;
+    }
+
+    list.innerHTML = visibleIdx.map(function(idx) {
+      const item = items[idx];
       const c = calc(item.units, item.caseSize);
       const mode = item.mode || 'case';
       const isCase = mode === 'case';
@@ -822,21 +883,29 @@
     });
   }
 
-  let newMode = 'case';
-  document.getElementById('newModeToggle').addEventListener('click', function(e) {
-    const btn = e.target.closest('button');
-    if (!btn) return;
-    newMode = btn.getAttribute('data-mode');
-    Array.from(document.getElementById('newModeToggle').children).forEach(function(b) {
-      b.classList.toggle('active', b === btn);
-    });
-  });
-
   function pushHistory(item, delta) {
     if (!item.history) item.history = [];
     item.history.push({ ts: Date.now(), delta: delta, actor: myName || 'someone' });
     if (item.history.length > 300) item.history = item.history.slice(-300);
   }
+
+  document.getElementById('searchToggle').addEventListener('click', function() {
+    const bar = document.getElementById('searchBar');
+    const input = document.getElementById('searchInput');
+    const nowExpanded = bar.classList.toggle('expanded');
+    if (nowExpanded) {
+      input.focus();
+    } else {
+      input.value = '';
+      searchQuery = '';
+      render();
+    }
+  });
+
+  document.getElementById('searchInput').addEventListener('input', function(e) {
+    searchQuery = e.target.value;
+    render();
+  });
 
   document.getElementById('myName').value = myName;
   document.getElementById('myName').addEventListener('change', function(e) {
@@ -859,14 +928,10 @@
     }
     nameInput.style.borderColor = '';
     caseInput.style.borderColor = '';
-    items.push({ name: name, caseSize: caseSize, units: caseSize, mode: newMode });
+    items.push({ name: name, caseSize: caseSize, units: caseSize, mode: 'case' });
     minimized.add(items.length - 1);
     nameInput.value = '';
     caseInput.value = '';
-    newMode = 'case';
-    Array.from(document.getElementById('newModeToggle').children).forEach(function(b, i) {
-      b.classList.toggle('active', i === 0);
-    });
     render();
     saveItems();
   });
