@@ -627,7 +627,8 @@
     const cs = caseSize > 0 ? caseSize : 1;
     const cases = Math.floor(units / cs);
     const rem = units - cases * cs;
-    return { cases, rem };
+    const decimalCases = Number((units / cs).toFixed(2));
+    return { cases, rem, decimalCases };
   }
 
   function render() {
@@ -641,11 +642,11 @@
       const mode = item.mode || 'case';
       const isCase = mode === 'case';
 
-      const primaryValue = isCase ? c.cases : item.units;
-      const primaryUnit = isCase ? ('case' + (c.cases === 1 ? '' : 's')) : ('unit' + (item.units === 1 ? '' : 's'));
+      const primaryValue = isCase ? c.decimalCases : item.units;
+      const primaryUnit = isCase ? ('case' + (c.decimalCases === 1 ? '' : 's')) : ('unit' + (item.units === 1 ? '' : 's'));
       const secondaryText = isCase
-        ? (c.rem > 0 ? '+' + c.rem + ' unit' + (c.rem === 1 ? '' : 's') + ' left over &middot; ' + item.units.toLocaleString() + ' total units' : item.units.toLocaleString() + ' total units')
-        : c.cases + ' case' + (c.cases === 1 ? '' : 's') + ' + ' + c.rem + ' unit' + (c.rem === 1 ? '' : 's');
+        ? item.units.toLocaleString() + ' total units'
+        : c.decimalCases.toLocaleString() + ' case' + (c.decimalCases === 1 ? '' : 's') + ' (' + c.cases + ' whole + ' + c.rem + ' unit' + (c.rem === 1 ? '' : 's') + ')';
 
       const lowStock = item.lowStock && item.units <= item.lowStock;
 
