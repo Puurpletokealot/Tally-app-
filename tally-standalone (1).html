@@ -1,0 +1,1822 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tally</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=JetBrains+Mono:wght@500;700&display=swap');
+
+  :root {
+    --bg: #17110e;
+    --panel: #201814;
+    --panel-2: #2a201a;
+    --amber: #c8912f;
+    --amber-dim: #4a3820;
+    --teal: #3f9e78;
+    --red: #c24f3f;
+    --text: #e8ddd0;
+    --text-dim: #8f7b6b;
+    --line: #362a22;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Quicksand', system-ui, sans-serif;
+    padding: 20px 16px 40px;
+  }
+
+  .header {
+    margin-bottom: 20px;
+  }
+
+  .header h1 {
+    font-size: 22px;
+    font-weight: 700;
+    margin: 0 0 4px;
+    letter-spacing: -0.02em;
+  }
+
+  .header p {
+    font-size: 13px;
+    color: var(--text-dim);
+    margin: 0;
+  }
+
+  .sync-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .sync-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--teal);
+    flex-shrink: 0;
+  }
+
+  .sync-dot.syncing { background: var(--amber); }
+
+  .top-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .mini-box {
+    flex: 1;
+    min-width: 0;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 10px;
+  }
+
+  .mini-box-title {
+    font-size: 11px;
+    color: var(--text-dim);
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+
+  .mini-box input {
+    width: 100%;
+    font-size: 12px;
+    padding: 7px 8px;
+  }
+
+  .mini-box-row {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+  }
+
+  .mini-box-row input {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .add-btn-mini {
+    background: var(--amber);
+    color: #2a1c05;
+    border: none;
+    border-radius: 7px;
+    padding: 0 12px;
+    font-family: inherit;
+    font-weight: 700;
+    font-size: 12px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .search-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .search-icon-btn {
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    color: var(--text-dim);
+    border-radius: 10px;
+    width: 38px;
+    height: 38px;
+    flex-shrink: 0;
+    font-size: 15px;
+    cursor: pointer;
+  }
+
+  .search-bar.expanded .search-icon-btn {
+    background: var(--amber);
+    color: #2a1c05;
+    border-color: var(--amber);
+  }
+
+  .search-input-wrap {
+    flex: 1;
+    min-width: 0;
+    max-width: 0;
+    overflow: hidden;
+    transition: max-width 0.2s ease;
+  }
+
+  .search-bar.expanded .search-input-wrap {
+    max-width: 600px;
+  }
+
+  .search-input-wrap input {
+    width: 100%;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 8px 10px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 14px;
+    outline: none;
+  }
+
+  input[type="text"], input[type="number"] {
+    background-color: var(--panel-2);
+    -webkit-appearance: none;
+    appearance: none;
+    border: 1px solid var(--line);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 10px 10px;
+    font-family: inherit;
+    font-size: 14px;
+    outline: none;
+  }
+
+  input[type="text"]:focus, input[type="number"]:focus {
+    border-color: var(--amber-dim);
+  }
+
+  .add-btn {
+    width: 100%;
+    margin-top: 10px;
+    background: var(--amber);
+    color: #2a1c05;
+    border: none;
+    border-radius: 8px;
+    padding: 10px;
+    font-family: inherit;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  .add-btn:active { transform: scale(0.98); }
+
+  .empty {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 13px;
+    padding: 30px 10px;
+    border: 1px dashed var(--line);
+    border-radius: 12px;
+  }
+
+  .item-card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+  }
+
+  .item-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 10px;
+  }
+
+  .mode-toggle {
+    display: flex;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 3px;
+    margin-bottom: 12px;
+  }
+
+  .mode-toggle button {
+    flex: 1;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 8px 0;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  .mode-toggle button.active {
+    background: var(--amber);
+    color: #2a1c05;
+    font-weight: 700;
+  }
+
+  .item-name {
+    font-size: 15px;
+    font-weight: 500;
+  }
+
+  .item-case-size {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+
+  .item-case-size button {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    text-decoration: underline;
+    font-family: inherit;
+    font-size: 11px;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .remove-btn {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 2px 4px;
+  }
+
+  .display {
+    font-family: 'JetBrains Mono', monospace;
+    text-align: center;
+    background: var(--panel-2);
+    border-radius: 8px;
+    padding: 8px 8px;
+    margin-bottom: 8px;
+  }
+
+  .display .total {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--amber);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .display .breakdown {
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-top: 4px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .controls {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .ctrl-group {
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 8px;
+  }
+
+  .ctrl-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    text-align: center;
+    margin-bottom: 6px;
+  }
+
+  .ctrl-buttons {
+    display: flex;
+    gap: 6px;
+  }
+
+  .ctrl-buttons button {
+    flex: 1;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    color: var(--text);
+    border-radius: 5px;
+    padding: 5px 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .ctrl-buttons button:active { transform: scale(0.95); }
+
+  .ctrl-buttons button.minus { color: var(--red); }
+  .ctrl-buttons button.plus { color: var(--teal); }
+
+  .expand-btn, .reorder-btn[data-action="toggle-mini"] {
+    color: var(--text-dim);
+  }
+
+  .item-card.mini {
+    padding: 10px 12px;
+  }
+
+  .mini-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .mini-name {
+    flex: 1;
+    min-width: 0;
+    font-size: 14px;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mini-count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--amber);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .mini-unit {
+    font-family: 'Quicksand', system-ui, sans-serif;
+    font-size: 11px;
+    color: var(--text-dim);
+    font-weight: 500;
+  }
+
+  .expand-btn {
+    background: none;
+    border: none;
+    font-size: 12px;
+    cursor: pointer;
+    padding: 4px;
+    flex-shrink: 0;
+  }
+
+  .name-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .name-bar input {
+    flex: 1;
+    padding: 6px 8px;
+    font-size: 13px;
+  }
+
+  .item-card.low-stock {
+    border-color: var(--red);
+  }
+
+  .low-stock-badge {
+    display: inline-block;
+    background: var(--red);
+    color: #2a0a08;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 5px;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+
+  .top-actions {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+  }
+
+  .reorder-btn {
+    background: none;
+    border: 1px solid var(--line);
+    color: var(--text-dim);
+    border-radius: 6px;
+    font-size: 13px;
+    width: 26px;
+    height: 26px;
+    cursor: pointer;
+    line-height: 1;
+  }
+
+  .reorder-btn:disabled {
+    opacity: 0.3;
+    cursor: default;
+  }
+
+  .history-toggle {
+    background: none;
+    border: none;
+    color: var(--teal);
+    font-family: inherit;
+    font-size: 12px;
+    padding: 0;
+    margin-top: 10px;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+
+  .history-panel {
+    margin-top: 10px;
+    border-top: 1px solid var(--line);
+    padding-top: 10px;
+  }
+
+  .history-section-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+
+  .history-entry {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    padding: 4px 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .history-entry:last-child { border-bottom: none; }
+
+  .history-entry .who {
+    color: var(--text-dim);
+  }
+
+  .week-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    margin-top: 4px;
+  }
+
+  .week-table th, .week-table td {
+    text-align: right;
+    padding: 4px 2px;
+    border-bottom: 1px solid var(--line);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .week-table th:first-child, .week-table td:first-child {
+    text-align: left;
+  }
+
+  .week-table th {
+    color: var(--text-dim);
+    font-weight: 500;
+  }
+
+  .no-history {
+    font-size: 12px;
+    color: var(--text-dim);
+    padding: 6px 0;
+  }
+
+  .setup-banner {
+    background: #362818;
+    border: 1px solid var(--amber-dim);
+    color: var(--amber);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 12px;
+    line-height: 1.5;
+    margin-bottom: 16px;
+  }
+
+  .setup-banner code {
+    background: rgba(0,0,0,0.3);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+  }
+
+  .toast {
+    font-size: 12px;
+    color: var(--teal);
+    margin-top: 6px;
+    min-height: 14px;
+  }
+
+  .command-mic {
+    background: var(--amber);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    width: 36px;
+    flex-shrink: 0;
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  .command-mic.listening {
+    background: var(--red);
+    animation: pulse 1s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+  }
+
+  .command-go {
+    background: var(--teal);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 0 10px;
+    font-family: inherit;
+    font-weight: 700;
+    font-size: 12px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .command-toast {
+    font-size: 11px;
+    color: var(--teal);
+    margin-top: 6px;
+    min-height: 13px;
+    font-weight: 600;
+  }
+
+  .command-toast.error { color: var(--red); }
+
+  .toast.error { color: var(--red); }
+
+  /* Header action buttons (undo / who / lock) */
+  .header-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+  }
+
+  .undo-btn {
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    color: var(--text-dim);
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .undo-btn:not(:disabled) {
+    color: var(--amber);
+    border-color: var(--amber-dim);
+  }
+
+  .undo-btn:disabled {
+    opacity: 0.35;
+    cursor: default;
+  }
+
+  .who-btn {
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    color: var(--text-dim);
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .icon-btn {
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    color: var(--text-dim);
+    border-radius: 6px;
+    width: 26px;
+    height: 26px;
+    font-size: 12px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  /* Sort row */
+  .sort-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .sort-row select {
+    flex: 1;
+    min-width: 0;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 8px;
+    font-family: inherit;
+    font-size: 13px;
+    outline: none;
+  }
+
+  /* Card footer delete button (bottom-left) */
+  .card-footer {
+    display: flex;
+    justify-content: flex-start;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--line);
+  }
+
+  .remove-btn-footer {
+    background: none;
+    border: 1px solid var(--red);
+    color: var(--red);
+    border-radius: 7px;
+    padding: 6px 12px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .remove-btn-footer:active { transform: scale(0.97); }
+
+  /* Generic modal overlay (name popup, delete confirm) */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 7, 5, 0.75);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    padding: 20px;
+  }
+
+  .modal-box {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 20px;
+    max-width: 340px;
+    width: 100%;
+  }
+
+  .modal-box h3 {
+    margin: 0 0 8px;
+    font-size: 17px;
+  }
+
+  .modal-box p {
+    margin: 0 0 14px;
+    font-size: 13px;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+
+  .modal-box input {
+    width: 100%;
+    margin-bottom: 4px;
+  }
+
+  .modal-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+  }
+
+  .modal-btn {
+    flex: 1;
+    border: none;
+    border-radius: 8px;
+    padding: 10px;
+    font-family: inherit;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  .modal-btn.primary { background: var(--amber); color: #2a1c05; }
+  .modal-btn.secondary { background: var(--panel-2); color: var(--text); border: 1px solid var(--line); }
+  .modal-btn.danger { background: var(--red); color: #2a0a08; }
+
+  /* PIN lock screen */
+  .lock-screen {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 300;
+    padding: 20px;
+  }
+
+  .lock-box { width: 100%; max-width: 300px; text-align: center; }
+  .lock-icon { font-size: 32px; margin-bottom: 10px; }
+  .lock-title { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+  .lock-sub { font-size: 12px; color: var(--text-dim); margin-bottom: 18px; min-height: 30px; }
+
+  .pin-dots {
+    display: flex;
+    justify-content: center;
+    gap: 14px;
+    margin-bottom: 26px;
+  }
+
+  .pin-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 1px solid var(--amber-dim);
+    background: transparent;
+  }
+
+  .pin-dot.filled { background: var(--amber); border-color: var(--amber); }
+
+  .keypad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+
+  .keypad button {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    color: var(--text);
+    border-radius: 12px;
+    padding: 16px 0;
+    font-family: inherit;
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .keypad button:active { transform: scale(0.95); background: var(--panel-2); }
+
+  #pinSkipBtn { font-size: 12px; color: var(--text-dim); visibility: hidden; }
+
+  .lock-link {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    text-decoration: underline;
+    font-family: inherit;
+    font-size: 12px;
+    margin-top: 20px;
+    cursor: pointer;
+  }
+
+  .lock-box.shake { animation: shake 0.4s; }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-8px); }
+    40%, 80% { transform: translateX(8px); }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>&#127849; Tally</h1>
+  <p>Shared item counter — cases and individual units</p>
+  <div class="sync-row">
+    <div class="sync-dot" id="syncDot"></div>
+    <span id="syncText">Loading...</span>
+  </div>
+  <div class="header-actions">
+    <button type="button" class="undo-btn" id="undoBtn" disabled>&#8617; Undo</button>
+    <button type="button" class="who-btn" id="whoBtn">&#128100; <span id="whoLabel">Set name</span></button>
+    <button type="button" class="icon-btn" id="relockBtn" title="Lock now" style="display:none;">&#128274;</button>
+    <button type="button" class="icon-btn" id="pinSettingsBtn" title="PIN settings">&#128272;</button>
+  </div>
+</div>
+
+<div class="top-row">
+  <div class="mini-box">
+    <div class="mini-box-title">&#127908; Talk</div>
+    <input type="text" id="commandInput" placeholder="add 3 cases...">
+    <div class="mini-box-row">
+      <button type="button" class="command-mic" id="commandMic" aria-label="Speak a command">&#127908;</button>
+      <button type="button" class="command-go" id="commandGo">Go</button>
+    </div>
+    <div class="command-toast" id="commandToast"></div>
+  </div>
+
+  <div class="mini-box">
+    <div class="mini-box-title">&#10133; Add item</div>
+    <input type="text" id="newName" placeholder="Item name">
+    <div class="mini-box-row">
+      <input type="number" id="newCaseSize" placeholder="Per case" min="1">
+      <button type="button" class="add-btn-mini" id="addBtn">Add</button>
+    </div>
+  </div>
+</div>
+
+<div class="search-bar" id="searchBar">
+  <button type="button" class="search-icon-btn" id="searchToggle" aria-label="Search items">&#128269;</button>
+  <div class="search-input-wrap">
+    <input type="text" id="searchInput" placeholder="Search items...">
+  </div>
+</div>
+
+<div class="sort-row">
+  <label for="sortSelect">Sort:</label>
+  <select id="sortSelect">
+    <option value="manual" selected>Sort by&hellip;</option>
+    <option value="name-asc">Name (A&ndash;Z)</option>
+    <option value="cases-desc">Most cases in stock</option>
+    <option value="cases-asc">Fewest cases in stock</option>
+    <option value="units-asc">Lowest stock (units)</option>
+    <option value="units-desc">Highest stock (units)</option>
+  </select>
+</div>
+
+<div class="setup-banner" id="setupBanner" style="display:none;">
+  Setup needed: open this file's code, find the <code>firebaseConfig</code> block near the bottom, and paste in your own Firebase project's config. See the instructions Claude gave you alongside this file.
+</div>
+
+<div id="itemList"></div>
+
+<div class="modal-overlay" id="namePopup" style="display:none;">
+  <div class="modal-box">
+    <h3>Who's counting?</h3>
+    <p>Your name gets logged with the changes you make, so the team can see who did what.</p>
+    <input type="text" id="namePopupInput" placeholder="Your name">
+    <div class="modal-actions">
+      <button type="button" class="modal-btn secondary" id="namePopupSkip">Skip</button>
+      <button type="button" class="modal-btn primary" id="namePopupSave">Continue</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="confirmModal" style="display:none;">
+  <div class="modal-box">
+    <h3>Delete item?</h3>
+    <p id="confirmText">This removes the item and its history.</p>
+    <div class="modal-actions">
+      <button type="button" class="modal-btn secondary" id="confirmCancel">Cancel</button>
+      <button type="button" class="modal-btn danger" id="confirmOk">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div class="lock-screen" id="lockScreen" style="display:none;">
+  <div class="lock-box" id="lockBox">
+    <div class="lock-icon">&#128274;</div>
+    <div class="lock-title" id="lockTitle">Enter PIN</div>
+    <div class="lock-sub" id="lockSub"></div>
+    <div class="pin-dots" id="pinDots"></div>
+    <div class="keypad" id="keypad">
+      <button type="button" data-k="1">1</button><button type="button" data-k="2">2</button><button type="button" data-k="3">3</button>
+      <button type="button" data-k="4">4</button><button type="button" data-k="5">5</button><button type="button" data-k="6">6</button>
+      <button type="button" data-k="7">7</button><button type="button" data-k="8">8</button><button type="button" data-k="9">9</button>
+      <button type="button" data-k="skip" id="pinSkipBtn">Skip</button><button type="button" data-k="0">0</button><button type="button" data-k="back">&larr;</button>
+    </div>
+    <button type="button" class="lock-link" id="pinForgotBtn">Forgot PIN? Reset app lock</button>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script>
+  const firebaseConfig = {
+    databaseURL: "https://tally-e74bb-default-rtdb.firebaseio.com/",
+    projectId: "tally-e74bb"
+  };
+
+  const isConfigured = true;
+  if (!isConfigured) {
+    document.getElementById('setupBanner').style.display = 'block';
+  }
+
+  let db = null;
+  let itemsRef = null;
+  if (isConfigured) {
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.database();
+    itemsRef = db.ref('tally/items');
+  }
+
+  const NAME_KEY = 'tally_myname';
+  const PIN_KEY = 'tally_pin_hash';
+  const PIN_SKIP_KEY = 'tally_pin_setup_skipped';
+  let items = [];
+  let expanded = new Set();
+  let minimized = new Set();
+  let searchQuery = '';
+  let myName = localStorage.getItem(NAME_KEY) || '';
+  let undoStack = [];
+  let pendingDeleteIdx = null;
+  let pinEntry = '';
+  let pinMode = 'unlock'; // 'unlock' | 'setup' | 'confirm'
+  let pinFirstEntry = '';
+  let pinChangeOnly = false;
+  let unlocked = false;
+</script>
+<script>
+
+  function calc(units, caseSize) {
+    const cs = caseSize > 0 ? caseSize : 1;
+    const cases = Math.floor(units / cs);
+    const rem = units - cases * cs;
+    const decimalCases = Number((units / cs).toFixed(2));
+    return { cases, rem, decimalCases };
+  }
+
+  function render() {
+    const list = document.getElementById('itemList');
+    if (!items.length) {
+      list.innerHTML = '<div class="empty">No items yet. Add one above to start counting.</div>';
+      return;
+    }
+    const q = searchQuery.trim().toLowerCase();
+    const visibleIdx = q
+      ? items.map(function(it, i) { return i; }).filter(function(i) { return items[i].name.toLowerCase().includes(q); })
+      : items.map(function(it, i) { return i; });
+
+    if (!visibleIdx.length) {
+      list.innerHTML = '<div class="empty">No items match "' + escapeHtml(searchQuery.trim()) + '".</div>';
+      return;
+    }
+
+    list.innerHTML = visibleIdx.map(function(idx) {
+      const item = items[idx];
+      const c = calc(item.units, item.caseSize);
+      const mode = item.mode || 'case';
+      const isCase = mode === 'case';
+
+      const primaryValue = isCase ? c.decimalCases : item.units;
+      const primaryUnit = isCase ? ('case' + (c.decimalCases === 1 ? '' : 's')) : ('unit' + (item.units === 1 ? '' : 's'));
+      const secondaryText = isCase
+        ? item.units.toLocaleString() + ' total units'
+        : c.decimalCases.toLocaleString() + ' case' + (c.decimalCases === 1 ? '' : 's') + ' (' + c.cases + ' whole + ' + c.rem + ' unit' + (c.rem === 1 ? '' : 's') + ')';
+
+      const lowStock = item.lowStock && item.units <= item.lowStock;
+
+      if (minimized.has(idx)) {
+        return (
+          '<div class="item-card mini' + (lowStock ? ' low-stock' : '') + '" data-idx="' + idx + '">' +
+            '<div class="mini-row">' +
+              '<div class="mini-name">' + escapeHtml(item.name) + (lowStock ? '<span class="low-stock-badge">Low</span>' : '') + '</div>' +
+              '<div class="mini-count">' + primaryValue.toLocaleString() + ' <span class="mini-unit">' + primaryUnit + '</span></div>' +
+              '<button type="button" class="expand-btn" data-action="toggle-mini" data-idx="' + idx + '" aria-label="Expand">&#9660;</button>' +
+            '</div>' +
+          '</div>'
+        );
+      }
+
+      const caseButtons =
+        '<div class="ctrl-group">' +
+          '<div class="ctrl-label">Case</div>' +
+          '<div class="ctrl-buttons">' +
+            '<button class="minus" data-action="case-1" data-idx="' + idx + '">&minus;1</button>' +
+            '<button class="plus" data-action="case+1" data-idx="' + idx + '">+1</button>' +
+          '</div>' +
+        '</div>';
+      const unitButtons =
+        '<div class="ctrl-group">' +
+          '<div class="ctrl-label">Unit</div>' +
+          '<div class="ctrl-buttons">' +
+            '<button class="minus" data-action="unit-1" data-idx="' + idx + '">&minus;1</button>' +
+            '<button class="plus" data-action="unit+1" data-idx="' + idx + '">+1</button>' +
+          '</div>' +
+        '</div>';
+
+      return (
+        '<div class="item-card' + (lowStock ? ' low-stock' : '') + '" data-idx="' + idx + '">' +
+          '<div class="item-top">' +
+            '<div>' +
+              '<div class="item-name">' + escapeHtml(item.name) + (lowStock ? '<span class="low-stock-badge">Low</span>' : '') + '</div>' +
+              '<div class="item-case-size">' + item.caseSize + ' per case &middot; <button class="edit-case" data-idx="' + idx + '">change</button>' +
+                ' &middot; <button class="edit-lowstock" data-idx="' + idx + '">low stock' + (item.lowStock ? ' (' + item.lowStock + ')' : '') + '</button></div>' +
+            '</div>' +
+            '<div class="top-actions">' +
+              '<button class="reorder-btn" data-action="up" data-idx="' + idx + '" aria-label="Move up" ' + (idx === 0 ? 'disabled' : '') + '>&uarr;</button>' +
+              '<button class="reorder-btn" data-action="down" data-idx="' + idx + '" aria-label="Move down" ' + (idx === items.length - 1 ? 'disabled' : '') + '>&darr;</button>' +
+              '<button class="reorder-btn" data-action="toggle-mini" data-idx="' + idx + '" aria-label="Collapse">&#9650;</button>' +
+            '</div>' +
+          '</div>' +
+          '<div class="mode-toggle" data-idx="' + idx + '">' +
+            '<button type="button" class="mode-btn ' + (isCase ? 'active' : '') + '" data-idx="' + idx + '" data-mode="case">Count by case</button>' +
+            '<button type="button" class="mode-btn ' + (!isCase ? 'active' : '') + '" data-idx="' + idx + '" data-mode="unit">Count by unit</button>' +
+          '</div>' +
+          '<div class="display">' +
+            '<div class="total">' + primaryValue.toLocaleString() + ' <span style="font-size:14px; color: var(--text-dim);">' + primaryUnit + '</span></div>' +
+            '<div class="breakdown">' + secondaryText + '</div>' +
+          '</div>' +
+          '<div class="controls">' +
+            (isCase ? caseButtons + unitButtons : unitButtons + caseButtons) +
+          '</div>' +
+          '<button type="button" class="history-toggle" data-action="toggle-history" data-idx="' + idx + '">' +
+            (expanded.has(idx) ? 'Hide history' : 'Show history') +
+          '</button>' +
+          (expanded.has(idx) ? buildHistoryPanel(item) : '') +
+          '<div class="card-footer">' +
+            '<button type="button" class="remove-btn-footer" data-idx="' + idx + '" aria-label="Delete item">&#128465; Delete item</button>' +
+          '</div>' +
+        '</div>'
+      );
+    }).join('');
+  }
+
+  function formatRelative(ts) {
+    const diffMs = Date.now() - ts;
+    const mins = Math.round(diffMs / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return mins + 'm ago';
+    const hours = Math.round(mins / 60);
+    if (hours < 24) return hours + 'h ago';
+    const days = Math.round(hours / 24);
+    return days + 'd ago';
+  }
+
+  function getWeekStart(ts) {
+    const d = new Date(ts);
+    const day = d.getDay();
+    const diff = (day === 0 ? -6 : 1) - day;
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + diff);
+    return d.getTime();
+  }
+
+  function formatWeekLabel(weekStartTs) {
+    const start = new Date(weekStartTs);
+    const end = new Date(weekStartTs + 6 * 86400000);
+    const opts = { month: 'short', day: 'numeric' };
+    return start.toLocaleDateString('en-US', opts) + ' - ' + end.toLocaleDateString('en-US', opts);
+  }
+
+  function buildHistoryPanel(item) {
+    const history = item.history || [];
+    if (!history.length) {
+      return '<div class="history-panel"><div class="no-history">No activity logged yet for this item.</div></div>';
+    }
+
+    const recent = history.slice(-6).reverse();
+    const recentHtml = recent.map(function(h) {
+      const verb = h.delta > 0 ? 'added' : 'removed';
+      return '<div class="history-entry"><span>' + verb + ' ' + Math.abs(h.delta).toLocaleString() + ' units</span>' +
+        '<span class="who">' + escapeHtml(h.actor || 'someone') + ' &middot; ' + formatRelative(h.ts) + '</span></div>';
+    }).join('');
+
+    const weekMap = {};
+    history.forEach(function(h) {
+      const wk = getWeekStart(h.ts);
+      if (!weekMap[wk]) weekMap[wk] = { bought: 0, used: 0 };
+      if (h.delta > 0) weekMap[wk].bought += h.delta;
+      else weekMap[wk].used += Math.abs(h.delta);
+    });
+    const weeks = Object.keys(weekMap).map(Number).sort(function(a, b) { return b - a; }).slice(0, 6);
+    const weekRows = weeks.map(function(wk) {
+      const w = weekMap[wk];
+      return '<tr><td>' + formatWeekLabel(wk) + '</td><td>' + w.bought.toLocaleString() + '</td><td>' + w.used.toLocaleString() + '</td></tr>';
+    }).join('');
+
+    return (
+      '<div class="history-panel">' +
+        '<div class="history-section-label">Recent activity</div>' +
+        recentHtml +
+        '<div class="history-section-label" style="margin-top:12px;">Bought vs used, by week</div>' +
+        '<table class="week-table"><tr><th>Week</th><th>Bought</th><th>Used</th></tr>' + weekRows + '</table>' +
+      '</div>'
+    );
+  }
+
+  function escapeHtml(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  function setSyncStatus(msg, isSyncing) {
+    const dot = document.getElementById('syncDot');
+    const text = document.getElementById('syncText');
+    if (!dot || !text) return;
+    dot.classList.toggle('syncing', !!isSyncing);
+    text.textContent = msg;
+  }
+
+  function initSync() {
+    if (!isConfigured) {
+      setSyncStatus('Not connected — finish setup above', false);
+      render();
+      return;
+    }
+
+    db.ref('.info/connected').on('value', function(snap) {
+      if (snap.val() === true) setSyncStatus('Connected — live sync on', false);
+      else setSyncStatus('Reconnecting...', true);
+    });
+
+    itemsRef.on('value', function(snapshot) {
+      const val = snapshot.val();
+      items = val && val.list ? val.list : [];
+      render();
+    }, function(err) {
+      setSyncStatus('Sync error: ' + err.message, false);
+    });
+  }
+
+  function saveItems() {
+    if (!isConfigured) return;
+    setSyncStatus('Saving...', true);
+    itemsRef.set({ list: items }).then(function() {
+      setSyncStatus('Connected — live sync on', false);
+    }).catch(function(err) {
+      setSyncStatus('Save failed: ' + err.message, false);
+    });
+  }
+
+  function pushHistory(item, delta) {
+    if (!item.history) item.history = [];
+    item.history.push({ ts: Date.now(), delta: delta, actor: myName || 'someone' });
+    if (item.history.length > 300) item.history = item.history.slice(-300);
+  }
+
+  document.getElementById('searchToggle').addEventListener('click', function() {
+    const bar = document.getElementById('searchBar');
+    const input = document.getElementById('searchInput');
+    const nowExpanded = bar.classList.toggle('expanded');
+    if (nowExpanded) {
+      input.focus();
+    } else {
+      input.value = '';
+      searchQuery = '';
+      render();
+    }
+  });
+
+  document.getElementById('searchInput').addEventListener('input', function(e) {
+    searchQuery = e.target.value;
+    render();
+  });
+
+  function updateWhoLabel() {
+    const label = document.getElementById('whoLabel');
+    if (label) label.textContent = myName || 'Set name';
+  }
+
+  function showNamePopup() {
+    const input = document.getElementById('namePopupInput');
+    input.value = myName;
+    document.getElementById('namePopup').style.display = 'flex';
+    setTimeout(function() { input.focus(); }, 50);
+  }
+
+  function hideNamePopup() {
+    document.getElementById('namePopup').style.display = 'none';
+  }
+
+  document.getElementById('whoBtn').addEventListener('click', showNamePopup);
+
+  document.getElementById('namePopupSave').addEventListener('click', function() {
+    const val = document.getElementById('namePopupInput').value.trim();
+    myName = val;
+    localStorage.setItem(NAME_KEY, myName);
+    updateWhoLabel();
+    hideNamePopup();
+  });
+
+  document.getElementById('namePopupSkip').addEventListener('click', function() {
+    hideNamePopup();
+  });
+
+  document.getElementById('namePopupInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') document.getElementById('namePopupSave').click();
+  });
+
+  /* ---------- Undo ---------- */
+
+  function pushUndo() {
+    undoStack.push(JSON.parse(JSON.stringify(items)));
+    if (undoStack.length > 25) undoStack.shift();
+    updateUndoBtn();
+  }
+
+  function updateUndoBtn() {
+    const btn = document.getElementById('undoBtn');
+    if (btn) btn.disabled = undoStack.length === 0;
+  }
+
+  function undoLast() {
+    if (!undoStack.length) return;
+    items = undoStack.pop();
+    minimized = new Set();
+    expanded = new Set();
+    render();
+    saveItems();
+    updateUndoBtn();
+  }
+
+  document.getElementById('undoBtn').addEventListener('click', undoLast);
+
+  /* ---------- Delete confirmation ---------- */
+
+  function askDeleteItem(idx) {
+    if (!items[idx]) return;
+    pendingDeleteIdx = idx;
+    document.getElementById('confirmText').textContent =
+      'Delete "' + items[idx].name + '" and its history? You can undo this right after with the Undo button.';
+    document.getElementById('confirmModal').style.display = 'flex';
+  }
+
+  document.getElementById('confirmCancel').addEventListener('click', function() {
+    pendingDeleteIdx = null;
+    document.getElementById('confirmModal').style.display = 'none';
+  });
+
+  document.getElementById('confirmOk').addEventListener('click', function() {
+    if (pendingDeleteIdx === null || !items[pendingDeleteIdx]) {
+      document.getElementById('confirmModal').style.display = 'none';
+      return;
+    }
+    pushUndo();
+    items.splice(pendingDeleteIdx, 1);
+    pendingDeleteIdx = null;
+    document.getElementById('confirmModal').style.display = 'none';
+    render();
+    saveItems();
+  });
+
+  /* ---------- Sort / reorder ---------- */
+
+  document.getElementById('sortSelect').addEventListener('change', function(e) {
+    const mode = e.target.value;
+    if (mode === 'manual') return;
+    const comparators = {
+      'name-asc': function(a, b) { return a.name.localeCompare(b.name); },
+      'cases-desc': function(a, b) { return calc(b.units, b.caseSize).decimalCases - calc(a.units, a.caseSize).decimalCases; },
+      'cases-asc': function(a, b) { return calc(a.units, a.caseSize).decimalCases - calc(b.units, b.caseSize).decimalCases; },
+      'units-asc': function(a, b) { return a.units - b.units; },
+      'units-desc': function(a, b) { return b.units - a.units; }
+    };
+    const cmp = comparators[mode];
+    if (cmp) {
+      pushUndo();
+      items.sort(cmp);
+      minimized = new Set();
+      expanded = new Set();
+      render();
+      saveItems();
+    }
+    e.target.value = 'manual';
+  });
+
+  /* ---------- PIN lock ---------- */
+
+  function simpleHash(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
+    }
+    return String(hash);
+  }
+
+  function showLockScreen() {
+    document.getElementById('lockScreen').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  }
+
+  function hideLockScreen() {
+    document.getElementById('lockScreen').style.display = 'none';
+    document.body.style.overflow = '';
+  }
+
+  function renderLockScreen() {
+    const title = document.getElementById('lockTitle');
+    const sub = document.getElementById('lockSub');
+    const skipBtn = document.getElementById('pinSkipBtn');
+    const dots = document.getElementById('pinDots');
+    dots.innerHTML = Array.from({ length: 4 }).map(function(_, i) {
+      return '<span class="pin-dot' + (i < pinEntry.length ? ' filled' : '') + '"></span>';
+    }).join('');
+
+    if (pinMode === 'setup') {
+      title.textContent = 'Set a PIN';
+      sub.textContent = 'Choose a 4-digit PIN to lock this app on this device.';
+      skipBtn.style.visibility = pinChangeOnly ? 'hidden' : 'visible';
+    } else if (pinMode === 'confirm') {
+      title.textContent = 'Confirm PIN';
+      sub.textContent = 'Enter it again to confirm.';
+      skipBtn.style.visibility = 'hidden';
+    } else {
+      title.textContent = 'Enter PIN';
+      sub.textContent = '';
+      skipBtn.style.visibility = 'hidden';
+    }
+  }
+
+  function shakeLock() {
+    const box = document.getElementById('lockBox');
+    box.classList.add('shake');
+    setTimeout(function() { box.classList.remove('shake'); }, 400);
+  }
+
+  function pinKeyPress(k) {
+    if (k === 'back') {
+      pinEntry = pinEntry.slice(0, -1);
+      renderLockScreen();
+      return;
+    }
+    if (k === 'skip') {
+      localStorage.setItem(PIN_SKIP_KEY, '1');
+      unlocked = true;
+      hideLockScreen();
+      onUnlocked();
+      return;
+    }
+    if (pinEntry.length >= 4) return;
+    pinEntry += k;
+    renderLockScreen();
+    if (pinEntry.length === 4) {
+      setTimeout(handlePinComplete, 150);
+    }
+  }
+
+  function handlePinComplete() {
+    if (pinMode === 'unlock') {
+      const savedHash = localStorage.getItem(PIN_KEY);
+      if (simpleHash(pinEntry) === savedHash) {
+        pinEntry = '';
+        unlocked = true;
+        hideLockScreen();
+        onUnlocked();
+      } else {
+        shakeLock();
+        pinEntry = '';
+        renderLockScreen();
+      }
+    } else if (pinMode === 'setup') {
+      pinFirstEntry = pinEntry;
+      pinEntry = '';
+      pinMode = 'confirm';
+      renderLockScreen();
+    } else if (pinMode === 'confirm') {
+      if (pinEntry === pinFirstEntry) {
+        localStorage.setItem(PIN_KEY, simpleHash(pinEntry));
+        localStorage.removeItem(PIN_SKIP_KEY);
+        pinEntry = '';
+        pinFirstEntry = '';
+        hideLockScreen();
+        updateLockUi();
+        if (pinChangeOnly) {
+          pinChangeOnly = false;
+        } else {
+          unlocked = true;
+          onUnlocked();
+        }
+      } else {
+        shakeLock();
+        pinEntry = '';
+        pinFirstEntry = '';
+        pinMode = 'setup';
+        renderLockScreen();
+        alert('PINs didn\'t match. Try again.');
+      }
+    }
+  }
+
+  document.getElementById('keypad').addEventListener('click', function(e) {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    pinKeyPress(btn.getAttribute('data-k'));
+  });
+
+  document.getElementById('pinForgotBtn').addEventListener('click', function() {
+    if (confirm('This clears the PIN lock on this device only — your inventory data is safe and stays synced. Continue?')) {
+      localStorage.removeItem(PIN_KEY);
+      localStorage.removeItem(PIN_SKIP_KEY);
+      pinChangeOnly = false;
+      pinMode = 'setup';
+      pinEntry = '';
+      renderLockScreen();
+    }
+  });
+
+  document.getElementById('relockBtn').addEventListener('click', function() {
+    unlocked = false;
+    pinChangeOnly = false;
+    pinMode = 'unlock';
+    pinEntry = '';
+    renderLockScreen();
+    showLockScreen();
+  });
+
+  document.getElementById('pinSettingsBtn').addEventListener('click', function() {
+    const hasPin = !!localStorage.getItem(PIN_KEY);
+    if (hasPin) {
+      const setNew = confirm('Tap OK to set a new PIN, or Cancel to turn the PIN lock off.');
+      if (!setNew) {
+        localStorage.removeItem(PIN_KEY);
+        localStorage.removeItem(PIN_SKIP_KEY);
+        alert('PIN lock turned off for this device.');
+        updateLockUi();
+        return;
+      }
+    }
+    pinChangeOnly = true;
+    pinMode = 'setup';
+    pinEntry = '';
+    renderLockScreen();
+    showLockScreen();
+  });
+
+  function updateLockUi() {
+    const hasPin = !!localStorage.getItem(PIN_KEY);
+    const relockBtn = document.getElementById('relockBtn');
+    if (relockBtn) relockBtn.style.display = hasPin ? 'inline-block' : 'none';
+  }
+
+  function onUnlocked() {
+    showNamePopup();
+  }
+
+  function startLockFlow() {
+    const savedHash = localStorage.getItem(PIN_KEY);
+    const skipped = localStorage.getItem(PIN_SKIP_KEY);
+    if (savedHash) {
+      pinMode = 'unlock';
+      pinEntry = '';
+      renderLockScreen();
+      showLockScreen();
+    } else if (!skipped) {
+      pinMode = 'setup';
+      pinEntry = '';
+      renderLockScreen();
+      showLockScreen();
+    } else {
+      unlocked = true;
+      onUnlocked();
+    }
+  }
+
+  document.getElementById('addBtn').addEventListener('click', function() {
+    const nameInput = document.getElementById('newName');
+    const caseInput = document.getElementById('newCaseSize');
+    const name = nameInput.value.trim();
+    const caseSize = parseInt(caseInput.value, 10);
+    if (!name) {
+      nameInput.style.borderColor = 'var(--red)';
+      return;
+    }
+    if (!caseSize || caseSize < 1) {
+      caseInput.style.borderColor = 'var(--red)';
+      return;
+    }
+    nameInput.style.borderColor = '';
+    caseInput.style.borderColor = '';
+    pushUndo();
+    items.push({ name: name, caseSize: caseSize, units: caseSize, mode: 'case' });
+    minimized.add(items.length - 1);
+    nameInput.value = '';
+    caseInput.value = '';
+    render();
+    saveItems();
+  });
+
+  document.getElementById('itemList').addEventListener('click', function(e) {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    const idx = parseInt(btn.getAttribute('data-idx'), 10);
+    if (isNaN(idx) || !items[idx]) return;
+    const action = btn.getAttribute('data-action');
+
+    if (btn.classList.contains('mode-btn')) {
+      items[idx].mode = btn.getAttribute('data-mode');
+      render();
+      saveItems();
+      return;
+    }
+
+    if (btn.classList.contains('remove-btn-footer')) {
+      askDeleteItem(idx);
+      return;
+    }
+
+    if (btn.classList.contains('edit-case')) {
+      const val = prompt('Units per case for "' + items[idx].name + '":', items[idx].caseSize);
+      const n = parseInt(val, 10);
+      if (n && n > 0) {
+        pushUndo();
+        items[idx].caseSize = n;
+        render();
+        saveItems();
+      }
+      return;
+    }
+
+    if (btn.classList.contains('edit-lowstock')) {
+      const val = prompt('Alert when units drop to or below (leave blank to turn off):', items[idx].lowStock || '');
+      if (val === null) return;
+      const n = parseInt(val, 10);
+      pushUndo();
+      items[idx].lowStock = (val.trim() === '' || isNaN(n)) ? null : n;
+      render();
+      saveItems();
+      return;
+    }
+
+    if (action === 'toggle-history') {
+      if (expanded.has(idx)) expanded.delete(idx);
+      else expanded.add(idx);
+      render();
+      return;
+    }
+
+    if (action === 'toggle-mini') {
+      if (minimized.has(idx)) minimized.delete(idx);
+      else minimized.add(idx);
+      render();
+      return;
+    }
+
+    if (action === 'up' && idx > 0) {
+      pushUndo();
+      const tmp = items[idx - 1];
+      items[idx - 1] = items[idx];
+      items[idx] = tmp;
+      render();
+      saveItems();
+      return;
+    }
+
+    if (action === 'down' && idx < items.length - 1) {
+      pushUndo();
+      const tmp = items[idx + 1];
+      items[idx + 1] = items[idx];
+      items[idx] = tmp;
+      render();
+      saveItems();
+      return;
+    }
+
+    const item = items[idx];
+    let delta = 0;
+    if (action === 'unit+1') delta = 1;
+    else if (action === 'unit-1') delta = -Math.min(1, item.units);
+    else if (action === 'case+1') delta = item.caseSize;
+    else if (action === 'case-1') delta = -Math.min(item.caseSize, item.units);
+    if (delta !== 0) {
+      pushUndo();
+      item.units = Math.max(0, item.units + delta);
+      pushHistory(item, delta);
+    }
+    render();
+    saveItems();
+  });
+
+  const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  const NUM_WORDS = {
+    zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+    eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17,
+    eighteen: 18, nineteen: 19, twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60,
+    seventy: 70, eighty: 80, ninety: 90, hundred: 100
+  };
+
+  function wordsToDigits(text) {
+    const words = text.split(/\s+/);
+    const out = [];
+    let i = 0;
+    while (i < words.length) {
+      const clean = words[i].toLowerCase().replace(/[^a-z]/g, '');
+      if (Object.prototype.hasOwnProperty.call(NUM_WORDS, clean)) {
+        let total = 0;
+        let current = 0;
+        while (i < words.length) {
+          const w = words[i].toLowerCase().replace(/[^a-z]/g, '');
+          if (w === 'and') { i++; continue; }
+          if (!Object.prototype.hasOwnProperty.call(NUM_WORDS, w)) break;
+          const val = NUM_WORDS[w];
+          if (val === 100) {
+            current = (current === 0 ? 1 : current) * 100;
+          } else {
+            current += val;
+          }
+          i++;
+        }
+        total += current;
+        out.push(String(total));
+      } else {
+        out.push(words[i]);
+        i++;
+      }
+    }
+    return out.join(' ');
+  }
+
+  function toTitleCase(s) {
+    return s.replace(/\w\S*/g, function(w) {
+      return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+    });
+  }
+
+  function matchItem(nameGuess) {
+    if (!nameGuess) return -1;
+    const lower = nameGuess.toLowerCase().trim();
+    if (!lower) return -1;
+    let idx = items.findIndex(function(it) { return it.name.toLowerCase() === lower; });
+    if (idx !== -1) return idx;
+    idx = items.findIndex(function(it) {
+      return it.name.toLowerCase().includes(lower) || lower.includes(it.name.toLowerCase());
+    });
+    return idx;
+  }
+
+  function parseGlobalCommand(text) {
+    const raw = wordsToDigits(text.trim());
+    if (!raw) return null;
+    const lower = raw.toLowerCase();
+
+    const createMatch = lower.match(/\b(?:add|create|new)\b[^a-z0-9]*item\b(.*)$/);
+    if (createMatch) {
+      let rest = createMatch[1];
+      const numMatch = rest.match(/-?\d+(\.\d+)?/);
+      if (!numMatch) {
+        return { type: 'error', message: 'Tell me the units per case too, like "add item napkins, 50 per case."' };
+      }
+      const caseSize = Math.round(parseFloat(numMatch[0]));
+      let name = rest.slice(0, numMatch.index)
+        .replace(/,/g, ' ')
+        .replace(/\b(with|is|of|at|units?|per|case|cases|box|boxes|a|an)\b/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (!name) name = 'New item';
+      return { type: 'create', name: toTitleCase(name), caseSize: caseSize };
+    }
+
+    let sign = 1;
+    if (/\b(remove|subtract|minus|took|take away|used up)\b/.test(lower)) sign = -1;
+    const setMode = /\bset\b/.test(lower) && sign === 1 && !/\badd\b/.test(lower);
+
+    const numMatch = lower.match(/-?\d+(\.\d+)?/);
+    if (!numMatch) {
+      return { type: 'error', message: 'Didn\'t catch a number. Try "add 3 cases of napkins."' };
+    }
+    const num = Math.round(parseFloat(numMatch[0]));
+    const isCaseWord = /\b(case|cases|box|boxes)\b/.test(lower);
+
+    let nameGuess = lower
+      .replace(numMatch[0], ' ')
+      .replace(/\b(add|remove|subtract|minus|set|took|take|away|used|up|plus|of|to|from|the|a|an|is|units?|case|cases|box|boxes|please)\b/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    const idx = matchItem(nameGuess);
+    if (idx === -1) {
+      return {
+        type: 'error',
+        message: nameGuess ? ('Couldn\'t find an item called "' + nameGuess + '." Try "add item ' + nameGuess + ', 24 per case" to create it.') : 'Which item? Try "add 3 cases of napkins."'
+      };
+    }
+
+    const item = items[idx];
+    const deltaUnits = isCaseWord ? num * item.caseSize : num;
+    if (setMode) return { type: 'set', idx: idx, value: deltaUnits };
+    return { type: 'delta', idx: idx, value: sign * deltaUnits };
+  }
+
+  function showCommandToast(msg, isError) {
+    const t = document.getElementById('commandToast');
+    t.textContent = msg;
+    t.classList.toggle('error', !!isError);
+  }
+
+  function submitGlobalCommand() {
+    const input = document.getElementById('commandInput');
+    const result = parseGlobalCommand(input.value);
+    if (!result) return;
+
+    if (result.type === 'error') {
+      showCommandToast(result.message, true);
+      return;
+    }
+
+    if (result.type === 'create') {
+      pushUndo();
+      items.push({ name: result.name, caseSize: result.caseSize, units: result.caseSize, mode: 'case', history: [] });
+      minimized.add(items.length - 1);
+      showCommandToast('Created "' + result.name + '" (' + result.caseSize + ' per case)');
+      input.value = '';
+      render();
+      saveItems();
+      return;
+    }
+
+    const item = items[result.idx];
+    pushUndo();
+    if (result.type === 'set') {
+      const delta = result.value - item.units;
+      item.units = result.value;
+      if (delta !== 0) pushHistory(item, delta);
+      showCommandToast('Set ' + item.name + ' to ' + result.value.toLocaleString() + ' units');
+    } else {
+      const before = item.units;
+      item.units = Math.max(0, item.units + result.value);
+      const actualDelta = item.units - before;
+      if (actualDelta !== 0) pushHistory(item, actualDelta);
+      const verb = result.value >= 0 ? 'Added' : 'Removed';
+      showCommandToast(verb + ' ' + Math.abs(result.value).toLocaleString() + ' units ' + (result.value >= 0 ? 'to' : 'from') + ' ' + item.name);
+    }
+    input.value = '';
+    render();
+    saveItems();
+  }
+
+  document.getElementById('commandGo').addEventListener('click', submitGlobalCommand);
+  document.getElementById('commandInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') submitGlobalCommand();
+  });
+
+  document.getElementById('commandMic').addEventListener('click', function() {
+    if (!SpeechRecognitionAPI) {
+      showCommandToast('Voice input isn\'t supported in this browser — tap the field and use your keyboard\'s dictation button instead.', true);
+      return;
+    }
+    const btn = document.getElementById('commandMic');
+    const recognition = new SpeechRecognitionAPI();
+    recognition.lang = 'en-US';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = function() {
+      btn.classList.add('listening');
+      showCommandToast('Listening...');
+    };
+    recognition.onresult = function(e) {
+      const said = e.results[0][0].transcript;
+      document.getElementById('commandInput').value = wordsToDigits(said);
+      submitGlobalCommand();
+    };
+    recognition.onerror = function() {
+      showCommandToast('Couldn\'t hear that clearly. Try again.', true);
+    };
+    recognition.onend = function() {
+      btn.classList.remove('listening');
+    };
+    recognition.start();
+  });
+
+  initSync();
+  updateWhoLabel();
+  updateLockUi();
+  updateUndoBtn();
+  startLockFlow();
+</script>
+
+</body>
+</html>
