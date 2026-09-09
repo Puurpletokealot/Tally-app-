@@ -134,9 +134,9 @@
   .item-card {
     background: var(--panel);
     border: 1px solid var(--line);
-    border-radius: 12px;
-    padding: 14px;
-    margin-bottom: 12px;
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
   }
 
   .item-top {
@@ -211,12 +211,12 @@
     text-align: center;
     background: var(--panel-2);
     border-radius: 8px;
-    padding: 14px 8px;
-    margin-bottom: 12px;
+    padding: 8px 8px;
+    margin-bottom: 8px;
   }
 
   .display .total {
-    font-size: 32px;
+    font-size: 24px;
     font-weight: 700;
     color: var(--amber);
     font-variant-numeric: tabular-nums;
@@ -272,57 +272,53 @@
   .ctrl-buttons button.minus { color: var(--red); }
   .ctrl-buttons button.plus { color: var(--teal); }
 
-  .quick-add {
-    display: flex;
-    gap: 6px;
-    margin-top: 10px;
+  .expand-btn, .reorder-btn[data-action="toggle-mini"] {
+    color: var(--text-dim);
   }
 
-  .quick-add input {
+  .item-card.mini {
+    padding: 10px 12px;
+  }
+
+  .mini-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .mini-name {
     flex: 1;
     min-width: 0;
     font-size: 14px;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
-  .mic-btn {
-    background: var(--panel-2);
-    border: 1px solid var(--line);
-    color: var(--teal);
-    border-radius: 8px;
-    width: 40px;
-    flex-shrink: 0;
-    font-size: 16px;
-    cursor: pointer;
-  }
-
-  .mic-btn.listening {
-    background: var(--red);
-    color: #fff;
-    border-color: var(--red);
-  }
-
-  .mic-btn:disabled {
-    opacity: 0.35;
-    cursor: default;
-  }
-
-  .go-btn {
-    background: var(--amber);
-    color: #2a1c05;
-    border: none;
-    border-radius: 8px;
-    padding: 0 14px;
-    font-family: inherit;
+  .mini-count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px;
     font-weight: 700;
-    font-size: 13px;
-    cursor: pointer;
-    flex-shrink: 0;
+    color: var(--amber);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
   }
 
-  .quick-hint {
+  .mini-unit {
+    font-family: 'Quicksand', system-ui, sans-serif;
     font-size: 11px;
     color: var(--text-dim);
-    margin-top: 5px;
+    font-weight: 500;
+  }
+
+  .expand-btn {
+    background: none;
+    border: none;
+    font-size: 12px;
+    cursor: pointer;
+    padding: 4px;
+    flex-shrink: 0;
   }
 
   .name-bar {
@@ -622,6 +618,7 @@
   const NAME_KEY = 'tally_myname';
   let items = [];
   let expanded = new Set();
+  let minimized = new Set();
   let myName = localStorage.getItem(NAME_KEY) || '';
 </script>
 <script>
@@ -650,6 +647,20 @@
         ? (c.rem > 0 ? '+' + c.rem + ' unit' + (c.rem === 1 ? '' : 's') + ' left over &middot; ' + item.units.toLocaleString() + ' total units' : item.units.toLocaleString() + ' total units')
         : c.cases + ' case' + (c.cases === 1 ? '' : 's') + ' + ' + c.rem + ' unit' + (c.rem === 1 ? '' : 's');
 
+      const lowStock = item.lowStock && item.units <= item.lowStock;
+
+      if (minimized.has(idx)) {
+        return (
+          '<div class="item-card mini' + (lowStock ? ' low-stock' : '') + '" data-idx="' + idx + '">' +
+            '<div class="mini-row">' +
+              '<div class="mini-name">' + escapeHtml(item.name) + (lowStock ? '<span class="low-stock-badge">Low</span>' : '') + '</div>' +
+              '<div class="mini-count">' + primaryValue.toLocaleString() + ' <span class="mini-unit">' + primaryUnit + '</span></div>' +
+              '<button type="button" class="expand-btn" data-action="toggle-mini" data-idx="' + idx + '" aria-label="Expand">&#9660;</button>' +
+            '</div>' +
+          '</div>'
+        );
+      }
+
       const caseButtons =
         '<div class="ctrl-group">' +
           '<div class="ctrl-label">Case</div>' +
@@ -667,8 +678,6 @@
           '</div>' +
         '</div>';
 
-      const lowStock = item.lowStock && item.units <= item.lowStock;
-
       return (
         '<div class="item-card' + (lowStock ? ' low-stock' : '') + '" data-idx="' + idx + '">' +
           '<div class="item-top">' +
@@ -680,6 +689,7 @@
             '<div class="top-actions">' +
               '<button class="reorder-btn" data-action="up" data-idx="' + idx + '" aria-label="Move up" ' + (idx === 0 ? 'disabled' : '') + '>&uarr;</button>' +
               '<button class="reorder-btn" data-action="down" data-idx="' + idx + '" aria-label="Move down" ' + (idx === items.length - 1 ? 'disabled' : '') + '>&darr;</button>' +
+              '<button class="reorder-btn" data-action="toggle-mini" data-idx="' + idx + '" aria-label="Collapse">&#9650;</button>' +
               '<button class="remove-btn" data-idx="' + idx + '" aria-label="Remove item">&times;</button>' +
             '</div>' +
           '</div>' +
@@ -688,19 +698,12 @@
             '<button type="button" class="mode-btn ' + (!isCase ? 'active' : '') + '" data-idx="' + idx + '" data-mode="unit">Count by unit</button>' +
           '</div>' +
           '<div class="display">' +
-            '<div class="total">' + primaryValue.toLocaleString() + ' <span style="font-size:16px; color: var(--text-dim);">' + primaryUnit + '</span></div>' +
+            '<div class="total">' + primaryValue.toLocaleString() + ' <span style="font-size:14px; color: var(--text-dim);">' + primaryUnit + '</span></div>' +
             '<div class="breakdown">' + secondaryText + '</div>' +
           '</div>' +
           '<div class="controls">' +
             (isCase ? caseButtons + unitButtons : unitButtons + caseButtons) +
           '</div>' +
-          '<div class="quick-add">' +
-            '<input type="text" inputmode="text" class="quick-input" data-idx="' + idx + '" placeholder="e.g. 3 cases, add 15, remove 2">' +
-            '<button type="button" class="mic-btn" data-idx="' + idx + '" data-action="mic" aria-label="Speak a count">&#127908;</button>' +
-            '<button type="button" class="go-btn" data-idx="' + idx + '" data-action="go">Go</button>' +
-          '</div>' +
-          '<div class="quick-hint">Type it, or tap the mic (or your keyboard\'s dictation button) and say a count</div>' +
-          '<div class="toast" data-idx="' + idx + '"></div>' +
           '<button type="button" class="history-toggle" data-action="toggle-history" data-idx="' + idx + '">' +
             (expanded.has(idx) ? 'Hide history' : 'Show history') +
           '</button>' +
@@ -915,6 +918,13 @@
       return;
     }
 
+    if (action === 'toggle-mini') {
+      if (minimized.has(idx)) minimized.delete(idx);
+      else minimized.add(idx);
+      render();
+      return;
+    }
+
     if (action === 'up' && idx > 0) {
       const tmp = items[idx - 1];
       items[idx - 1] = items[idx];
@@ -933,16 +943,6 @@
       return;
     }
 
-    if (action === 'go') {
-      submitQuickAdd(idx);
-      return;
-    }
-
-    if (action === 'mic') {
-      startVoice(idx);
-      return;
-    }
-
     const item = items[idx];
     let delta = 0;
     if (action === 'unit+1') delta = 1;
@@ -957,102 +957,7 @@
     saveItems();
   });
 
-  document.getElementById('itemList').addEventListener('keydown', function(e) {
-    if (e.key === 'Enter' && e.target.classList.contains('quick-input')) {
-      const idx = parseInt(e.target.getAttribute('data-idx'), 10);
-      submitQuickAdd(idx);
-    }
-  });
-
-  function showToast(idx, msg, isError) {
-    const t = document.querySelector('.toast[data-idx="' + idx + '"]');
-    if (!t) return;
-    t.textContent = msg;
-    t.classList.toggle('error', !!isError);
-  }
-
-  function parsePhrase(text, item) {
-    const raw = text.trim().toLowerCase();
-    if (!raw) return null;
-
-    let sign = 1;
-    let cleaned = raw;
-    if (/\b(remove|subtract|minus|take away|took away)\b/.test(cleaned)) sign = -1;
-    if (/\b(set|total is|total)\b/.test(cleaned) && !/\b(remove|subtract|minus)\b/.test(cleaned)) sign = 0;
-
-    const numMatch = cleaned.match(/-?\d+(\.\d+)?/);
-    if (!numMatch) return null;
-    const num = Math.round(parseFloat(numMatch[0]));
-
-    const isCaseWord = /\b(case|cases|box|boxes)\b/.test(cleaned);
-
-    let deltaUnits;
-    if (isCaseWord) deltaUnits = num * item.caseSize;
-    else deltaUnits = num;
-
-    if (sign === 0) {
-      return { type: 'set', value: Math.abs(deltaUnits) };
-    }
-    return { type: 'delta', value: sign * deltaUnits };
-  }
-
-  function submitQuickAdd(idx) {
-    const input = document.querySelector('.quick-input[data-idx="' + idx + '"]');
-    if (!input || !items[idx]) return;
-    const result = parsePhrase(input.value, items[idx]);
-    if (!result) {
-      showToast(idx, 'Didn\'t catch a number there. Try "3 cases" or "15".', true);
-      return;
-    }
-    if (result.type === 'set') {
-      const delta = result.value - items[idx].units;
-      items[idx].units = result.value;
-      if (delta !== 0) pushHistory(items[idx], delta);
-      showToast(idx, 'Set to ' + result.value.toLocaleString() + ' units');
-    } else {
-      const before = items[idx].units;
-      items[idx].units = Math.max(0, items[idx].units + result.value);
-      const actualDelta = items[idx].units - before;
-      if (actualDelta !== 0) pushHistory(items[idx], actualDelta);
-      const verb = result.value >= 0 ? 'Added' : 'Removed';
-      showToast(idx, verb + ' ' + Math.abs(result.value).toLocaleString() + ' units');
-    }
-    input.value = '';
-    render();
-    saveItems();
-  }
-
   const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-  function startVoice(idx) {
-    if (!SpeechRecognitionAPI) {
-      showToast(idx, 'Voice input isn\'t supported here — tap the field and use your keyboard\'s dictation button instead.', true);
-      return;
-    }
-    const btn = document.querySelector('.mic-btn[data-idx="' + idx + '"]');
-    const recognition = new SpeechRecognitionAPI();
-    recognition.lang = 'en-US';
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-
-    recognition.onstart = function() {
-      if (btn) btn.classList.add('listening');
-      showToast(idx, 'Listening...');
-    };
-    recognition.onresult = function(e) {
-      const said = e.results[0][0].transcript;
-      const input = document.querySelector('.quick-input[data-idx="' + idx + '"]');
-      if (input) input.value = said;
-      submitQuickAdd(idx);
-    };
-    recognition.onerror = function() {
-      showToast(idx, 'Couldn\'t hear that clearly. Try again.', true);
-    };
-    recognition.onend = function() {
-      if (btn) btn.classList.remove('listening');
-    };
-    recognition.start();
-  }
 
   function toTitleCase(s) {
     return s.replace(/\w\S*/g, function(w) {
