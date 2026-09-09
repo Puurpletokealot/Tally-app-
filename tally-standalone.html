@@ -670,6 +670,25 @@
     outline: none;
   }
 
+  .list-header {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    margin-bottom: 8px;
+  }
+
+  .collapse-all-btn {
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    color: var(--text-dim);
+    border-radius: 7px;
+    padding: 6px 12px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
   /* Card footer delete button (bottom-left) */
   .card-footer {
     display: flex;
@@ -889,6 +908,11 @@
   Setup needed: open this file's code, find the <code>firebaseConfig</code> block near the bottom, and paste in your own Firebase project's config. See the instructions Claude gave you alongside this file.
 </div>
 
+<div class="list-header">
+  <span></span>
+  <button type="button" class="collapse-all-btn" id="collapseAllBtn">Collapse all</button>
+</div>
+
 <div id="itemList"></div>
 
 <div class="modal-overlay" id="namePopup" style="display:none;">
@@ -945,18 +969,26 @@
 
   let db = null;
   let itemsRef = null;
+  let pinRef = null;
   if (isConfigured) {
     firebase.initializeApp(firebaseConfig);
     db = firebase.database();
     itemsRef = db.ref('tally/items');
+    pinRef = db.ref('tally/pinHash');
   }
 
   const NAME_KEY = 'tally_myname';
   const PIN_KEY = 'tally_pin_hash';
   const PIN_SKIP_KEY = 'tally_pin_setup_skipped';
+  const EXPANDED_CARDS_KEY = 'tally_expanded_card_ids';
   let items = [];
-  let expanded = new Set();
-  let minimized = new Set();
+  let expandedHistoryIds = new Set();
+  let expandedCardIds = new Set();
+  try {
+    expandedCardIds = new Set(JSON.parse(localStorage.getItem(EXPANDED_CARDS_KEY) || '[]'));
+  } catch (e) {
+    expandedCardIds = new Set();
+  }
   let searchQuery = '';
   let myName = localStorage.getItem(NAME_KEY) || '';
   let undoStack = [];
@@ -966,6 +998,8 @@
   let pinFirstEntry = '';
   let pinChangeOnly = false;
   let unlocked = false;
+  let remotePinHash = null;
+  let pinFlowInitialized = false;
 </script>
 <script>
 
@@ -977,7 +1011,39 @@
     return { cases, rem, decimalCases };
   }
 
+  function genId() {
+    return 'i_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  }
+
+  function ensureIds() {
+    let changed = false;
+    items.forEach(function(it) {
+      if (!it.id) {
+        it.id = genId();
+        changed = true;
+      }
+    });
+    return changed;
+  }
+
+  function saveExpandedCardIds() {
+    localStorage.setItem(EXPANDED_CARDS_KEY, JSON.stringify(Array.from(expandedCardIds)));
+  }
+
+  function updateCollapseAllBtn() {
+    const btn = document.getElementById('collapseAllBtn');
+    if (!btn) return;
+    if (!items.length) {
+      btn.style.visibility = 'hidden';
+      return;
+    }
+    btn.style.visibility = 'visible';
+    const anyExpanded = items.some(function(it) { return expandedCardIds.has(it.id); });
+    btn.textContent = anyExpanded ? 'Collapse all' : 'Expand all';
+  }
+
   function render() {
+    updateCollapseAllBtn();
     const list = document.getElementById('itemList');
     if (!items.length) {
       list.innerHTML = '<div class="empty">No items yet. Add one above to start counting.</div>';
@@ -1007,7 +1073,7 @@
 
       const lowStock = item.lowStock && item.units <= item.lowStock;
 
-      if (minimized.has(idx)) {
+      if (!expandedCardIds.has(item.id)) {
         return (
           '<div class="item-card mini' + (lowStock ? ' low-stock' : '') + '" data-idx="' + idx + '">' +
             '<div class="mini-row">' +
@@ -1062,9 +1128,9 @@
             (isCase ? caseButtons + unitButtons : unitButtons + caseButtons) +
           '</div>' +
           '<button type="button" class="history-toggle" data-action="toggle-history" data-idx="' + idx + '">' +
-            (expanded.has(idx) ? 'Hide history' : 'Show history') +
+            (expandedHistoryIds.has(item.id) ? 'Hide history' : 'Show history') +
           '</button>' +
-          (expanded.has(idx) ? buildHistoryPanel(item) : '') +
+          (expandedHistoryIds.has(item.id) ? buildHistoryPanel(item) : '') +
           '<div class="card-footer">' +
             '<button type="button" class="remove-btn-footer" data-idx="' + idx + '" aria-label="Delete item">&#128465; Delete item</button>' +
           '</div>' +
@@ -1165,6 +1231,9 @@
     itemsRef.on('value', function(snapshot) {
       const val = snapshot.val();
       items = val && val.list ? val.list : [];
+      if (ensureIds()) {
+        saveItems();
+      }
       render();
     }, function(err) {
       setSyncStatus('Sync error: ' + err.message, false);
@@ -1255,14 +1324,23 @@
   function undoLast() {
     if (!undoStack.length) return;
     items = undoStack.pop();
-    minimized = new Set();
-    expanded = new Set();
     render();
     saveItems();
     updateUndoBtn();
   }
 
   document.getElementById('undoBtn').addEventListener('click', undoLast);
+
+  document.getElementById('collapseAllBtn').addEventListener('click', function() {
+    const anyExpanded = items.some(function(it) { return expandedCardIds.has(it.id); });
+    if (anyExpanded) {
+      expandedCardIds.clear();
+    } else {
+      items.forEach(function(it) { expandedCardIds.add(it.id); });
+    }
+    saveExpandedCardIds();
+    render();
+  });
 
   /* ---------- Delete confirmation ---------- */
 
@@ -1285,8 +1363,14 @@
       return;
     }
     pushUndo();
+    const removedId = items[pendingDeleteIdx].id;
     items.splice(pendingDeleteIdx, 1);
     pendingDeleteIdx = null;
+    if (removedId) {
+      expandedCardIds.delete(removedId);
+      expandedHistoryIds.delete(removedId);
+      saveExpandedCardIds();
+    }
     document.getElementById('confirmModal').style.display = 'none';
     render();
     saveItems();
@@ -1308,15 +1392,13 @@
     if (cmp) {
       pushUndo();
       items.sort(cmp);
-      minimized = new Set();
-      expanded = new Set();
       render();
       saveItems();
     }
     e.target.value = 'manual';
   });
 
-  /* ---------- PIN lock ---------- */
+  /* ---------- PIN lock (shared admin PIN, synced via Firebase) ---------- */
 
   function simpleHash(str) {
     let hash = 0;
@@ -1324,6 +1406,31 @@
       hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
     }
     return String(hash);
+  }
+
+  // The PIN itself lives in Firebase (tally/pinHash) so every device that opens
+  // the link needs the same PIN. If this file isn't hooked up to Firebase at all,
+  // fall back to a device-only PIN stored in localStorage.
+  function getPinHash() {
+    return isConfigured ? remotePinHash : localStorage.getItem(PIN_KEY);
+  }
+
+  function setPinHash(hash) {
+    if (isConfigured && pinRef) {
+      pinRef.set(hash);
+      remotePinHash = hash;
+    } else {
+      localStorage.setItem(PIN_KEY, hash);
+    }
+  }
+
+  function removePinHash() {
+    if (isConfigured && pinRef) {
+      pinRef.remove();
+      remotePinHash = null;
+    } else {
+      localStorage.removeItem(PIN_KEY);
+    }
   }
 
   function showLockScreen() {
@@ -1346,8 +1453,8 @@
     }).join('');
 
     if (pinMode === 'setup') {
-      title.textContent = 'Set a PIN';
-      sub.textContent = 'Choose a 4-digit PIN to lock this app on this device.';
+      title.textContent = 'Set the app PIN';
+      sub.textContent = 'This PIN is required on every device that opens this link.';
       skipBtn.style.visibility = pinChangeOnly ? 'hidden' : 'visible';
     } else if (pinMode === 'confirm') {
       title.textContent = 'Confirm PIN';
@@ -1389,8 +1496,7 @@
 
   function handlePinComplete() {
     if (pinMode === 'unlock') {
-      const savedHash = localStorage.getItem(PIN_KEY);
-      if (simpleHash(pinEntry) === savedHash) {
+      if (simpleHash(pinEntry) === getPinHash()) {
         pinEntry = '';
         unlocked = true;
         hideLockScreen();
@@ -1407,7 +1513,7 @@
       renderLockScreen();
     } else if (pinMode === 'confirm') {
       if (pinEntry === pinFirstEntry) {
-        localStorage.setItem(PIN_KEY, simpleHash(pinEntry));
+        setPinHash(simpleHash(pinEntry));
         localStorage.removeItem(PIN_SKIP_KEY);
         pinEntry = '';
         pinFirstEntry = '';
@@ -1437,8 +1543,8 @@
   });
 
   document.getElementById('pinForgotBtn').addEventListener('click', function() {
-    if (confirm('This clears the PIN lock on this device only — your inventory data is safe and stays synced. Continue?')) {
-      localStorage.removeItem(PIN_KEY);
+    if (confirm('This removes the app PIN for everyone using this link — your inventory data is safe and stays synced. Continue?')) {
+      removePinHash();
       localStorage.removeItem(PIN_SKIP_KEY);
       pinChangeOnly = false;
       pinMode = 'setup';
@@ -1457,13 +1563,12 @@
   });
 
   document.getElementById('pinSettingsBtn').addEventListener('click', function() {
-    const hasPin = !!localStorage.getItem(PIN_KEY);
+    const hasPin = !!getPinHash();
     if (hasPin) {
-      const setNew = confirm('Tap OK to set a new PIN, or Cancel to turn the PIN lock off.');
+      const setNew = confirm('Tap OK to set a new PIN for everyone, or Cancel to turn the PIN lock off for everyone.');
       if (!setNew) {
-        localStorage.removeItem(PIN_KEY);
-        localStorage.removeItem(PIN_SKIP_KEY);
-        alert('PIN lock turned off for this device.');
+        removePinHash();
+        alert('PIN lock turned off for everyone using this link.');
         updateLockUi();
         return;
       }
@@ -1476,31 +1581,66 @@
   });
 
   function updateLockUi() {
-    const hasPin = !!localStorage.getItem(PIN_KEY);
+    const hasPin = !!getPinHash();
     const relockBtn = document.getElementById('relockBtn');
     if (relockBtn) relockBtn.style.display = hasPin ? 'inline-block' : 'none';
   }
 
   function onUnlocked() {
-    showNamePopup();
+    // Each device remembers its own name once set — only ask again if this
+    // device hasn't been told a name yet.
+    if (!myName) {
+      showNamePopup();
+    }
   }
 
-  function startLockFlow() {
-    const savedHash = localStorage.getItem(PIN_KEY);
-    const skipped = localStorage.getItem(PIN_SKIP_KEY);
-    if (savedHash) {
+  function evaluateInitialLock() {
+    const hasPin = !!getPinHash();
+    const skippedLocally = localStorage.getItem(PIN_SKIP_KEY);
+    if (hasPin) {
       pinMode = 'unlock';
       pinEntry = '';
       renderLockScreen();
       showLockScreen();
-    } else if (!skipped) {
+    } else if (!skippedLocally) {
       pinMode = 'setup';
+      pinChangeOnly = false;
       pinEntry = '';
       renderLockScreen();
       showLockScreen();
     } else {
       unlocked = true;
       onUnlocked();
+    }
+  }
+
+  function startLockFlow() {
+    if (isConfigured && pinRef) {
+      pinRef.on('value', function(snap) {
+        remotePinHash = snap.val() || null;
+        updateLockUi();
+        if (!pinFlowInitialized) {
+          pinFlowInitialized = true;
+          evaluateInitialLock();
+        } else if (unlocked && !remotePinHash) {
+          // Admin turned the PIN off while this device was already unlocked — nothing to do.
+        } else if (!unlocked && document.getElementById('lockScreen').style.display === 'flex' && pinMode === 'unlock' && !remotePinHash) {
+          // PIN was removed while someone was staring at the lock screen — let them in.
+          unlocked = true;
+          hideLockScreen();
+          onUnlocked();
+        }
+      }, function() {
+        // Firebase read failed (offline, etc.) — fail open rather than lock people out permanently.
+        if (!pinFlowInitialized) {
+          pinFlowInitialized = true;
+          unlocked = true;
+          onUnlocked();
+        }
+      });
+    } else {
+      remotePinHash = localStorage.getItem(PIN_KEY);
+      evaluateInitialLock();
     }
   }
 
@@ -1520,8 +1660,7 @@
     nameInput.style.borderColor = '';
     caseInput.style.borderColor = '';
     pushUndo();
-    items.push({ name: name, caseSize: caseSize, units: caseSize, mode: 'case' });
-    minimized.add(items.length - 1);
+    items.push({ id: genId(), name: name, caseSize: caseSize, units: caseSize, mode: 'case' });
     nameInput.value = '';
     caseInput.value = '';
     render();
@@ -1571,15 +1710,18 @@
     }
 
     if (action === 'toggle-history') {
-      if (expanded.has(idx)) expanded.delete(idx);
-      else expanded.add(idx);
+      const hid = items[idx].id;
+      if (expandedHistoryIds.has(hid)) expandedHistoryIds.delete(hid);
+      else expandedHistoryIds.add(hid);
       render();
       return;
     }
 
     if (action === 'toggle-mini') {
-      if (minimized.has(idx)) minimized.delete(idx);
-      else minimized.add(idx);
+      const cid = items[idx].id;
+      if (expandedCardIds.has(cid)) expandedCardIds.delete(cid);
+      else expandedCardIds.add(cid);
+      saveExpandedCardIds();
       render();
       return;
     }
@@ -1748,8 +1890,7 @@
 
     if (result.type === 'create') {
       pushUndo();
-      items.push({ name: result.name, caseSize: result.caseSize, units: result.caseSize, mode: 'case', history: [] });
-      minimized.add(items.length - 1);
+      items.push({ id: genId(), name: result.name, caseSize: result.caseSize, units: result.caseSize, mode: 'case', history: [] });
       showCommandToast('Created "' + result.name + '" (' + result.caseSize + ' per case)');
       input.value = '';
       render();
