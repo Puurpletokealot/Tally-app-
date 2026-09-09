@@ -950,7 +950,6 @@
       <button type="button" data-k="7">7</button><button type="button" data-k="8">8</button><button type="button" data-k="9">9</button>
       <button type="button" data-k="skip" id="pinSkipBtn">Skip</button><button type="button" data-k="0">0</button><button type="button" data-k="back">&larr;</button>
     </div>
-    <button type="button" class="lock-link" id="pinForgotBtn">Forgot PIN? Reset app lock</button>
   </div>
 </div>
 
@@ -1540,17 +1539,6 @@
     const btn = e.target.closest('button');
     if (!btn) return;
     pinKeyPress(btn.getAttribute('data-k'));
-  });
-
-  document.getElementById('pinForgotBtn').addEventListener('click', function() {
-    if (confirm('This removes the app PIN for everyone using this link — your inventory data is safe and stays synced. Continue?')) {
-      removePinHash();
-      localStorage.removeItem(PIN_SKIP_KEY);
-      pinChangeOnly = false;
-      pinMode = 'setup';
-      pinEntry = '';
-      renderLockScreen();
-    }
   });
 
   document.getElementById('relockBtn').addEventListener('click', function() {
