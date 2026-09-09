@@ -259,10 +259,10 @@
     background: var(--panel);
     border: 1px solid var(--line);
     color: var(--text);
-    border-radius: 6px;
-    padding: 8px 0;
+    border-radius: 5px;
+    padding: 5px 0;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 700;
     cursor: pointer;
   }
@@ -858,7 +858,8 @@
     }
     nameInput.style.borderColor = '';
     caseInput.style.borderColor = '';
-    items.push({ name: name, caseSize: caseSize, units: 0, mode: newMode });
+    items.push({ name: name, caseSize: caseSize, units: caseSize, mode: newMode });
+    minimized.add(items.length - 1);
     nameInput.value = '';
     caseInput.value = '';
     newMode = 'case';
@@ -959,6 +960,44 @@
 
   const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
 
+  const NUM_WORDS = {
+    zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+    eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17,
+    eighteen: 18, nineteen: 19, twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60,
+    seventy: 70, eighty: 80, ninety: 90, hundred: 100
+  };
+
+  function wordsToDigits(text) {
+    const words = text.split(/\s+/);
+    const out = [];
+    let i = 0;
+    while (i < words.length) {
+      const clean = words[i].toLowerCase().replace(/[^a-z]/g, '');
+      if (Object.prototype.hasOwnProperty.call(NUM_WORDS, clean)) {
+        let total = 0;
+        let current = 0;
+        while (i < words.length) {
+          const w = words[i].toLowerCase().replace(/[^a-z]/g, '');
+          if (w === 'and') { i++; continue; }
+          if (!Object.prototype.hasOwnProperty.call(NUM_WORDS, w)) break;
+          const val = NUM_WORDS[w];
+          if (val === 100) {
+            current = (current === 0 ? 1 : current) * 100;
+          } else {
+            current += val;
+          }
+          i++;
+        }
+        total += current;
+        out.push(String(total));
+      } else {
+        out.push(words[i]);
+        i++;
+      }
+    }
+    return out.join(' ');
+  }
+
   function toTitleCase(s) {
     return s.replace(/\w\S*/g, function(w) {
       return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
@@ -978,7 +1017,7 @@
   }
 
   function parseGlobalCommand(text) {
-    const raw = text.trim();
+    const raw = wordsToDigits(text.trim());
     if (!raw) return null;
     const lower = raw.toLowerCase();
 
@@ -1047,7 +1086,8 @@
     }
 
     if (result.type === 'create') {
-      items.push({ name: result.name, caseSize: result.caseSize, units: 0, mode: 'case', history: [] });
+      items.push({ name: result.name, caseSize: result.caseSize, units: result.caseSize, mode: 'case', history: [] });
+      minimized.add(items.length - 1);
       showCommandToast('Created "' + result.name + '" (' + result.caseSize + ' per case)');
       input.value = '';
       render();
@@ -1096,7 +1136,7 @@
     };
     recognition.onresult = function(e) {
       const said = e.results[0][0].transcript;
-      document.getElementById('commandInput').value = said;
+      document.getElementById('commandInput').value = wordsToDigits(said);
       submitGlobalCommand();
     };
     recognition.onerror = function() {
