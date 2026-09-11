@@ -1481,7 +1481,13 @@
     itemsRef.on('value', function(snapshot) {
       const val = snapshot.val();
       items = val && val.list ? val.list : [];
+      if (firstLoad) {
+        minimized.clear();
+        expanded.clear();
+        items.forEach(function(it, i) { minimized.add(i); });
+      }
       render();
+      updateCollapseAllBtn();
       if (firstLoad) {
         firstLoad = false;
         runUrlCommand();
