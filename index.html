@@ -397,6 +397,19 @@
     display: flex;
     align-items: center;
     gap: 8px;
+    width: 100%;
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    font-family: inherit;
+    color: inherit;
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .mini-row:active {
+    opacity: 0.7;
   }
 
   .mini-name {
@@ -426,10 +439,8 @@
   }
 
   .expand-btn {
-    background: none;
-    border: none;
-    font-size: 12px;
-    cursor: pointer;
+    font-size: 11px;
+    color: var(--text-dim);
     padding: 4px;
     flex-shrink: 0;
   }
@@ -1422,10 +1433,10 @@
       </button>
       <div class="admin-sec-body" data-body="data">
         <div class="admin-btn-grid">
-          <button type="button" class="admin-mini-btn" id="backupBtn">Backup &amp; export</button>
-          <button type="button" class="admin-mini-btn" id="restoreBtn">Restore</button>
+          <button type="button" class="admin-mini-btn" id="snapshotsBtn">Backups</button>
           <button type="button" class="admin-mini-btn" id="migrateBtn">Import old inventory</button>
         </div>
+        <div class="admin-note">Backups save automatically every time your changes sync. Open Backups to roll back to an earlier point or download a copy.</div>
       </div>
     </div>
 
@@ -1628,11 +1639,11 @@
       if (minimized.has(idx)) {
         return (
           '<div class="item-card mini' + (lowStock ? ' low-stock' : '') + '" data-idx="' + idx + '">' +
-            '<div class="mini-row">' +
-              '<div class="mini-name">' + escapeHtml(item.name) + (item.note ? '<span class="note-dot" title="Has a note">&#128221;</span>' : '') + (lowStock ? '<span class="low-stock-badge">Low</span>' : '') + '</div>' +
-              '<div class="mini-count">' + primaryValue.toLocaleString() + ' <span class="mini-unit">' + primaryUnit + '</span></div>' +
-              '<button type="button" class="expand-btn" data-action="toggle-mini" data-idx="' + idx + '" aria-label="Expand">&#9660;</button>' +
-            '</div>' +
+            '<button type="button" class="mini-row" data-action="toggle-mini" data-idx="' + idx + '" aria-label="Expand ' + escapeHtml(item.name) + '">' +
+              '<span class="mini-name">' + escapeHtml(item.name) + (item.note ? '<span class="note-dot" title="Has a note">&#128221;</span>' : '') + (lowStock ? '<span class="low-stock-badge">Low</span>' : '') + '</span>' +
+              '<span class="mini-count">' + primaryValue.toLocaleString() + ' <span class="mini-unit">' + primaryUnit + '</span></span>' +
+              '<span class="expand-btn">&#9660;</span>' +
+            '</button>' +
           '</div>'
         );
       }
@@ -1902,6 +1913,7 @@
     setSyncStatus('Saving...', true);
     itemsRef.set({ list: items }).then(function() {
       setSyncStatus('Connected — live sync on', false);
+      maybeAutoSnapshot();
     }).catch(function(err) {
       setSyncStatus('Save failed: ' + err.message, false);
     });
@@ -3571,8 +3583,7 @@
     });
   }
 
-  document.getElementById('backupBtn').addEventListener('click', showBackup);
-  document.getElementById('restoreBtn').addEventListener('click', showRestore);
+  document.getElementById('snapshotsBtn').addEventListener('click', showSnapshots);
 
 
   let tesseractLoading = null;
@@ -3781,6 +3792,145 @@
     if (!head) return;
     head.parentElement.classList.toggle('open');
   });
+
+  const SNAPSHOT_INTERVAL = 2 * 60 * 1000; // at most one snapshot every 2 minutes
+  const SNAPSHOT_KEEP = 30;
+  let lastSnapshotTs = 0;
+
+  function snapshotsRef() {
+    return db.ref('tally/rooms/' + roomCode + '/snapshots');
+  }
+
+  async function maybeAutoSnapshot() {
+    if (!isConfigured || !roomCode || !items.length) return;
+    if (Date.now() - lastSnapshotTs < SNAPSHOT_INTERVAL) return;
+    lastSnapshotTs = Date.now();
+    try {
+      const lastSnap = await snapshotsRef().orderByChild('ts').limitToLast(1).get();
+      const val = lastSnap.val() || {};
+      const keys = Object.keys(val);
+      const lastTs = keys.length ? (val[keys[0]].ts || 0) : 0;
+
+      if (Date.now() - lastTs < SNAPSHOT_INTERVAL) {
+        lastSnapshotTs = lastTs;
+        return;
+      }
+
+      await snapshotsRef().push({
+        ts: Date.now(),
+        by: myName || 'auto',
+        itemCount: items.length,
+        totalUnits: items.reduce(function(s, it) { return s + (it.units || 0); }, 0),
+        items: items.map(function(it) {
+          return {
+            name: it.name,
+            units: it.units,
+            caseSize: it.caseSize,
+            mode: it.mode || 'case',
+            note: it.note || null,
+            lowStockValue: it.lowStockValue != null ? it.lowStockValue : null,
+            lowStockMode: it.lowStockMode || null
+          };
+        })
+      });
+
+      // Trim old snapshots
+      const all = await snapshotsRef().orderByChild('ts').get();
+      const allVal = all.val() || {};
+      const sorted = Object.keys(allVal).sort(function(a, b) {
+        return (allVal[a].ts || 0) - (allVal[b].ts || 0);
+      });
+      const excess = sorted.length - SNAPSHOT_KEEP;
+      for (let i = 0; i < excess; i++) {
+        await snapshotsRef().child(sorted[i]).remove().catch(function() {});
+      }
+    } catch (e) {
+      // Snapshots are best-effort; never block the app
+    }
+  }
+
+  async function showSnapshots() {
+    const body = document.getElementById('auditBody');
+    document.getElementById('auditGate').style.display = 'flex';
+    document.getElementById('appRoot').style.display = 'none';
+    body.innerHTML = '<div class="audit-item-name">Backups</div><div class="audit-sub">Loading...</div>';
+
+    let snaps = [];
+    try {
+      const snap = await snapshotsRef().orderByChild('ts').get();
+      const val = snap.val() || {};
+      snaps = Object.keys(val).map(function(k) { return { key: k, ...val[k] }; })
+        .sort(function(a, b) { return b.ts - a.ts; });
+    } catch (e) {}
+
+    if (!snaps.length) {
+      body.innerHTML = '<div class="audit-item-name">Backups</div>' +
+        '<div class="audit-sub">No automatic backups yet. One is saved as you sync, up to once an hour.</div>' +
+        '<div class="audit-actions">' +
+          '<button type="button" class="audit-skip" id="snapExportBtn">Download copy</button>' +
+          '<button type="button" id="snapCloseBtn">Close</button>' +
+        '</div>';
+      document.getElementById('snapCloseBtn').addEventListener('click', closeAudit);
+      document.getElementById('snapExportBtn').addEventListener('click', showBackup);
+      return;
+    }
+
+    const rows = snaps.map(function(s, i) {
+      const d = new Date(s.ts);
+      const when = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' +
+        d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+      return '<div class="audit-result-row">' +
+        '<span>' + when + '<br><span style="font-size:11px;color:var(--text-dim);">' +
+          s.itemCount + ' items · ' + (s.totalUnits || 0).toLocaleString() + ' units</span></span>' +
+        '<button type="button" class="store-action" data-snap="' + i + '">restore</button>' +
+      '</div>';
+    }).join('');
+
+    body.innerHTML =
+      '<div class="audit-item-name">Backups</div>' +
+      '<div class="audit-sub">' + snaps.length + ' snapshot(s) · newest first</div>' +
+      rows +
+      '<div class="audit-summary">Backups save automatically as you sync, at most once every couple of minutes, keeping the last ' + SNAPSHOT_KEEP + '. These live in the same database, so they protect against bad edits — not against losing the Firebase project. Download a copy for an off-site backup.</div>' +
+      '<div class="audit-actions">' +
+        '<button type="button" class="audit-skip" id="snapExportBtn">Download copy</button>' +
+        '<button type="button" class="audit-skip" id="snapFileBtn">Restore file</button>' +
+        '<button type="button" id="snapCloseBtn">Close</button>' +
+      '</div>';
+
+    document.getElementById('snapCloseBtn').addEventListener('click', closeAudit);
+    document.getElementById('snapExportBtn').addEventListener('click', showBackup);
+    document.getElementById('snapFileBtn').addEventListener('click', showRestore);
+
+    body.addEventListener('click', function(e) {
+      const btn = e.target.closest('button[data-snap]');
+      if (!btn) return;
+      const s = snaps[parseInt(btn.getAttribute('data-snap'), 10)];
+      if (!s || !Array.isArray(s.items)) return;
+      if (!confirm('Restore the snapshot from ' + new Date(s.ts).toLocaleString() + '?\n\n' +
+          s.itemCount + ' items will REPLACE your current list. Undo is available right after.')) return;
+      snapshotForUndo();
+      items = s.items.map(function(it) {
+        return {
+          name: it.name,
+          units: it.units,
+          caseSize: it.caseSize,
+          mode: it.mode || 'case',
+          note: it.note || null,
+          lowStockValue: it.lowStockValue,
+          lowStockMode: it.lowStockMode,
+          history: [],
+          touched: Date.now()
+        };
+      });
+      minimized.clear();
+      expanded.clear();
+      items.forEach(function(it, i) { minimized.add(i); });
+      render();
+      saveItems();
+      closeAudit();
+      showCommandToast('Restored snapshot from ' + new Date(s.ts).toLocaleDateString());
+    });
+  }
 
   document.getElementById('scanBtn').addEventListener('click', startScan);
 
