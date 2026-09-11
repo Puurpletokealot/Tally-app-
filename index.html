@@ -1194,6 +1194,9 @@
       <button type="button" class="admin-mini-btn" id="addDeviceBtn">Approve a device</button>
     </div>
     <div class="admin-row">
+      <button type="button" class="admin-mini-btn" id="resetAdminBtn">Reset admin (next device claims it)</button>
+    </div>
+    <div class="admin-row">
       <input type="text" id="newStoreCode" placeholder="New store code" maxlength="12" autocapitalize="characters">
       <button type="button" class="admin-mini-btn" id="createStoreBtn">Create</button>
     </div>
@@ -1780,6 +1783,7 @@
       db.ref('tally/rooms/' + roomCode + '/staff/' + profileId).update({
         name: myName,
         lastSeen: Date.now(),
+        uid: myUid || null,
         createdAt: firebase.database.ServerValue.TIMESTAMP
       }).catch(function() {});
     }
@@ -2925,12 +2929,16 @@
     body.innerHTML = '<div class="audit-item-name">Staff profiles</div><div class="audit-sub">Loading...</div>';
 
     let staff = [];
+    let cfg = null;
     try {
       const snap = await db.ref('tally/rooms/' + roomCode + '/staff').get();
       const val = snap.val() || {};
       staff = Object.keys(val).map(function(k) { return { id: k, ...val[k] }; })
         .sort(function(a, b) { return (b.lastSeen || 0) - (a.lastSeen || 0); });
+      cfg = await loadConfig();
     } catch (e) {}
+
+    const adminUids = (cfg && cfg.adminUids) || {};
 
     if (!staff.length) {
       body.innerHTML = '<div class="audit-item-name">Staff profiles</div>' +
@@ -2943,11 +2951,20 @@
     const rows = staff.map(function(p) {
       const seen = p.lastSeen ? formatRelative(p.lastSeen) : 'never';
       const isMe = p.id === profileId;
+      const isAdminUser = p.uid && adminUids[p.uid];
       return '<div class="audit-result-row">' +
         '<span>' + escapeHtml(p.name || 'Unnamed') + (isMe ? ' (you)' : '') +
-          '<br><span style="font-size:11px;color:var(--text-dim);">last seen ' + seen + '</span></span>' +
-        (isMe ? '<span style="font-size:11px;color:var(--text-dim);">this device</span>'
-              : '<button type="button" class="store-action" data-staff="' + p.id + '">remove</button>') +
+          (isAdminUser ? ' <span class="low-stock-badge" style="background:var(--teal);">ADMIN</span>' : '') +
+          '<br><span style="font-size:11px;color:var(--text-dim);">last seen ' + seen +
+          (p.uid ? '' : ' · no device linked yet') + '</span></span>' +
+        '<span style="white-space:nowrap;">' +
+          (p.uid
+            ? (isAdminUser
+                ? '<button type="button" class="store-action" data-demote="' + p.uid + '">remove admin</button>'
+                : '<button type="button" class="store-action" data-promote="' + p.uid + '" data-pname="' + escapeHtml(p.name || 'Unnamed') + '">make admin</button>')
+            : '') +
+          (isMe ? '' : ' <button type="button" class="store-action" data-staff="' + p.id + '">remove</button>') +
+        '</span>' +
       '</div>';
     }).join('');
 
@@ -2955,12 +2972,42 @@
       '<div class="audit-item-name">Staff profiles</div>' +
       '<div class="audit-sub">' + staff.length + ' profile(s) in ' + roomCode + '</div>' +
       rows +
-      '<div class="audit-summary">Removing a profile clears it from this list. If that person opens the app again on their device, they will be asked to set up a new profile.</div>' +
+      '<div class="audit-summary">Making someone an admin approves the device they are currently signed in on. If they switch phones or browsers, you will need to approve them again from that device.</div>' +
       '<div class="audit-actions"><button type="button" id="staffCloseBtn">Close</button></div>';
 
     document.getElementById('staffCloseBtn').addEventListener('click', closeAudit);
 
     body.addEventListener('click', async function(e) {
+      const promote = e.target.closest('button[data-promote]');
+      if (promote) {
+        const uid = promote.getAttribute('data-promote');
+        const name = promote.getAttribute('data-pname');
+        if (!confirm('Give "' + name + '" admin access?')) return;
+        try {
+          const update = {};
+          update['adminUids/' + uid] = { label: name, addedAt: Date.now() };
+          await configRef().update(update);
+          showStaff();
+        } catch (err) {
+          alert('Could not grant admin — this device is not an approved admin device.');
+        }
+        return;
+      }
+
+      const demote = e.target.closest('button[data-demote]');
+      if (demote) {
+        const uid = demote.getAttribute('data-demote');
+        if (uid === myUid && !confirm('This will remove YOUR admin access on this device. Continue?')) return;
+        if (uid !== myUid && !confirm('Remove admin access from this person?')) return;
+        try {
+          await configRef().child('adminUids').child(uid).remove();
+          showStaff();
+        } catch (err) {
+          alert('Could not remove admin — this device is not an approved admin device.');
+        }
+        return;
+      }
+
       const btn = e.target.closest('button[data-staff]');
       if (!btn) return;
       const id = btn.getAttribute('data-staff');
@@ -3057,6 +3104,21 @@
       });
     } else {
       prompt('Your device ID — copy it:', myUid);
+    }
+  });
+
+  document.getElementById('resetAdminBtn').addEventListener('click', async function() {
+    if (!confirm('Clear ALL approved admin devices?\n\nThe next device that opens Tally becomes the admin. Do this only when you are about to open it yourself.')) return;
+    try {
+      await configRef().child('adminUids').remove();
+      await configRef().child('adminUid').remove();
+      alert('Admin cleared. Reload Tally on the device you want as admin — it will claim it automatically.');
+      isAdmin = false;
+      sessionStorage.removeItem('tally_admin');
+      document.getElementById('adminPanel').style.display = 'none';
+      document.getElementById('adminBtn').style.display = 'none';
+    } catch (e) {
+      alert('Could not reset — this device is not an approved admin device.');
     }
   });
 
@@ -3206,6 +3268,23 @@
 
     let cfg = null;
     try { cfg = await loadConfig(); } catch (e) {}
+
+    // If nobody holds admin yet, the first device to open claims it.
+    if (cfg && myUid) {
+      const existing = cfg.adminUids ? Object.keys(cfg.adminUids) : [];
+      if (!existing.length) {
+        try {
+          const claim = {};
+          claim['adminUids/' + myUid] = { label: myName || 'First device', addedAt: Date.now() };
+          await configRef().update(claim);
+          cfg = await loadConfig();
+          setTimeout(function() {
+            alert('This device is now the admin device.\n\nOpen Admin to manage stores, staff, and approve other devices.');
+          }, 1200);
+        } catch (e) {}
+      }
+    }
+
     const approved = isApprovedDevice(cfg);
 
     const adminBtn = document.getElementById('adminBtn');
@@ -3227,7 +3306,7 @@
 
     if (profileId) {
       db.ref('tally/rooms/' + roomCode + '/staff/' + profileId)
-        .update({ name: myName, lastSeen: Date.now() }).catch(function() {});
+        .update({ name: myName, lastSeen: Date.now(), uid: myUid || null }).catch(function() {});
     }
     initSync();
     startPresence();
