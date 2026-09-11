@@ -1111,6 +1111,16 @@
   <div class="splash-status" id="splashStatus">Connecting...</div>
 </div>
 
+<div class="join-gate" id="profileGate" style="display:none;">
+  <div class="join-card">
+    <h2>&#128075; Welcome</h2>
+    <p>Set up your profile. This saves on this device, so you'll only do this once.</p>
+    <input type="text" id="profileName" placeholder="Your name" maxlength="24" autocapitalize="words">
+    <button type="button" id="profileSaveBtn">Start counting</button>
+    <div class="join-hint">Your name appears on counts and audits you make, so the team knows who did what.</div>
+  </div>
+</div>
+
 <div class="join-gate" id="lowStockGate" style="display:none;">
   <div class="join-card audit-card">
     <div class="audit-item-name" id="lowStockTitle">Low stock alert</div>
@@ -1171,6 +1181,12 @@
     </div>
     <div class="admin-label">Stores</div>
     <div id="storeList" class="store-list"></div>
+    <div class="admin-label">Currently open <span id="activeCount" style="color:var(--teal);"></span></div>
+    <div id="activeList" class="store-list"></div>
+    <div class="admin-row">
+      <button type="button" class="admin-mini-btn" id="staffBtn">Staff profiles</button>
+      <button type="button" class="admin-mini-btn" id="sessionLogBtn">Sign-in log</button>
+    </div>
     <div class="admin-row" style="margin-top:10px;">
       <button type="button" class="admin-mini-btn" id="shareStoreBtn">Share this store's link</button>
     </div>
@@ -1188,7 +1204,8 @@
   </div>
   <div class="name-bar">
     <span>You are:</span>
-    <input type="text" id="myName" placeholder="Your name (for the activity log)">
+    <span class="store-chip" id="profileChip">—</span>
+    <button type="button" class="store-action" id="editProfileBtn">change</button>
   </div>
 </div>
 
@@ -1305,6 +1322,7 @@
     updateUndoButton();
   }
   let myName = localStorage.getItem(NAME_KEY) || '';
+  let profileId = localStorage.getItem('tally_profile_id') || null;
 </script>
 <script>
 
@@ -1505,6 +1523,84 @@
     text.textContent = msg;
   }
 
+  const SESSION_ID = (function() {
+    let id = sessionStorage.getItem('tally_session');
+    if (!id) {
+      id = Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+      sessionStorage.setItem('tally_session', id);
+    }
+    return id;
+  })();
+
+  let presenceRef = null;
+
+  function startPresence() {
+    if (!isConfigured || !roomCode) return;
+    presenceRef = db.ref('tally/rooms/' + roomCode + '/presence/' + SESSION_ID);
+
+    let logged = false;
+    db.ref('.info/connected').on('value', function(snap) {
+      if (snap.val() !== true) return;
+      presenceRef.onDisconnect().remove();
+      presenceRef.set({
+        name: myName || 'Unnamed',
+        since: Date.now(),
+        lastSeen: Date.now()
+      });
+      if (!logged) {
+        logged = true;
+        db.ref('tally/rooms/' + roomCode + '/sessions').push({
+          name: myName || 'Unnamed',
+          at: Date.now(),
+          session: SESSION_ID
+        }).catch(function() {});
+      }
+    });
+
+    setInterval(function() {
+      if (presenceRef) {
+        presenceRef.update({ lastSeen: Date.now(), name: myName || 'Unnamed' });
+      }
+    }, 30000);
+
+    window.addEventListener('pagehide', function() {
+      if (presenceRef) presenceRef.remove();
+    });
+  }
+
+  function watchPresence() {
+    if (!isConfigured || !roomCode) return;
+    db.ref('tally/rooms/' + roomCode + '/presence').on('value', function(snap) {
+      const val = snap.val() || {};
+      const cutoff = Date.now() - 90000;
+      const people = Object.keys(val)
+        .map(function(k) { return { id: k, ...val[k] }; })
+        .filter(function(p) { return (p.lastSeen || 0) > cutoff; })
+        .sort(function(a, b) { return (a.since || 0) - (b.since || 0); });
+
+      const countEl = document.getElementById('activeCount');
+      const listEl = document.getElementById('activeList');
+      if (!countEl || !listEl) return;
+
+      countEl.textContent = '(' + people.length + ')';
+
+      if (!people.length) {
+        listEl.innerHTML = '<div style="font-size:11px;color:var(--text-dim);padding:4px 0;">Nobody else right now.</div>';
+        return;
+      }
+
+      listEl.innerHTML = people.map(function(p) {
+        const mins = Math.max(0, Math.round((Date.now() - (p.since || Date.now())) / 60000));
+        const dur = mins < 1 ? 'just opened' : (mins < 60 ? mins + 'm' : Math.round(mins / 60) + 'h');
+        const isMe = p.id === SESSION_ID;
+        return '<div class="store-entry' + (isMe ? ' active' : '') + '">' +
+          '<span class="code">' + escapeHtml(p.name || 'Unnamed') + (isMe ? ' (you)' : '') + '</span>' +
+          '<span style="font-size:10px;color:var(--text-dim);">' + dur + '</span>' +
+        '</div>';
+      }).join('');
+    });
+  }
+
   function initSync() {
     if (!isConfigured) {
       setSyncStatus('Not connected — finish setup above', false);
@@ -1641,10 +1737,50 @@
     render();
   });
 
-  document.getElementById('myName').value = myName;
-  document.getElementById('myName').addEventListener('change', function(e) {
-    myName = e.target.value.trim();
+  function updateProfileChip() {
+    const el = document.getElementById('profileChip');
+    if (el) el.textContent = myName || '—';
+  }
+
+  function saveProfile(name) {
+    myName = name.trim().slice(0, 24);
     localStorage.setItem(NAME_KEY, myName);
+    if (!profileId) {
+      profileId = 'p' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+      localStorage.setItem('tally_profile_id', profileId);
+    }
+    updateProfileChip();
+    if (isConfigured && roomCode) {
+      db.ref('tally/rooms/' + roomCode + '/staff/' + profileId).update({
+        name: myName,
+        lastSeen: Date.now(),
+        createdAt: firebase.database.ServerValue.TIMESTAMP
+      }).catch(function() {});
+    }
+    if (presenceRef) presenceRef.update({ name: myName || 'Unnamed' });
+  }
+
+  document.getElementById('profileSaveBtn').addEventListener('click', function() {
+    const val = document.getElementById('profileName').value.trim();
+    if (!val) {
+      document.getElementById('profileName').style.borderColor = 'var(--red)';
+      return;
+    }
+    saveProfile(val);
+    document.getElementById('profileGate').style.display = 'none';
+    document.getElementById('appRoot').style.display = '';
+    startApp();
+  });
+
+  document.getElementById('profileName').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') document.getElementById('profileSaveBtn').click();
+  });
+
+  document.getElementById('editProfileBtn').addEventListener('click', function() {
+    const val = prompt('Your name:', myName);
+    if (val === null || !val.trim()) return;
+    saveProfile(val);
+    render();
   });
 
   document.getElementById('addBtn').addEventListener('click', function() {
@@ -2645,6 +2781,119 @@
     if (e.key === 'Enter') document.getElementById('lowStockSaveBtn').click();
   });
 
+  async function showSessionLog() {
+    const body = document.getElementById('auditBody');
+    document.getElementById('auditGate').style.display = 'flex';
+    document.getElementById('appRoot').style.display = 'none';
+    body.innerHTML = '<div class="audit-item-name">Sign-in log</div><div class="audit-sub">Loading...</div>';
+
+    let records = [];
+    try {
+      const snap = await db.ref('tally/rooms/' + roomCode + '/sessions')
+        .orderByChild('at').limitToLast(100).get();
+      const val = snap.val() || {};
+      records = Object.keys(val).map(function(k) { return val[k]; })
+        .sort(function(a, b) { return b.at - a.at; });
+    } catch (e) {}
+
+    if (!records.length) {
+      body.innerHTML = '<div class="audit-item-name">Sign-in log</div>' +
+        '<div class="audit-sub">No sessions recorded yet for this store.</div>' +
+        '<div class="audit-actions"><button type="button" id="sessCloseBtn">Close</button></div>';
+      document.getElementById('sessCloseBtn').addEventListener('click', closeAudit);
+      return;
+    }
+
+    const rows = records.map(function(r) {
+      const d = new Date(r.at);
+      const when = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' +
+        d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+      return '<div class="audit-result-row">' +
+        '<span>' + escapeHtml(r.name || 'Unnamed') + '</span>' +
+        '<span style="font-size:11px;color:var(--text-dim);">' + when + '</span>' +
+      '</div>';
+    }).join('');
+
+    body.innerHTML =
+      '<div class="audit-item-name">Sign-in log</div>' +
+      '<div class="audit-sub">Last ' + records.length + ' session(s) in ' + roomCode + '</div>' +
+      rows +
+      '<div class="audit-actions">' +
+        '<button type="button" class="audit-skip" id="sessExportBtn">Copy as text</button>' +
+        '<button type="button" id="sessCloseBtn">Close</button>' +
+      '</div>';
+
+    document.getElementById('sessCloseBtn').addEventListener('click', closeAudit);
+    document.getElementById('sessExportBtn').addEventListener('click', function() {
+      const text = 'Tally sign-in log — store ' + roomCode + '\n\n' +
+        records.map(function(r) {
+          return new Date(r.at).toLocaleString() + ' — ' + (r.name || 'Unnamed');
+        }).join('\n');
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(function() { alert('Copied to clipboard.'); });
+      } else {
+        prompt('Copy this:', text);
+      }
+    });
+  }
+
+  async function showStaff() {
+    const body = document.getElementById('auditBody');
+    document.getElementById('auditGate').style.display = 'flex';
+    document.getElementById('appRoot').style.display = 'none';
+    body.innerHTML = '<div class="audit-item-name">Staff profiles</div><div class="audit-sub">Loading...</div>';
+
+    let staff = [];
+    try {
+      const snap = await db.ref('tally/rooms/' + roomCode + '/staff').get();
+      const val = snap.val() || {};
+      staff = Object.keys(val).map(function(k) { return { id: k, ...val[k] }; })
+        .sort(function(a, b) { return (b.lastSeen || 0) - (a.lastSeen || 0); });
+    } catch (e) {}
+
+    if (!staff.length) {
+      body.innerHTML = '<div class="audit-item-name">Staff profiles</div>' +
+        '<div class="audit-sub">Nobody has set up a profile in this store yet.</div>' +
+        '<div class="audit-actions"><button type="button" id="staffCloseBtn">Close</button></div>';
+      document.getElementById('staffCloseBtn').addEventListener('click', closeAudit);
+      return;
+    }
+
+    const rows = staff.map(function(p) {
+      const seen = p.lastSeen ? formatRelative(p.lastSeen) : 'never';
+      const isMe = p.id === profileId;
+      return '<div class="audit-result-row">' +
+        '<span>' + escapeHtml(p.name || 'Unnamed') + (isMe ? ' (you)' : '') +
+          '<br><span style="font-size:11px;color:var(--text-dim);">last seen ' + seen + '</span></span>' +
+        (isMe ? '<span style="font-size:11px;color:var(--text-dim);">this device</span>'
+              : '<button type="button" class="store-action" data-staff="' + p.id + '">remove</button>') +
+      '</div>';
+    }).join('');
+
+    body.innerHTML =
+      '<div class="audit-item-name">Staff profiles</div>' +
+      '<div class="audit-sub">' + staff.length + ' profile(s) in ' + roomCode + '</div>' +
+      rows +
+      '<div class="audit-summary">Removing a profile clears it from this list. If that person opens the app again on their device, they will be asked to set up a new profile.</div>' +
+      '<div class="audit-actions"><button type="button" id="staffCloseBtn">Close</button></div>';
+
+    document.getElementById('staffCloseBtn').addEventListener('click', closeAudit);
+
+    body.addEventListener('click', async function(e) {
+      const btn = e.target.closest('button[data-staff]');
+      if (!btn) return;
+      const id = btn.getAttribute('data-staff');
+      const person = staff.find(function(p) { return p.id === id; });
+      if (!confirm('Remove profile "' + (person ? person.name : id) + '"?')) return;
+      await db.ref('tally/rooms/' + roomCode + '/staff/' + id).remove().catch(function() {});
+      showStaff();
+    });
+  }
+
+  document.getElementById('staffBtn').addEventListener('click', showStaff);
+
+  document.getElementById('sessionLogBtn').addEventListener('click', showSessionLog);
+
   document.getElementById('auditBtn').addEventListener('click', startAudit);
   document.getElementById('auditHistBtn').addEventListener('click', showAuditHistory);
 
@@ -2698,18 +2947,36 @@
       itemsRef = db.ref('tally/rooms/' + roomCode + '/items');
     }
 
+    if (!myName) {
+      await minShow;
+      hideSplash();
+      document.getElementById('profileGate').style.display = 'flex';
+      document.getElementById('appRoot').style.display = 'none';
+      return;
+    }
+
+    startApp();
+    await minShow;
+    hideSplash();
+  }
+
+  function startApp() {
     setSplashStatus('Loading ' + roomCode + '...');
     isAdmin = sessionStorage.getItem('tally_admin') === '1';
+    updateProfileChip();
     document.getElementById('storeChip').textContent = 'Store: ' + roomCode;
     document.getElementById('adminBtn').textContent = isAdmin ? 'Admin \u2713' : 'Admin';
     if (isAdmin) {
       document.getElementById('adminPanel').style.display = 'block';
       refreshStoreList();
     }
+    if (profileId) {
+      db.ref('tally/rooms/' + roomCode + '/staff/' + profileId)
+        .update({ name: myName, lastSeen: Date.now() }).catch(function() {});
+    }
     initSync();
-
-    await minShow;
-    hideSplash();
+    startPresence();
+    watchPresence();
   }
 
   // Safety net so the splash never traps the user
