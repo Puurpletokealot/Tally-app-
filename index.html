@@ -878,6 +878,14 @@
     border-color: var(--red);
   }
 
+  .scan-qty {
+    width: 52px;
+    text-align: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    padding: 5px 4px;
+  }
+
   .name-bar {
     display: flex;
     align-items: center;
@@ -1159,6 +1167,8 @@
   <div class="splash-status" id="splashStatus">Connecting...</div>
 </div>
 
+<input type="file" id="invoiceInput" accept="image/*" capture="environment" style="display:none;">
+
 <div class="join-gate" id="profileGate" style="display:none;">
   <div class="join-card">
     <h2>&#128075; Welcome</h2>
@@ -1217,6 +1227,8 @@
   <p>Shared item counter — cases and individual units</p>
   <div class="store-row">
     <span class="store-chip" id="storeChip">Store: —</span>
+    <button type="button" class="store-action" id="scanBtn">Scan invoice</button>
+    <button type="button" class="store-action" id="scanBtn">Scan invoice</button>
     <button type="button" class="store-action" id="orderBtn">Order list</button>
     <button type="button" class="store-action" id="auditBtn">Spot audit</button>
     <button type="button" class="store-action" id="auditHistBtn">Audit log</button>
@@ -1229,6 +1241,10 @@
     <div class="admin-row">
       <button type="button" class="admin-mini-btn" id="deviceIdBtn">Copy this device's ID</button>
       <button type="button" class="admin-mini-btn" id="addDeviceBtn">Approve a device</button>
+    </div>
+    <div class="admin-row">
+      <button type="button" class="admin-mini-btn" id="backupBtn">Backup &amp; export</button>
+      <button type="button" class="admin-mini-btn" id="restoreBtn">Restore</button>
     </div>
     <div class="admin-row">
       <button type="button" class="admin-mini-btn" id="resetAdminBtn">Reset admin (next device claims it)</button>
@@ -1247,6 +1263,10 @@
     </div>
     <div class="admin-row" style="margin-top:10px;">
       <button type="button" class="admin-mini-btn" id="shareStoreBtn">Share this store's link</button>
+    </div>
+    <div class="admin-row">
+      <button type="button" class="admin-mini-btn" id="backupBtn">Backup / export</button>
+      <button type="button" class="admin-mini-btn" id="restoreBtn">Restore</button>
     </div>
     <div class="admin-row">
       <button type="button" class="admin-mini-btn" id="migrateBtn">Import old inventory</button>
@@ -3225,6 +3245,326 @@
     chip.addEventListener('mouseup', cancel);
     chip.addEventListener('mouseleave', cancel);
   })();
+
+  function downloadFile(filename, text, mime) {
+    try {
+      const blob = new Blob([text], { type: mime || 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function() { URL.revokeObjectURL(url); }, 2000);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  async function showBackup() {
+    const body = document.getElementById('auditBody');
+    document.getElementById('auditGate').style.display = 'flex';
+    document.getElementById('appRoot').style.display = 'none';
+    body.innerHTML = '<div class="audit-item-name">Backup &amp; export</div><div class="audit-sub">Gathering data...</div>';
+
+    let audits = {}, staff = {}, sessions = {};
+    try {
+      const base = 'tally/rooms/' + roomCode + '/';
+      audits = (await db.ref(base + 'audits').get()).val() || {};
+      staff = (await db.ref(base + 'staff').get()).val() || {};
+      sessions = (await db.ref(base + 'sessions').get()).val() || {};
+    } catch (e) {}
+
+    const backup = {
+      tallyBackup: 1,
+      store: roomCode,
+      exportedAt: new Date().toISOString(),
+      exportedBy: myName || 'unknown',
+      items: items,
+      audits: audits,
+      staff: staff,
+      sessions: sessions
+    };
+    const json = JSON.stringify(backup, null, 2);
+
+    const csvRows = [['Item', 'Units', 'Cases', 'Units per case', 'Low stock', 'Note'].join(',')];
+    items.forEach(function(it) {
+      const c = calc(it.units, it.caseSize);
+      const label = lowThresholdLabel(it) || '';
+      csvRows.push([
+        '"' + String(it.name).replace(/"/g, '""') + '"',
+        it.units,
+        c.decimalCases,
+        it.caseSize,
+        '"' + label + '"',
+        '"' + String(it.note || '').replace(/"/g, '""') + '"'
+      ].join(','));
+    });
+    const csv = csvRows.join('\n');
+
+    const auditCount = Object.keys(audits).length;
+
+    body.innerHTML =
+      '<div class="audit-item-name">Backup &amp; export</div>' +
+      '<div class="audit-sub">' + items.length + ' item(s) · ' + auditCount + ' audit(s) · store ' + roomCode + '</div>' +
+      '<div class="audit-summary">The JSON backup holds everything and can be restored later. The CSV is a plain item list for spreadsheets.</div>' +
+      '<div class="audit-actions">' +
+        '<button type="button" class="audit-skip" id="bkCsvBtn">Download CSV</button>' +
+        '<button type="button" id="bkJsonBtn">Download backup</button>' +
+      '</div>' +
+      '<div class="audit-actions">' +
+        '<button type="button" class="audit-skip" id="bkCopyBtn">Copy backup text</button>' +
+        '<button type="button" class="audit-skip" id="bkCloseBtn">Close</button>' +
+      '</div>';
+
+    const stamp = roomCode + '-' + new Date().toISOString().slice(0, 10);
+
+    document.getElementById('bkJsonBtn').addEventListener('click', function() {
+      if (!downloadFile('tally-backup-' + stamp + '.json', json, 'application/json')) {
+        prompt('Copy this backup:', json);
+      }
+    });
+    document.getElementById('bkCsvBtn').addEventListener('click', function() {
+      if (!downloadFile('tally-items-' + stamp + '.csv', csv, 'text/csv')) {
+        prompt('Copy this CSV:', csv);
+      }
+    });
+    document.getElementById('bkCopyBtn').addEventListener('click', function() {
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(json).then(function() { alert('Backup copied. Paste it somewhere safe.'); });
+      } else {
+        prompt('Copy this backup:', json);
+      }
+    });
+    document.getElementById('bkCloseBtn').addEventListener('click', closeAudit);
+  }
+
+  function showRestore() {
+    const body = document.getElementById('auditBody');
+    document.getElementById('auditGate').style.display = 'flex';
+    document.getElementById('appRoot').style.display = 'none';
+    body.innerHTML =
+      '<div class="audit-item-name">Restore from backup</div>' +
+      '<div class="audit-sub">Paste a backup file\'s contents below.</div>' +
+      '<textarea id="restoreText" style="width:100%;height:130px;background:var(--panel-2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:10px;font-family:monospace;font-size:11px;" placeholder="Paste backup JSON here"></textarea>' +
+      '<div class="audit-summary">This replaces the current item list for store ' + roomCode + '. Audit and staff records are left alone. You can undo right after.</div>' +
+      '<div class="audit-actions">' +
+        '<button type="button" class="audit-skip" id="rsCloseBtn">Cancel</button>' +
+        '<button type="button" id="rsGoBtn">Restore items</button>' +
+      '</div>';
+
+    document.getElementById('rsCloseBtn').addEventListener('click', closeAudit);
+    document.getElementById('rsGoBtn').addEventListener('click', function() {
+      let parsed;
+      try {
+        parsed = JSON.parse(document.getElementById('restoreText').value);
+      } catch (e) {
+        alert('That is not valid backup text.');
+        return;
+      }
+      const list = Array.isArray(parsed) ? parsed : parsed.items;
+      if (!Array.isArray(list)) {
+        alert('No item list found in that backup.');
+        return;
+      }
+      if (!confirm('Replace the current ' + items.length + ' item(s) with ' + list.length + ' from the backup?')) return;
+      snapshotForUndo();
+      items = list;
+      minimized.clear();
+      items.forEach(function(it, i) { minimized.add(i); });
+      render();
+      saveItems();
+      closeAudit();
+      showCommandToast('Restored ' + list.length + ' item(s)');
+    });
+  }
+
+  document.getElementById('backupBtn').addEventListener('click', showBackup);
+  document.getElementById('restoreBtn').addEventListener('click', showRestore);
+
+
+  let tesseractLoading = null;
+
+  function loadTesseract() {
+    if (window.Tesseract) return Promise.resolve();
+    if (tesseractLoading) return tesseractLoading;
+    tesseractLoading = new Promise(function(resolve, reject) {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+      s.onload = resolve;
+      s.onerror = function() { reject(new Error('Could not load scanner')); };
+      document.head.appendChild(s);
+    });
+    return tesseractLoading;
+  }
+
+  function parseInvoiceLines(text) {
+    const lines = text.split('\n').map(function(l) { return l.trim(); }).filter(Boolean);
+    const out = [];
+
+    lines.forEach(function(line) {
+      if (/\b(subtotal|total|tax|invoice|date|page|thank you|signature|driver|account|balance)\b/i.test(line)) return;
+      if (line.replace(/[^a-z]/gi, '').length < 3) return;
+
+      let qty = null, name = null;
+      let m = line.match(/^(\d{1,3})\s*(?:cs|case|cases|ct|ea|bx|box)?\s+(.{3,})$/i);
+      if (m) {
+        qty = parseInt(m[1], 10);
+        name = m[2];
+      } else {
+        m = line.match(/^(.{3,}?)\s+(\d{1,3})(?:\s*(?:cs|case|cases|ct|ea)?)?$/i);
+        if (m) { name = m[1]; qty = parseInt(m[2], 10); }
+      }
+      if (qty == null || !name || qty < 1 || qty > 999) return;
+
+      name = name
+        .replace(/\$\s*\d+[.,]?\d*/g, ' ')
+        .replace(/\b\d{5,}\b/g, ' ')
+        .replace(/[|_*#]+/g, ' ')
+        .replace(/\s{2,}/g, ' ')
+        .trim();
+      if (name.replace(/[^a-z]/gi, '').length < 3) return;
+
+      const matchIdx = matchItem(name);
+      out.push({ qty: qty, rawName: name, matchIdx: matchIdx, include: matchIdx !== -1 });
+    });
+
+    return out;
+  }
+
+  let scanResults = [];
+
+  function startScan() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.setAttribute('capture', 'environment');
+    input.addEventListener('change', async function() {
+      const file = input.files && input.files[0];
+      if (!file) return;
+
+      const body = document.getElementById('auditBody');
+      document.getElementById('auditGate').style.display = 'flex';
+      document.getElementById('appRoot').style.display = 'none';
+      body.innerHTML = '<div class="audit-item-name">Reading invoice</div>' +
+        '<div class="audit-sub" id="scanStatus">Loading scanner...</div>';
+
+      try {
+        await loadTesseract();
+      } catch (e) {
+        body.innerHTML = '<div class="audit-item-name">Scanner unavailable</div>' +
+          '<div class="audit-sub">Could not load the scanner. Check your connection and try again.</div>' +
+          '<div class="audit-actions"><button type="button" id="scanCloseBtn">Close</button></div>';
+        document.getElementById('scanCloseBtn').addEventListener('click', closeAudit);
+        return;
+      }
+
+      const status = document.getElementById('scanStatus');
+      let text = '';
+      try {
+        const result = await window.Tesseract.recognize(file, 'eng', {
+          logger: function(m) {
+            if (status && m.status === 'recognizing text') {
+              status.textContent = 'Reading... ' + Math.round((m.progress || 0) * 100) + '%';
+            }
+          }
+        });
+        text = (result && result.data && result.data.text) || '';
+      } catch (e) {
+        body.innerHTML = '<div class="audit-item-name">Couldn\'t read that</div>' +
+          '<div class="audit-sub">The scan failed. Try a flatter, brighter photo.</div>' +
+          '<div class="audit-actions"><button type="button" id="scanCloseBtn">Close</button></div>';
+        document.getElementById('scanCloseBtn').addEventListener('click', closeAudit);
+        return;
+      }
+
+      scanResults = parseInvoiceLines(text);
+      renderScanReview(text);
+    });
+    input.click();
+  }
+
+  function renderScanReview(rawText) {
+    const body = document.getElementById('auditBody');
+
+    if (!scanResults.length) {
+      body.innerHTML = '<div class="audit-item-name">Nothing found</div>' +
+        '<div class="audit-sub">Couldn\'t pick out any quantity and item lines. Faint or slanted invoice text often fails — try a flatter, brighter photo, or add the items by hand.</div>' +
+        '<div class="audit-actions">' +
+          '<button type="button" class="audit-skip" id="scanRawBtn">See raw text</button>' +
+          '<button type="button" id="scanCloseBtn">Close</button>' +
+        '</div>';
+      document.getElementById('scanCloseBtn').addEventListener('click', closeAudit);
+      document.getElementById('scanRawBtn').addEventListener('click', function() {
+        alert(rawText.slice(0, 1500) || '(nothing read)');
+      });
+      return;
+    }
+
+    const rows = scanResults.map(function(r, i) {
+      const known = r.matchIdx !== -1;
+      const label = known ? items[r.matchIdx].name : r.rawName;
+      return '<div class="audit-result-row">' +
+        '<label style="display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;">' +
+          '<input type="checkbox" data-scan="' + i + '"' + (r.include ? ' checked' : '') + (known ? '' : ' disabled') + '>' +
+          '<span>' + escapeHtml(label) +
+            '<br><span style="font-size:11px;color:' + (known ? 'var(--text-dim)' : 'var(--red)') + ';">' +
+              (known ? 'matches your item' : 'no match — skipped') + '</span>' +
+          '</span>' +
+        '</label>' +
+        '<span class="audit-var ' + (known ? 'ok' : 'off') + '">' +
+          '<input type="number" class="scan-qty" data-qty="' + i + '" value="' + r.qty + '" min="0"> cs' +
+        '</span>' +
+      '</div>';
+    }).join('');
+
+    const matched = scanResults.filter(function(r) { return r.matchIdx !== -1; }).length;
+
+    body.innerHTML =
+      '<div class="audit-item-name">Review scan</div>' +
+      '<div class="audit-sub">' + scanResults.length + ' line(s) read · ' + matched + ' matched</div>' +
+      rows +
+      '<div class="audit-summary">Check every line before applying. Photo scanning is unreliable and gets quantities wrong, so treat this as a first draft, not a source of truth. Quantities are added as CASES. Unmatched lines are skipped — create those items first if you need them.</div>' +
+      '<div class="audit-actions">' +
+        '<button type="button" class="audit-skip" id="scanCancelBtn">Cancel</button>' +
+        '<button type="button" id="scanApplyBtn">Add to counts</button>' +
+      '</div>';
+
+    document.getElementById('scanCancelBtn').addEventListener('click', closeAudit);
+
+    body.addEventListener('change', function(e) {
+      const cb = e.target.closest('input[data-scan]');
+      if (cb) scanResults[parseInt(cb.getAttribute('data-scan'), 10)].include = cb.checked;
+      const q = e.target.closest('input[data-qty]');
+      if (q) {
+        const n = parseInt(q.value, 10);
+        scanResults[parseInt(q.getAttribute('data-qty'), 10)].qty = isNaN(n) ? 0 : n;
+      }
+    });
+
+    document.getElementById('scanApplyBtn').addEventListener('click', function() {
+      const toApply = scanResults.filter(function(r) {
+        return r.include && r.matchIdx !== -1 && r.qty > 0;
+      });
+      if (!toApply.length) { alert('Nothing selected to apply.'); return; }
+      snapshotForUndo();
+      toApply.forEach(function(r) {
+        const item = items[r.matchIdx];
+        if (!item) return;
+        const delta = r.qty * (item.caseSize || 1);
+        item.units += delta;
+        pushHistory(item, delta);
+      });
+      render();
+      saveItems();
+      closeAudit();
+      showCommandToast('Added ' + toApply.length + ' item(s) from invoice');
+    });
+  }
+
+  document.getElementById('scanBtn').addEventListener('click', startScan);
 
   document.getElementById('orderBtn').addEventListener('click', showOrderList);
 
