@@ -865,12 +865,16 @@
   }
 
   .staff-btn[data-demote] {
-    color: var(--teal);
+    background: var(--teal);
+    color: #0d2b1f;
     border-color: var(--teal);
+    font-weight: 700;
   }
 
   .staff-btn[data-promote] {
-    color: var(--amber);
+    background: none;
+    color: var(--text-dim);
+    border-color: var(--line);
   }
 
   .staff-btn.del:active {
@@ -917,6 +921,101 @@
   .scan-icon {
     font-size: 20px;
     flex-shrink: 0;
+  }
+
+  .staff-btn.ok {
+    background: var(--amber);
+    color: #2a1c05;
+    border-color: var(--amber);
+    font-weight: 700;
+  }
+
+  .pending-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--amber);
+    background: var(--panel-2);
+    border-radius: 8px;
+    padding: 12px;
+    margin: 6px 0;
+  }
+
+  .admin-sec {
+    border-top: 1px solid var(--line);
+  }
+
+  .admin-sec-head {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: none;
+    border: none;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 11px 2px;
+    cursor: pointer;
+  }
+
+  .admin-sec-head .chev {
+    color: var(--text-dim);
+    font-size: 11px;
+    transition: transform 0.15s ease;
+  }
+
+  .admin-sec.open .admin-sec-head .chev {
+    transform: rotate(180deg);
+  }
+
+  .admin-sec-body {
+    display: none;
+    padding: 0 0 12px;
+  }
+
+  .admin-sec.open .admin-sec-body {
+    display: block;
+  }
+
+  .admin-btn-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  .admin-btn-grid .admin-mini-btn {
+    width: 100%;
+    text-align: center;
+    padding: 9px 6px;
+  }
+
+  .admin-mini-btn.danger {
+    border-color: var(--red);
+    color: var(--red);
+  }
+
+  .admin-note {
+    font-size: 10px;
+    color: var(--text-dim);
+    line-height: 1.45;
+    margin-top: 8px;
+  }
+
+  .admin-lock {
+    width: 100%;
+    margin-top: 12px;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    color: var(--text-dim);
+    border-radius: 8px;
+    padding: 9px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
   }
 
   .name-bar {
@@ -1202,6 +1301,18 @@
 
 <input type="file" id="invoiceInput" accept="image/*" capture="environment" style="display:none;">
 
+<div class="join-gate" id="pendingGate" style="display:none;">
+  <div class="join-card">
+    <h2>&#9203; Waiting for approval</h2>
+    <p id="pendingMsg">An admin needs to approve this device before you can count.</p>
+    <div class="pending-name" id="pendingName">—</div>
+    <div class="join-hint">
+      Ask your manager to open Tally &rarr; Admin &rarr; Staff profiles, then tap the star next to your name.
+      <br><br>This screen updates automatically once you're approved.
+    </div>
+  </div>
+</div>
+
 <div class="join-gate" id="profileGate" style="display:none;">
   <div class="join-card">
     <h2>&#128075; Welcome</h2>
@@ -1261,53 +1372,77 @@
   <div class="store-row">
     <span class="store-chip" id="storeChip">Store: —</span>
     <button type="button" class="store-action" id="scanBtn">Scan invoice</button>
-    <button type="button" class="store-action" id="scanBtn">Scan invoice</button>
     <button type="button" class="store-action" id="orderBtn">Order list</button>
     <button type="button" class="store-action" id="auditBtn">Spot audit</button>
     <button type="button" class="store-action" id="auditHistBtn">Audit log</button>
     <button type="button" class="store-action" id="adminBtn">Admin</button>
   </div>
   <div class="admin-panel" id="adminPanel" style="display:none;">
-    <div class="admin-title">Admin controls</div>
-    <div class="admin-label">Approved devices</div>
-    <div id="deviceList" class="store-list"></div>
-    <div class="admin-row">
-      <button type="button" class="admin-mini-btn" id="deviceIdBtn">Copy this device's ID</button>
-      <button type="button" class="admin-mini-btn" id="addDeviceBtn">Approve a device</button>
+    <div class="admin-title">Admin</div>
+
+    <div class="admin-sec">
+      <button type="button" class="admin-sec-head" data-sec="people">
+        <span>People &amp; devices</span><span class="chev">&#9662;</span>
+      </button>
+      <div class="admin-sec-body" data-body="people">
+        <div class="admin-label">Currently open <span id="activeCount" style="color:var(--teal);"></span></div>
+        <div id="activeList" class="store-list"></div>
+        <div class="admin-btn-grid">
+          <button type="button" class="admin-mini-btn" id="staffBtn">Staff profiles</button>
+          <button type="button" class="admin-mini-btn" id="sessionLogBtn">Sign-in log</button>
+        </div>
+        <div class="admin-label">Approved admin devices</div>
+        <div id="deviceList" class="store-list"></div>
+        <div class="admin-btn-grid">
+          <button type="button" class="admin-mini-btn" id="deviceIdBtn">Copy device ID</button>
+          <button type="button" class="admin-mini-btn" id="addDeviceBtn">Add by ID</button>
+        </div>
+      </div>
     </div>
-    <div class="admin-row">
-      <button type="button" class="admin-mini-btn" id="backupBtn">Backup &amp; export</button>
-      <button type="button" class="admin-mini-btn" id="restoreBtn">Restore</button>
+
+    <div class="admin-sec">
+      <button type="button" class="admin-sec-head" data-sec="stores">
+        <span>Stores</span><span class="chev">&#9662;</span>
+      </button>
+      <div class="admin-sec-body" data-body="stores">
+        <div id="storeList" class="store-list"></div>
+        <div class="admin-row">
+          <input type="text" id="newStoreCode" placeholder="New store code" maxlength="12" autocapitalize="characters">
+          <button type="button" class="admin-mini-btn" id="createStoreBtn">Create</button>
+        </div>
+        <div class="admin-btn-grid">
+          <button type="button" class="admin-mini-btn" id="shareStoreBtn">Share store link</button>
+        </div>
+      </div>
     </div>
-    <div class="admin-row">
-      <button type="button" class="admin-mini-btn" id="resetAdminBtn">Reset admin (next device claims it)</button>
+
+    <div class="admin-sec">
+      <button type="button" class="admin-sec-head" data-sec="data">
+        <span>Data</span><span class="chev">&#9662;</span>
+      </button>
+      <div class="admin-sec-body" data-body="data">
+        <div class="admin-btn-grid">
+          <button type="button" class="admin-mini-btn" id="backupBtn">Backup &amp; export</button>
+          <button type="button" class="admin-mini-btn" id="restoreBtn">Restore</button>
+          <button type="button" class="admin-mini-btn" id="migrateBtn">Import old inventory</button>
+        </div>
+      </div>
     </div>
-    <div class="admin-row">
-      <input type="text" id="newStoreCode" placeholder="New store code" maxlength="12" autocapitalize="characters">
-      <button type="button" class="admin-mini-btn" id="createStoreBtn">Create</button>
+
+    <div class="admin-sec">
+      <button type="button" class="admin-sec-head" data-sec="security">
+        <span>Security</span><span class="chev">&#9662;</span>
+      </button>
+      <div class="admin-sec-body" data-body="security">
+        <div class="admin-btn-grid">
+          <button type="button" class="admin-mini-btn" id="changePassBtn">Change password</button>
+          <button type="button" class="admin-mini-btn danger" id="resetAdminBtn">Reset admin</button>
+        </div>
+        <div class="admin-note">Reset admin clears every approved device. The next device to open Tally claims admin.</div>
+      </div>
     </div>
-    <div class="admin-label">Stores</div>
-    <div id="storeList" class="store-list"></div>
-    <div class="admin-label">Currently open <span id="activeCount" style="color:var(--teal);"></span></div>
-    <div id="activeList" class="store-list"></div>
-    <div class="admin-row">
-      <button type="button" class="admin-mini-btn" id="staffBtn">Staff profiles</button>
-      <button type="button" class="admin-mini-btn" id="sessionLogBtn">Sign-in log</button>
-    </div>
-    <div class="admin-row" style="margin-top:10px;">
-      <button type="button" class="admin-mini-btn" id="shareStoreBtn">Share this store's link</button>
-    </div>
-    <div class="admin-row">
-      <button type="button" class="admin-mini-btn" id="backupBtn">Backup / export</button>
-      <button type="button" class="admin-mini-btn" id="restoreBtn">Restore</button>
-    </div>
-    <div class="admin-row">
-      <button type="button" class="admin-mini-btn" id="migrateBtn">Import old inventory</button>
-    </div>
-    <div class="admin-row">
-      <button type="button" class="admin-mini-btn" id="changePassBtn">Change password</button>
-      <button type="button" class="admin-mini-btn" id="adminLogoutBtn">Lock admin</button>
-    </div>
+
+    <button type="button" class="admin-lock" id="adminLogoutBtn">Lock admin</button>
   </div>
   <div class="sync-row">
     <div class="sync-dot" id="syncDot"></div>
@@ -3039,6 +3174,7 @@
     } catch (e) {}
 
     const adminUids = (cfg && cfg.adminUids) || {};
+    const approvedUids = (cfg && cfg.approvedUids) || {};
 
     if (!staff.length) {
       body.innerHTML = '<div class="audit-item-name">Staff profiles</div>' +
@@ -3052,18 +3188,23 @@
       const seen = p.lastSeen ? formatRelative(p.lastSeen) : 'never';
       const isMe = p.id === profileId;
       const isAdminUser = p.uid && adminUids[p.uid];
-      return '<div class="audit-result-row">' +
+      const isOk = p.uid && (adminUids[p.uid] || approvedUids[p.uid]);
+      const waiting = p.uid && !isOk;
+      return '<div class="audit-result-row"' + (waiting ? ' style="background:rgba(194,79,63,0.12);border-radius:6px;"' : '') + '>' +
         '<span>' + escapeHtml(p.name || 'Unnamed') + (isMe ? ' (you)' : '') +
-          '<br><span style="font-size:11px;color:var(--text-dim);">last seen ' + seen +
-          (isAdminUser ? ' · admin' : '') +
-          (p.uid ? '' : ' · no device linked yet') + '</span></span>' +
+          '<br><span style="font-size:11px;color:' + (waiting ? 'var(--red)' : 'var(--text-dim)') + ';">' +
+            (waiting ? 'waiting for approval' : 'last seen ' + seen + (isAdminUser ? ' · admin' : '')) +
+            (p.uid ? '' : ' · no device linked yet') + '</span></span>' +
         '<span class="staff-actions">' +
-          (p.uid
+          (waiting
+            ? '<button type="button" class="staff-btn ok" data-approve="' + p.uid + '" data-pname="' + escapeHtml(p.name || 'Unnamed') + '" title="Approve device">&#10003;</button>'
+            : '') +
+          (p.uid && isOk
             ? (isAdminUser
                 ? '<button type="button" class="staff-btn" data-demote="' + p.uid + '" title="Remove admin">&#9733;</button>'
                 : '<button type="button" class="staff-btn" data-promote="' + p.uid + '" data-pname="' + escapeHtml(p.name || 'Unnamed') + '" title="Make admin">&#9734;</button>')
             : '') +
-          (isMe ? '' : '<button type="button" class="staff-btn del" data-staff="' + p.id + '" title="Remove profile">&times;</button>') +
+          (isMe ? '' : '<button type="button" class="staff-btn del" data-staff="' + p.id + '" title="Remove">&times;</button>') +
         '</span>' +
       '</div>';
     }).join('');
@@ -3072,12 +3213,28 @@
       '<div class="audit-item-name">Staff profiles</div>' +
       '<div class="audit-sub">' + staff.length + ' profile(s) in ' + roomCode + '</div>' +
       rows +
-      '<div class="audit-summary">&#9734; make admin &middot; &#9733; remove admin &middot; &times; delete profile<br><br>Making someone an admin approves the device they are currently signed in on. If they switch phones or browsers, you will need to approve them again.</div>' +
+      '<div class="audit-summary">&#10003; approve device &middot; &#9734; make admin &middot; &#9733; remove admin &middot; &times; remove<br><br>New devices cannot change anything until approved. Approval applies to the device someone is signed in on — if they switch phones or browsers, approve them again.</div>' +
       '<div class="audit-actions"><button type="button" id="staffCloseBtn">Close</button></div>';
 
     document.getElementById('staffCloseBtn').addEventListener('click', closeAudit);
 
     body.addEventListener('click', async function(e) {
+      const approve = e.target.closest('button[data-approve]');
+      if (approve) {
+        const uid = approve.getAttribute('data-approve');
+        const name = approve.getAttribute('data-pname');
+        if (!confirm('Approve "' + name + '" to use Tally?')) return;
+        try {
+          const update = {};
+          update['approvedUids/' + uid] = { label: name, addedAt: Date.now() };
+          await configRef().update(update);
+          showStaff();
+        } catch (err) {
+          alert('Could not approve — this device is not an approved admin device.');
+        }
+        return;
+      }
+
       const promote = e.target.closest('button[data-promote]');
       if (promote) {
         const uid = promote.getAttribute('data-promote');
@@ -3619,6 +3776,12 @@
     });
   }
 
+  document.getElementById('adminPanel').addEventListener('click', function(e) {
+    const head = e.target.closest('.admin-sec-head');
+    if (!head) return;
+    head.parentElement.classList.toggle('open');
+  });
+
   document.getElementById('scanBtn').addEventListener('click', startScan);
 
   document.getElementById('orderBtn').addEventListener('click', showOrderList);
@@ -3703,6 +3866,45 @@
     hideSplash();
   }
 
+  function isDeviceApproved(cfg) {
+    if (!myUid || !cfg) return false;
+    if (cfg.adminUids && cfg.adminUids[myUid]) return true;
+    if (cfg.approvedUids && cfg.approvedUids[myUid]) return true;
+    if (cfg.adminUid && cfg.adminUid === myUid) return true;
+    return false;
+  }
+
+  function showPendingScreen() {
+    document.getElementById('pendingName').textContent = myName || 'this device';
+    document.getElementById('pendingGate').style.display = 'flex';
+    document.getElementById('appRoot').style.display = 'none';
+
+    // Register so an admin can see and approve this person
+    if (profileId) {
+      db.ref('tally/rooms/' + roomCode + '/staff/' + profileId).update({
+        name: myName,
+        lastSeen: Date.now(),
+        uid: myUid || null,
+        pending: true
+      }).catch(function() {});
+    }
+
+    // Watch for approval and let them straight in
+    configRef().on('value', function(snap) {
+      const cfg = snap.val();
+      if (isDeviceApproved(cfg)) {
+        configRef().off();
+        if (profileId) {
+          db.ref('tally/rooms/' + roomCode + '/staff/' + profileId)
+            .update({ pending: null }).catch(function() {});
+        }
+        document.getElementById('pendingGate').style.display = 'none';
+        document.getElementById('appRoot').style.display = '';
+        startApp();
+      }
+    });
+  }
+
   async function startApp() {
     setSplashStatus('Loading ' + roomCode + '...');
     updateProfileChip();
@@ -3728,6 +3930,12 @@
     }
 
     const approved = isApprovedDevice(cfg);
+
+    if (!isDeviceApproved(cfg)) {
+      hideSplash();
+      showPendingScreen();
+      return;
+    }
 
     const adminBtn = document.getElementById('adminBtn');
     if (!approved) {
