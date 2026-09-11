@@ -1260,8 +1260,13 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script>
   const firebaseConfig = {
+    apiKey: "AIzaSyD6AR0RXv4ekmC0iC2KOLThkImpQ2PCnVI",
+    authDomain: "tally-e74bb.firebaseapp.com",
     databaseURL: "https://tally-e74bb-default-rtdb.firebaseio.com/",
-    projectId: "tally-e74bb"
+    projectId: "tally-e74bb",
+    storageBucket: "tally-e74bb.firebasestorage.app",
+    messagingSenderId: "175480773764",
+    appId: "1:175480773764:web:38c7d9c2efab7aea5876d1"
   };
 
   const isConfigured = true;
@@ -1329,6 +1334,7 @@
   let myName = localStorage.getItem(NAME_KEY) || '';
   let profileId = localStorage.getItem('tally_profile_id') || null;
   let myUid = null;
+  let authError = null;
 </script>
 <script>
 
@@ -2965,7 +2971,13 @@
 
   document.getElementById('deviceIdBtn').addEventListener('click', function() {
     if (!myUid) {
-      alert('Not signed in yet. Reload and try again.');
+      const detail = authError
+        ? ('\n\nError: ' + authError +
+           (String(authError).indexOf('operation-not-allowed') !== -1
+             ? '\n\nFix: in Firebase go to Authentication -> Sign-in method -> Anonymous -> enable it.'
+             : ''))
+        : '';
+      alert('Not signed in yet.' + detail);
       return;
     }
     if (navigator.clipboard) {
@@ -3021,7 +3033,9 @@
       await firebase.auth().signInAnonymously();
       myUid = firebase.auth().currentUser ? firebase.auth().currentUser.uid : null;
     } catch (e) {
-      setSplashStatus('Sign-in failed');
+      authError = e.code || e.message || 'unknown error';
+      setSplashStatus('Sign-in failed: ' + authError);
+      console.error('Tally auth error:', e);
     }
 
     let cfg = null;
