@@ -886,6 +886,39 @@
     padding: 5px 4px;
   }
 
+  .scan-choice {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 16px;
+  }
+
+  .scan-source {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    background: var(--panel-2) !important;
+    border: 1px solid var(--line) !important;
+    color: var(--text) !important;
+    border-radius: 10px;
+    padding: 14px !important;
+    font-family: inherit;
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .scan-source:active {
+    border-color: var(--amber) !important;
+  }
+
+  .scan-icon {
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+
   .name-bar {
     display: flex;
     align-items: center;
@@ -3437,10 +3470,32 @@
   let scanResults = [];
 
   function startScan() {
+    const body = document.getElementById('auditBody');
+    document.getElementById('auditGate').style.display = 'flex';
+    document.getElementById('appRoot').style.display = 'none';
+    body.innerHTML =
+      '<div class="audit-item-name">Scan invoice</div>' +
+      '<div class="audit-sub">Flat, bright, straight-on photos read best.</div>' +
+      '<div class="scan-choice">' +
+        '<button type="button" class="scan-source" id="scanCameraBtn">' +
+          '<span class="scan-icon">&#128247;</span><span>Take a photo</span>' +
+        '</button>' +
+        '<button type="button" class="scan-source" id="scanLibraryBtn">' +
+          '<span class="scan-icon">&#128444;</span><span>Choose from photos</span>' +
+        '</button>' +
+      '</div>' +
+      '<div class="join-hint"><button type="button" class="store-action" id="scanChoiceCancel">Cancel</button></div>';
+
+    document.getElementById('scanChoiceCancel').addEventListener('click', closeAudit);
+    document.getElementById('scanCameraBtn').addEventListener('click', function() { pickInvoiceImage(true); });
+    document.getElementById('scanLibraryBtn').addEventListener('click', function() { pickInvoiceImage(false); });
+  }
+
+  function pickInvoiceImage(useCamera) {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
-    input.setAttribute('capture', 'environment');
+    if (useCamera) input.setAttribute('capture', 'environment');
     input.addEventListener('change', async function() {
       const file = input.files && input.files[0];
       if (!file) return;
