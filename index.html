@@ -841,6 +841,43 @@
     margin-bottom: 10px;
   }
 
+  .staff-actions {
+    display: flex;
+    gap: 5px;
+    flex-shrink: 0;
+    align-items: center;
+  }
+
+  .staff-btn {
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    color: var(--text-dim);
+    border-radius: 6px;
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .staff-btn[data-demote] {
+    color: var(--teal);
+    border-color: var(--teal);
+  }
+
+  .staff-btn[data-promote] {
+    color: var(--amber);
+  }
+
+  .staff-btn.del:active {
+    color: var(--red);
+    border-color: var(--red);
+  }
+
   .name-bar {
     display: flex;
     align-items: center;
@@ -2964,16 +3001,16 @@
       const isAdminUser = p.uid && adminUids[p.uid];
       return '<div class="audit-result-row">' +
         '<span>' + escapeHtml(p.name || 'Unnamed') + (isMe ? ' (you)' : '') +
-          (isAdminUser ? ' <span class="low-stock-badge" style="background:var(--teal);">ADMIN</span>' : '') +
           '<br><span style="font-size:11px;color:var(--text-dim);">last seen ' + seen +
+          (isAdminUser ? ' · admin' : '') +
           (p.uid ? '' : ' · no device linked yet') + '</span></span>' +
-        '<span style="white-space:nowrap;">' +
+        '<span class="staff-actions">' +
           (p.uid
             ? (isAdminUser
-                ? '<button type="button" class="store-action" data-demote="' + p.uid + '">remove admin</button>'
-                : '<button type="button" class="store-action" data-promote="' + p.uid + '" data-pname="' + escapeHtml(p.name || 'Unnamed') + '">make admin</button>')
+                ? '<button type="button" class="staff-btn" data-demote="' + p.uid + '" title="Remove admin">&#9733;</button>'
+                : '<button type="button" class="staff-btn" data-promote="' + p.uid + '" data-pname="' + escapeHtml(p.name || 'Unnamed') + '" title="Make admin">&#9734;</button>')
             : '') +
-          (isMe ? '' : ' <button type="button" class="store-action" data-staff="' + p.id + '">remove</button>') +
+          (isMe ? '' : '<button type="button" class="staff-btn del" data-staff="' + p.id + '" title="Remove profile">&times;</button>') +
         '</span>' +
       '</div>';
     }).join('');
@@ -2982,7 +3019,7 @@
       '<div class="audit-item-name">Staff profiles</div>' +
       '<div class="audit-sub">' + staff.length + ' profile(s) in ' + roomCode + '</div>' +
       rows +
-      '<div class="audit-summary">Making someone an admin approves the device they are currently signed in on. If they switch phones or browsers, you will need to approve them again from that device.</div>' +
+      '<div class="audit-summary">&#9734; make admin &middot; &#9733; remove admin &middot; &times; delete profile<br><br>Making someone an admin approves the device they are currently signed in on. If they switch phones or browsers, you will need to approve them again.</div>' +
       '<div class="audit-actions"><button type="button" id="staffCloseBtn">Close</button></div>';
 
     document.getElementById('staffCloseBtn').addEventListener('click', closeAudit);
