@@ -830,6 +830,17 @@
     font-weight: 700;
   }
 
+  .admin-readonly {
+    background: #3a2a12;
+    border: 1px solid var(--amber-dim);
+    color: var(--amber);
+    border-radius: 7px;
+    padding: 8px 10px;
+    font-size: 11px;
+    line-height: 1.4;
+    margin-bottom: 10px;
+  }
+
   .name-bar {
     display: flex;
     align-items: center;
@@ -1176,6 +1187,12 @@
   </div>
   <div class="admin-panel" id="adminPanel" style="display:none;">
     <div class="admin-title">Admin controls</div>
+    <div class="admin-label">Approved devices</div>
+    <div id="deviceList" class="store-list"></div>
+    <div class="admin-row">
+      <button type="button" class="admin-mini-btn" id="deviceIdBtn">Copy this device's ID</button>
+      <button type="button" class="admin-mini-btn" id="addDeviceBtn">Approve a device</button>
+    </div>
     <div class="admin-row">
       <input type="text" id="newStoreCode" placeholder="New store code" maxlength="12" autocapitalize="characters">
       <button type="button" class="admin-mini-btn" id="createStoreBtn">Create</button>
@@ -1193,9 +1210,6 @@
     </div>
     <div class="admin-row">
       <button type="button" class="admin-mini-btn" id="migrateBtn">Import old inventory</button>
-    </div>
-    <div class="admin-row">
-      <button type="button" class="admin-mini-btn" id="deviceIdBtn">Show my device ID</button>
     </div>
     <div class="admin-row">
       <button type="button" class="admin-mini-btn" id="changePassBtn">Change password</button>
@@ -2388,17 +2402,63 @@
       return;
     }
     const hash = await hashPass(p1);
-    await configRef().set({ adminHash: hash, stores: [DEFAULT_STORE] });
+    const adminUids = {};
+    if (myUid) adminUids[myUid] = { label: 'First device', addedAt: Date.now() };
+    await configRef().set({ adminHash: hash, stores: [DEFAULT_STORE], adminUid: myUid || null, adminUids: adminUids });
     sessionStorage.setItem('tally_admin', '1');
     goToStore(DEFAULT_STORE);
   });
+
+  function isApprovedDevice(cfg) {
+    if (!myUid || !cfg) return false;
+    if (cfg.adminUids && cfg.adminUids[myUid]) return true;
+    // Legacy single-device config
+    if (cfg.adminUid && cfg.adminUid === myUid) return true;
+    return false;
+  }
+
+  async function applyAdminDeviceState() {
+    const banner = document.getElementById('adminReadOnly');
+    if (banner) banner.style.display = 'none';
+    let cfg = null;
+    try { cfg = await loadConfig(); } catch (e) {}
+    if (!cfg) return;
+
+    // Migrate legacy single-uid config onto the map
+    if (!cfg.adminUids && cfg.adminUid && cfg.adminUid === myUid) {
+      const m = {};
+      m[myUid] = { label: 'First device', addedAt: Date.now() };
+      try { await configRef().update({ adminUids: m }); } catch (e) {}
+    }
+    renderApprovedDevices(cfg);
+  }
+
+  function renderApprovedDevices(cfg) {
+    const wrap = document.getElementById('deviceList');
+    if (!wrap) return;
+    const map = (cfg && cfg.adminUids) || {};
+    const uids = Object.keys(map);
+    if (!uids.length) {
+      wrap.innerHTML = '<div style="font-size:11px;color:var(--text-dim);padding:4px 0;">No approved devices recorded.</div>';
+      return;
+    }
+    wrap.innerHTML = uids.map(function(uid) {
+      const d = map[uid] || {};
+      const isMe = uid === myUid;
+      return '<div class="store-entry' + (isMe ? ' active' : '') + '">' +
+        '<span class="code" style="font-size:11px;">' + escapeHtml(d.label || 'Device') + (isMe ? ' (this one)' : '') + '</span>' +
+        (isMe ? '<span style="font-size:10px;color:var(--text-dim);">current</span>'
+              : '<button type="button" data-revoke="' + uid + '">revoke</button>') +
+      '</div>';
+    }).join('');
+  }
 
   document.getElementById('adminBtn').addEventListener('click', function() {
     if (isAdmin) {
       const panel = document.getElementById('adminPanel');
       const showing = panel.style.display !== 'none';
       panel.style.display = showing ? 'none' : 'block';
-      if (!showing) refreshStoreList();
+      if (!showing) { refreshStoreList(); applyAdminDeviceState(); }
       return;
     }
     document.getElementById('adminGate').style.display = 'flex';
@@ -2425,6 +2485,7 @@
     document.getElementById('adminPanel').style.display = 'block';
     document.getElementById('adminPass').value = '';
     refreshStoreList();
+    applyAdminDeviceState();
   });
 
   document.getElementById('createStoreBtn').addEventListener('click', async function() {
@@ -2433,9 +2494,13 @@
       document.getElementById('newStoreCode').style.borderColor = 'var(--red)';
       return;
     }
-    const stores = await addStore(code);
-    document.getElementById('newStoreCode').value = '';
-    renderStoreList(stores);
+    try {
+      const stores = await addStore(code);
+      document.getElementById('newStoreCode').value = '';
+      renderStoreList(stores);
+    } catch (e) {
+      alert('Could not create store — this device is not the admin device.');
+    }
   });
 
   document.getElementById('storeList').addEventListener('click', function(e) {
@@ -2447,8 +2512,12 @@
     const p = prompt('New admin password (at least 4 characters):');
     if (p === null) return;
     if (p.length < 4) { alert('Too short.'); return; }
-    await configRef().update({ adminHash: await hashPass(p) });
-    alert('Password updated.');
+    try {
+      await configRef().update({ adminHash: await hashPass(p) });
+      alert('Password updated.');
+    } catch (e) {
+      alert('Could not update password — this device is not the admin device.');
+    }
   });
 
   document.getElementById('adminLogoutBtn').addEventListener('click', function() {
@@ -2991,6 +3060,63 @@
     }
   });
 
+  document.getElementById('addDeviceBtn').addEventListener('click', async function() {
+    const uid = prompt('Paste the device ID to approve.\n\nGet it by opening Tally on that device, then having it read out its ID from the setup screen.');
+    if (uid === null) return;
+    const clean = uid.trim();
+    if (!clean) return;
+    const label = prompt('Name this device (e.g. "Office laptop", "Backup phone"):', 'Device') || 'Device';
+    try {
+      const update = {};
+      update['adminUids/' + clean] = { label: label.trim().slice(0, 30), addedAt: Date.now() };
+      await configRef().update(update);
+      const cfg = await loadConfig();
+      renderApprovedDevices(cfg);
+      alert('Device approved. Remember to add this ID to your Firebase rules too if you locked them to specific UIDs.');
+    } catch (e) {
+      alert('Could not approve device — this device is not an approved admin device.');
+    }
+  });
+
+  document.getElementById('deviceList').addEventListener('click', async function(e) {
+    const btn = e.target.closest('button[data-revoke]');
+    if (!btn) return;
+    const uid = btn.getAttribute('data-revoke');
+    if (!confirm('Revoke admin access for this device?')) return;
+    try {
+      await configRef().child('adminUids').child(uid).remove();
+      const cfg = await loadConfig();
+      renderApprovedDevices(cfg);
+    } catch (e) {
+      alert('Could not revoke — this device is not an approved admin device.');
+    }
+  });
+
+  document.getElementById('addDeviceBtn').disabled = false;
+
+  // Long-press the store chip to reveal this device's ID (needed to get approved)
+  (function() {
+    const chip = document.getElementById('storeChip');
+    if (!chip) return;
+    let timer = null;
+    function begin() {
+      timer = setTimeout(function() {
+        const id = myUid || '(not signed in)';
+        if (navigator.clipboard && myUid) {
+          navigator.clipboard.writeText(myUid).catch(function() {});
+        }
+        prompt('This device\'s ID (copied if possible) — send it to your admin to be approved:', id);
+      }, 1200);
+    }
+    function cancel() { if (timer) { clearTimeout(timer); timer = null; } }
+    chip.addEventListener('touchstart', begin, { passive: true });
+    chip.addEventListener('touchend', cancel);
+    chip.addEventListener('touchmove', cancel);
+    chip.addEventListener('mousedown', begin);
+    chip.addEventListener('mouseup', cancel);
+    chip.addEventListener('mouseleave', cancel);
+  })();
+
   document.getElementById('orderBtn').addEventListener('click', showOrderList);
 
   document.getElementById('staffBtn').addEventListener('click', showStaff);
@@ -3073,16 +3199,32 @@
     hideSplash();
   }
 
-  function startApp() {
+  async function startApp() {
     setSplashStatus('Loading ' + roomCode + '...');
-    isAdmin = sessionStorage.getItem('tally_admin') === '1';
     updateProfileChip();
     document.getElementById('storeChip').textContent = 'Store: ' + roomCode;
-    document.getElementById('adminBtn').textContent = isAdmin ? 'Admin \u2713' : 'Admin';
-    if (isAdmin) {
-      document.getElementById('adminPanel').style.display = 'block';
-      refreshStoreList();
+
+    let cfg = null;
+    try { cfg = await loadConfig(); } catch (e) {}
+    const approved = isApprovedDevice(cfg);
+
+    const adminBtn = document.getElementById('adminBtn');
+    if (!approved) {
+      adminBtn.style.display = 'none';
+      isAdmin = false;
+      sessionStorage.removeItem('tally_admin');
+      document.getElementById('adminPanel').style.display = 'none';
+    } else {
+      adminBtn.style.display = '';
+      isAdmin = sessionStorage.getItem('tally_admin') === '1';
+      adminBtn.textContent = isAdmin ? 'Admin \u2713' : 'Admin';
+      if (isAdmin) {
+        document.getElementById('adminPanel').style.display = 'block';
+        refreshStoreList();
+        applyAdminDeviceState();
+      }
     }
+
     if (profileId) {
       db.ref('tally/rooms/' + roomCode + '/staff/' + profileId)
         .update({ name: myName, lastSeen: Date.now() }).catch(function() {});
