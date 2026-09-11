@@ -1089,6 +1089,23 @@
   <div class="splash-status" id="splashStatus">Connecting...</div>
 </div>
 
+<div class="join-gate" id="lowStockGate" style="display:none;">
+  <div class="join-card audit-card">
+    <div class="audit-item-name" id="lowStockTitle">Low stock alert</div>
+    <div class="audit-sub" id="lowStockSub"></div>
+    <input type="number" id="lowStockValue" placeholder="Amount" min="0" step="any">
+    <div class="mode-toggle" id="lowStockMode" style="margin-top:10px;">
+      <button type="button" class="active" data-lsmode="case">Cases</button>
+      <button type="button" data-lsmode="unit">Units</button>
+    </div>
+    <div class="audit-actions">
+      <button type="button" class="audit-skip" id="lowStockClearBtn">Turn off</button>
+      <button type="button" id="lowStockSaveBtn">Save</button>
+    </div>
+    <div class="join-hint"><button type="button" class="store-action" id="lowStockCancelBtn">Cancel</button></div>
+  </div>
+</div>
+
 <div class="join-gate" id="setupGate" style="display:none;">
   <div class="join-card">
     <h2>&#127849; Tally</h2>
@@ -1311,7 +1328,8 @@
         ? item.units.toLocaleString() + ' total units'
         : c.decimalCases.toLocaleString() + ' case' + (c.decimalCases === 1 ? '' : 's') + ' (' + c.cases + ' whole + ' + c.rem + ' unit' + (c.rem === 1 ? '' : 's') + ')';
 
-      const lowStock = item.lowStock && item.units <= item.lowStock;
+      const lowT = lowThresholdUnits(item);
+      const lowStock = lowT != null && item.units <= lowT;
 
       if (minimized.has(idx)) {
         return (
@@ -1352,7 +1370,7 @@
             '<div>' +
               '<div class="item-name">' + escapeHtml(item.name) + (lowStock ? '<span class="low-stock-badge">Low</span>' : '') + '</div>' +
               '<div class="item-case-size">' + item.caseSize + ' per case &middot; <button class="edit-case" data-idx="' + idx + '">change</button>' +
-                ' &middot; <button class="edit-lowstock" data-idx="' + idx + '">low stock' + (item.lowStock ? ' (' + item.lowStock + ')' : '') + '</button>' +
+                ' &middot; <button class="edit-lowstock" data-idx="' + idx + '">low stock' + (lowThresholdLabel(item) ? ' (' + lowThresholdLabel(item) + ')' : '') + '</button>' +
                 ' &middot; <button class="edit-note" data-idx="' + idx + '">' + (item.note ? 'edit note' : 'add note') + '</button></div>' +
               (item.note ? '<div class="item-note">' + escapeHtml(item.note) + '</div>' : '') +
             '</div>' +
@@ -1517,6 +1535,27 @@
     });
   }
 
+  function lowThresholdUnits(item) {
+    if (!item) return null;
+    if (item.lowStockValue != null) {
+      return item.lowStockMode === 'unit'
+        ? item.lowStockValue
+        : item.lowStockValue * (item.caseSize || 1);
+    }
+    if (item.lowCases != null) return item.lowCases * (item.caseSize || 1);
+    if (item.lowStock != null) return item.lowStock;
+    return null;
+  }
+
+  function lowThresholdLabel(item) {
+    if (item.lowStockValue != null) {
+      return Number(item.lowStockValue.toFixed(2)) + (item.lowStockMode === 'unit' ? ' un' : ' cs');
+    }
+    if (item.lowCases != null) return Number(item.lowCases.toFixed(2)) + ' cs';
+    if (item.lowStock != null) return item.lowStock + ' un';
+    return null;
+  }
+
   function touchItem(item) {
     if (item) item.touched = Date.now();
   }
@@ -1658,13 +1697,7 @@
     }
 
     if (btn.classList.contains('edit-lowstock')) {
-      const val = prompt('Alert when units drop to or below (leave blank to turn off):', items[idx].lowStock || '');
-      if (val === null) return;
-      const n = parseInt(val, 10);
-      items[idx].lowStock = (val.trim() === '' || isNaN(n)) ? null : n;
-      touchItem(items[idx]);
-      render();
-      saveItems();
+      openLowStockModal(idx);
       return;
     }
 
@@ -1959,7 +1992,10 @@
       }
 
       if (result.type === 'lowreport') {
-        const low = items.filter(function(it) { return it.lowStock && it.units <= it.lowStock; });
+        const low = items.filter(function(it) {
+          const t = lowThresholdUnits(it);
+          return t != null && it.units <= t;
+        });
         if (!low.length) {
           messages.push('Nothing is low right now');
         } else {
@@ -2501,6 +2537,91 @@
       alert(new Date(r.ts).toLocaleString() + '\nby ' + (r.by || 'someone') + '\n\n' + detail);
     });
   }
+
+  let lowStockIdx = null;
+  let lowStockMode = 'case';
+
+  function setLowStockMode(mode) {
+    lowStockMode = mode;
+    Array.from(document.getElementById('lowStockMode').children).forEach(function(b) {
+      b.classList.toggle('active', b.getAttribute('data-lsmode') === mode);
+    });
+  }
+
+  function openLowStockModal(idx) {
+    const item = items[idx];
+    if (!item) return;
+    lowStockIdx = idx;
+
+    let mode = 'case';
+    let value = '';
+    if (item.lowStockValue != null) {
+      mode = item.lowStockMode === 'unit' ? 'unit' : 'case';
+      value = item.lowStockValue;
+    } else if (item.lowCases != null) {
+      value = item.lowCases;
+    } else if (item.lowStock != null) {
+      mode = 'unit';
+      value = item.lowStock;
+    }
+
+    document.getElementById('lowStockTitle').textContent = item.name;
+    document.getElementById('lowStockSub').textContent =
+      'Flag as low at or below this amount · ' + item.caseSize + ' per case';
+    document.getElementById('lowStockValue').value = value;
+    setLowStockMode(mode);
+    document.getElementById('lowStockGate').style.display = 'flex';
+    document.getElementById('appRoot').style.display = 'none';
+    document.getElementById('lowStockValue').focus();
+  }
+
+  function closeLowStockModal() {
+    lowStockIdx = null;
+    document.getElementById('lowStockGate').style.display = 'none';
+    document.getElementById('appRoot').style.display = '';
+  }
+
+  document.getElementById('lowStockMode').addEventListener('click', function(e) {
+    const btn = e.target.closest('button[data-lsmode]');
+    if (btn) setLowStockMode(btn.getAttribute('data-lsmode'));
+  });
+
+  document.getElementById('lowStockSaveBtn').addEventListener('click', function() {
+    if (lowStockIdx == null) return;
+    const n = parseFloat(document.getElementById('lowStockValue').value);
+    if (isNaN(n) || n < 0) {
+      document.getElementById('lowStockValue').style.borderColor = 'var(--red)';
+      return;
+    }
+    const item = items[lowStockIdx];
+    item.lowStockValue = n;
+    item.lowStockMode = lowStockMode;
+    item.lowCases = null;
+    item.lowStock = null;
+    touchItem(item);
+    closeLowStockModal();
+    render();
+    saveItems();
+  });
+
+  document.getElementById('lowStockClearBtn').addEventListener('click', function() {
+    if (lowStockIdx == null) return;
+    const item = items[lowStockIdx];
+    item.lowStockValue = null;
+    item.lowStockMode = null;
+    item.lowCases = null;
+    item.lowStock = null;
+    touchItem(item);
+    closeLowStockModal();
+    render();
+    saveItems();
+  });
+
+  document.getElementById('lowStockCancelBtn').addEventListener('click', closeLowStockModal);
+
+  document.getElementById('lowStockValue').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') document.getElementById('lowStockSaveBtn').click();
+  });
 
   document.getElementById('auditBtn').addEventListener('click', startAudit);
   document.getElementById('auditHistBtn').addEventListener('click', showAuditHistory);
