@@ -1169,6 +1169,7 @@
   <p>Shared item counter — cases and individual units</p>
   <div class="store-row">
     <span class="store-chip" id="storeChip">Store: —</span>
+    <button type="button" class="store-action" id="orderBtn">Order list</button>
     <button type="button" class="store-action" id="auditBtn">Spot audit</button>
     <button type="button" class="store-action" id="auditHistBtn">Audit log</button>
     <button type="button" class="store-action" id="adminBtn">Admin</button>
@@ -1192,6 +1193,9 @@
     </div>
     <div class="admin-row">
       <button type="button" class="admin-mini-btn" id="migrateBtn">Import old inventory</button>
+    </div>
+    <div class="admin-row">
+      <button type="button" class="admin-mini-btn" id="deviceIdBtn">Show my device ID</button>
     </div>
     <div class="admin-row">
       <button type="button" class="admin-mini-btn" id="changePassBtn">Change password</button>
@@ -1253,6 +1257,7 @@
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script>
   const firebaseConfig = {
     databaseURL: "https://tally-e74bb-default-rtdb.firebaseio.com/",
@@ -1323,6 +1328,7 @@
   }
   let myName = localStorage.getItem(NAME_KEY) || '';
   let profileId = localStorage.getItem('tally_profile_id') || null;
+  let myUid = null;
 </script>
 <script>
 
@@ -2890,6 +2896,91 @@
     });
   }
 
+  function showOrderList() {
+    const body = document.getElementById('auditBody');
+    document.getElementById('auditGate').style.display = 'flex';
+    document.getElementById('appRoot').style.display = 'none';
+
+    const needed = items.map(function(it) {
+      const t = lowThresholdUnits(it);
+      if (t == null || it.units > t) return null;
+      const shortUnits = Math.max(0, t - it.units);
+      const cs = it.caseSize || 1;
+      return {
+        name: it.name,
+        note: it.note,
+        haveUnits: it.units,
+        haveCases: Number((it.units / cs).toFixed(2)),
+        targetUnits: t,
+        targetCases: Number((t / cs).toFixed(2)),
+        orderCases: Math.max(1, Math.ceil(shortUnits / cs)),
+        caseSize: cs
+      };
+    }).filter(Boolean).sort(function(a, b) { return b.orderCases - a.orderCases; });
+
+    if (!needed.length) {
+      body.innerHTML = '<div class="audit-item-name">Order list</div>' +
+        '<div class="audit-sub">Nothing is at or below its low-stock level. You\'re good.</div>' +
+        '<div class="audit-actions"><button type="button" id="orderCloseBtn">Close</button></div>';
+      document.getElementById('orderCloseBtn').addEventListener('click', closeAudit);
+      return;
+    }
+
+    const rows = needed.map(function(n) {
+      return '<div class="audit-result-row">' +
+        '<span>' + escapeHtml(n.name) +
+          '<br><span style="font-size:11px;color:var(--text-dim);">have ' + n.haveCases +
+          ' cs · low at ' + n.targetCases + ' cs' +
+          (n.note ? ' · ' + escapeHtml(n.note) : '') + '</span></span>' +
+        '<span class="audit-var off">order ' + n.orderCases + ' cs</span>' +
+      '</div>';
+    }).join('');
+
+    const totalCases = needed.reduce(function(s, n) { return s + n.orderCases; }, 0);
+
+    body.innerHTML =
+      '<div class="audit-item-name">Order list</div>' +
+      '<div class="audit-sub">' + needed.length + ' item(s) to order · ' + totalCases + ' case(s) total</div>' +
+      rows +
+      '<div class="audit-summary">Based on your low-stock settings. Quantities bring each item back up to its low-stock level, rounded up to whole cases.</div>' +
+      '<div class="audit-actions">' +
+        '<button type="button" class="audit-skip" id="orderCopyBtn">Copy list</button>' +
+        '<button type="button" id="orderCloseBtn">Close</button>' +
+      '</div>';
+
+    document.getElementById('orderCloseBtn').addEventListener('click', closeAudit);
+    document.getElementById('orderCopyBtn').addEventListener('click', function() {
+      const text = 'Order list — ' + roomCode + ' — ' + new Date().toLocaleDateString() + '\n\n' +
+        needed.map(function(n) {
+          return n.orderCases + ' cs  ' + n.name + '  (have ' + n.haveCases + ' cs)' +
+            (n.note ? '  [' + n.note + ']' : '');
+        }).join('\n');
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(function() { alert('Order list copied.'); });
+      } else {
+        prompt('Copy this:', text);
+      }
+    });
+  }
+
+  document.getElementById('deviceIdBtn').addEventListener('click', function() {
+    if (!myUid) {
+      alert('Not signed in yet. Reload and try again.');
+      return;
+    }
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(myUid).then(function() {
+        alert('Your device ID (copied to clipboard):\n\n' + myUid + '\n\nPaste this into your Firebase security rules where it says ADMIN_UID.');
+      }).catch(function() {
+        prompt('Your device ID — copy it:', myUid);
+      });
+    } else {
+      prompt('Your device ID — copy it:', myUid);
+    }
+  });
+
+  document.getElementById('orderBtn').addEventListener('click', showOrderList);
+
   document.getElementById('staffBtn').addEventListener('click', showStaff);
 
   document.getElementById('sessionLogBtn').addEventListener('click', showSessionLog);
@@ -2924,6 +3015,14 @@
 
   async function boot() {
     const minShow = new Promise(function(r) { setTimeout(r, 900); });
+
+    try {
+      setSplashStatus('Signing in...');
+      await firebase.auth().signInAnonymously();
+      myUid = firebase.auth().currentUser ? firebase.auth().currentUser.uid : null;
+    } catch (e) {
+      setSplashStatus('Sign-in failed');
+    }
 
     let cfg = null;
     try {
