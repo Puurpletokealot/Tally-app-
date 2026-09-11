@@ -2408,7 +2408,17 @@
     const hash = await hashPass(p1);
     const adminUids = {};
     if (myUid) adminUids[myUid] = { label: 'First device', addedAt: Date.now() };
-    await configRef().set({ adminHash: hash, stores: [DEFAULT_STORE], adminUid: myUid || null, adminUids: adminUids });
+    try {
+      await configRef().set({ adminHash: hash, stores: [DEFAULT_STORE], adminUid: myUid || null, adminUids: adminUids });
+    } catch (e) {
+      const code = e.code || e.message || 'unknown';
+      alert('Could not save admin setup.\n\nError: ' + code +
+        (String(code).indexOf('permission') !== -1
+          ? '\n\nYour Firebase rules are blocking this. Open Realtime Database -> Rules and publish the updated rules (the ones that read the approved-device list), or temporarily use:\n\n{ "rules": { ".read": true, ".write": true } }'
+          : ''));
+      console.error('Tally setup error:', e);
+      return;
+    }
     sessionStorage.setItem('tally_admin', '1');
     goToStore(DEFAULT_STORE);
   });
