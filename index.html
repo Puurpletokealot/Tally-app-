@@ -235,9 +235,13 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 8px;
+    gap: 6px;
     margin-top: 10px;
+    flex-wrap: wrap;
   }
+
+  .item-footer .waste-btn { padding: 6px 8px; font-size: 10.5px; }
+  .item-footer .remove-btn { padding: 6px 8px; font-size: 10.5px; }
 
   .item-footer .history-toggle {
     margin-top: 0;
@@ -503,6 +507,30 @@
     border-radius: 10px;
     padding: 12px;
     margin-top: 10px;
+  }
+
+  .bugs-badge {
+    display: inline-block;
+    background: var(--red);
+    color: #fff;
+    border-radius: 10px;
+    min-width: 18px;
+    padding: 1px 6px;
+    font-size: 10px;
+    font-weight: 700;
+    text-align: center;
+    margin-left: 5px;
+  }
+
+  .build-tag {
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--text-dim);
+    background: var(--panel-2);
+    border-radius: 4px;
+    padding: 2px 6px;
+    margin-left: 6px;
+    vertical-align: middle;
   }
 
   .admin-title {
@@ -1445,6 +1473,48 @@
     vertical-align: middle;
   }
 
+  .tray-wrap {
+    position: relative;
+    margin-top: 10px;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+  }
+
+  .tray-wrap img { width: 100%; display: block; }
+
+  .tray-dots {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+  }
+
+  .tray-dot {
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    margin: -8px 0 0 -8px;
+    border-radius: 50%;
+    background: rgba(232,145,60,0.85);
+    border: 2px solid #fff;
+    box-shadow: 0 0 4px rgba(0,0,0,0.6);
+    cursor: pointer;
+  }
+
+  .tray-btn {
+    background: none;
+    border: 1px solid var(--line);
+    color: var(--text-dim);
+    border-radius: 7px;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 6px 10px;
+    flex-shrink: 0;
+  }
+
+  .tray-btn:active { border-color: var(--amber); color: var(--amber); }
+
   .waste-btn {
     background: none;
     border: 1px solid var(--line);
@@ -1749,6 +1819,291 @@
     cursor: pointer;
     white-space: nowrap;
   }
+
+  .fab {
+    position: fixed;
+    right: 16px;
+    bottom: calc(16px + env(safe-area-inset-bottom));
+    z-index: 200;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    color: var(--text);
+    font-size: 20px;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+    opacity: 0.85;
+  }
+
+  .fab:active { opacity: 1; border-color: var(--amber); }
+
+  #bugText {
+    width: 100%;
+    background-color: var(--panel-2);
+    border: 1px solid var(--line);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 12px;
+    font-family: inherit;
+    font-size: 14px;
+    resize: vertical;
+    -webkit-appearance: none;
+  }
+
+  .bug-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .bug-row:last-of-type { border-bottom: none; }
+
+  .bug-sev {
+    flex-shrink: 0;
+    border-radius: 5px;
+    padding: 2px 7px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+
+  .bug-sev.blocking { background: var(--red); color: #fff; }
+  .bug-sev.annoying { background: var(--amber); color: #241a08; }
+  .bug-sev.idea     { background: var(--teal); color: #0d2b1f; }
+
+  .bug-body { flex: 1; min-width: 0; font-size: 12.5px; line-height: 1.45; }
+
+  .bug-meta { font-size: 10.5px; color: var(--text-dim); margin-top: 3px; }
+
+  .bug-row.done { opacity: 0.45; }
+
+  .counter-screen {
+    position: fixed;
+    top: 0; right: 0; bottom: 0; left: 0;
+    inset: 0;
+    z-index: 450;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    padding: calc(10px + env(safe-area-inset-top)) 14px calc(14px + env(safe-area-inset-bottom));
+  }
+
+  .counter-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .counter-title {
+    flex: 1;
+    text-align: center;
+    font-size: 15px;
+    font-weight: 700;
+  }
+
+  .counter-x, .counter-undo {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    color: var(--text);
+    border-radius: 10px;
+    width: 42px;
+    height: 42px;
+    font-size: 19px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .counter-undo:disabled { opacity: 0.3; }
+
+  /* The whole middle is the tap target — you shouldn't have to aim */
+  .counter-tap {
+    flex: 1;
+    width: 100%;
+    background: var(--panel);
+    border: 2px solid var(--line);
+    border-radius: 18px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-family: inherit;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  .counter-tap:active {
+    border-color: var(--amber);
+    background: var(--panel-2);
+  }
+
+  .counter-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 76px;
+    font-weight: 700;
+    color: var(--amber);
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .counter-sub {
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .counter-variance {
+    text-align: center;
+    font-size: 13px;
+    font-weight: 700;
+    min-height: 20px;
+    margin: 10px 0 6px;
+  }
+
+  .counter-variance.over  { color: var(--teal); }
+  .counter-variance.under { color: var(--red); }
+  .counter-variance.exact { color: var(--text-dim); }
+
+  .counter-quick {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .counter-quick button {
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    color: var(--text);
+    border-radius: 11px;
+    padding: 14px 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .counter-quick button.neg { color: var(--red); }
+
+  .counter-foot {
+    display: flex;
+    gap: 8px;
+  }
+
+  .counter-reset {
+    background: none;
+    border: 1px solid var(--line);
+    color: var(--text-dim);
+    border-radius: 11px;
+    padding: 14px 18px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .counter-save {
+    flex: 1;
+    background: var(--amber);
+    border: none;
+    color: #241a08;
+    border-radius: 11px;
+    padding: 14px;
+    font-family: inherit;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .hc-head { text-align: center; margin-bottom: 14px; }
+
+  .hc-name { font-size: 19px; font-weight: 700; }
+
+  .hc-sub { font-size: 11.5px; color: var(--text-dim); margin-top: 4px; line-height: 1.4; }
+
+  .hc-tap {
+    display: block;
+    width: 190px;
+    height: 190px;
+    margin: 0 auto 12px;
+    border-radius: 50%;
+    background: var(--panel-2);
+    border: 3px solid var(--amber);
+    color: var(--text);
+    cursor: pointer;
+    box-shadow: inset 0 0 30px rgba(0,0,0,0.25);
+  }
+
+  .hc-tap:active {
+    background: var(--amber);
+    color: #241a08;
+    transform: scale(0.97);
+  }
+
+  .hc-num {
+    display: block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 52px;
+    font-weight: 700;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .hc-unit {
+    display: block;
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 6px;
+  }
+
+  .hc-tap:active .hc-unit { color: #241a08; }
+
+  .hc-stats {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+    font-weight: 600;
+  }
+
+  .hc-over { color: var(--teal); }
+  .hc-under { color: var(--red); }
+
+  .hc-bumps {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 5px;
+    margin-bottom: 10px;
+  }
+
+  .hc-bump {
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 11px 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .hc-bump:active { border-color: var(--amber); }
+
+  .hc-tools {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 4px;
+  }
+
+  .hc-tools .admin-mini-btn { flex: 1; text-align: center; }
 
   .head-row {
     display: flex;
@@ -2231,7 +2586,7 @@
     <span class="sync-text" id="syncText"></span>
   </div>
   <div class="admin-panel" id="adminPanel" style="display:none;">
-    <div class="admin-title">Admin</div>
+    <div class="admin-title">Admin <span class="build-tag">build Sep 12 19:57</span></div>
 
     <div class="admin-sec open">
       <button type="button" class="admin-sec-head" data-sec="people">
@@ -2266,6 +2621,18 @@
         <div class="admin-btn-grid">
           <button type="button" class="admin-mini-btn" id="shareStoreBtn">Share store link</button>
         </div>
+      </div>
+    </div>
+
+    <div class="admin-sec">
+      <button type="button" class="admin-sec-head" data-sec="reports">
+        <span>Reports <span class="bugs-badge" id="bugsBadge" style="display:none;"></span></span><span class="chev">&#9662;</span>
+      </button>
+      <div class="admin-sec-body" data-body="reports">
+        <div class="admin-btn-grid">
+          <button type="button" class="admin-mini-btn" id="bugsBtn">Open reports</button>
+        </div>
+        <div class="admin-note">Staff send these with the bug button in the corner of the app.</div>
       </div>
     </div>
 
@@ -2347,6 +2714,48 @@
 </div>
 
 
+<div class="counter-screen" id="counterScreen" style="display:none;">
+  <div class="counter-head">
+    <button type="button" class="counter-x" id="counterClose">&times;</button>
+    <div class="counter-title" id="counterTitle">Hand count</div>
+    <button type="button" class="counter-undo" id="counterUndo">&#8617;</button>
+  </div>
+
+  <button type="button" class="counter-tap" id="counterTap">
+    <div class="counter-num" id="counterNum">0</div>
+    <div class="counter-sub" id="counterSub">tap anywhere to count</div>
+  </button>
+
+  <div class="counter-variance" id="counterVariance"></div>
+
+  <div class="counter-quick" id="counterQuick">
+    <button type="button" data-add="5">+5</button>
+    <button type="button" data-add="10">+10</button>
+    <button type="button" data-add="25">+25</button>
+    <button type="button" data-add="-1" class="neg">&minus;1</button>
+  </div>
+
+  <div class="counter-foot">
+    <button type="button" class="counter-reset" id="counterReset">Reset</button>
+    <button type="button" class="counter-save" id="counterSave">Save count</button>
+  </div>
+</div>
+
+<button type="button" class="fab" id="bugFab" aria-label="Report a problem">&#128027;</button>
+
+<div class="join-gate" id="bugGate" style="display:none;">
+  <div class="join-card">
+    <h2>&#128027; Something wrong?</h2>
+    <p>Tell us what happened. It goes straight to the manager — no need to catch anyone in person.</p>
+    <textarea id="bugText" rows="5" placeholder="What were you doing, and what went wrong?"></textarea>
+    <div class="role-label">How bad is it?</div>
+    <div class="role-grid" id="bugSeverity"></div>
+    <button type="button" id="bugSend">Send report</button>
+    <div class="join-hint">Your name and what screen you were on get attached automatically.<br><br>
+    <button type="button" class="store-action" id="bugCancel">Cancel</button></div>
+  </div>
+</div>
+
 <div class="sheet-scrim" id="menuScrim" style="display:none;"></div>
 <div class="sheet" id="menuSheet" style="display:none;">
   <div class="sheet-handle"></div>
@@ -2365,9 +2774,21 @@
       <span class="si-icon">&#129534;</span>
       <span class="si-text"><b>Scan invoice</b><i>Free-form delivery paperwork</i></span>
     </button>
+    <button type="button" class="sheet-item" id="handCountBtn">
+      <span class="si-icon">&#128400;</span>
+      <span class="si-text"><b>Hand count</b><i>Tap out an exact count for munchkins and loose product</i></span>
+    </button>
+    <button type="button" class="sheet-item" id="trayBtn">
+      <span class="si-icon">&#129384;</span>
+      <span class="si-text"><b>Count a tray</b><i>Photograph munchkins and count them</i></span>
+    </button>
     <button type="button" class="sheet-item" id="auditBtn">
       <span class="si-icon">&#9989;</span>
       <span class="si-text"><b>Spot audit</b><i>Count a random sample, tap or hands-free</i></span>
+    </button>
+    <button type="button" class="sheet-item" id="tallyBtn">
+      <span class="si-icon">&#128175;</span>
+      <span class="si-text"><b>Hand count</b><i>Tap out an exact count &mdash; built for munchkins</i></span>
     </button>
   </div>
 
@@ -2633,6 +3054,8 @@
             '<button type="button" class="history-toggle" data-action="toggle-history" data-idx="' + idx + '">' +
               (expanded.has(idx) ? 'Hide history' : 'Show history') +
             '</button>' +
+            '<button type="button" class="waste-btn hc-open" data-idx="' + idx + '">&#128400; Count</button>' +
+            '<button type="button" class="tray-btn" data-idx="' + idx + '">&#129384; Tray</button>' +
             '<button type="button" class="waste-btn" data-idx="' + idx + '">&#128465; Waste</button>' +
             '<button type="button" class="remove-btn" data-idx="' + idx + '">Delete item</button>' +
           '</div>' +
@@ -2665,7 +3088,10 @@
   function computeBurn(item) {
     const hist = (item && item.history) || [];
     // Waste is a loss, not a sales pace — exclude it from the forecast
-    const usage = hist.filter(function (h) { return h.delta < 0 && h.kind !== 'waste'; });
+    // Waste is a loss and a hand count is a correction — neither is sales pace
+    const usage = hist.filter(function (h) {
+      return h.delta < 0 && h.kind !== 'waste' && h.kind !== 'count';
+    });
     if (usage.length < 3) return null;
 
     const now = Date.now();
@@ -2782,7 +3208,9 @@
 
     const recent = history.slice(-6).reverse();
     const recentHtml = recent.map(function(h) {
-      const verb = h.kind === 'waste' ? 'wasted' : (h.delta > 0 ? 'added' : 'removed');
+      const verb = h.kind === 'waste' ? 'wasted'
+        : h.kind === 'count' ? 'hand counted'
+        : (h.delta > 0 ? 'added' : 'removed');
       return '<div class="history-entry"><span>' + verb + ' ' + Math.abs(h.delta).toLocaleString() + ' units</span>' +
         '<span class="who">' + escapeHtml(h.actor || 'someone') +
         (h.role ? ' (' + escapeHtml(h.role) + ')' : '') +
@@ -2793,6 +3221,7 @@
     history.forEach(function(h) {
       const wk = getWeekStart(h.ts);
       if (!weekMap[wk]) weekMap[wk] = { bought: 0, used: 0, wasted: 0 };
+      if (h.kind === 'count') return;
       if (h.delta > 0) weekMap[wk].bought += h.delta;
       else if (h.kind === 'waste') weekMap[wk].wasted += Math.abs(h.delta);
       else weekMap[wk].used += Math.abs(h.delta);
@@ -3538,6 +3967,759 @@
     if (layer && layer.style.display === 'block') drawTour();
   });
 
+  // ============ RECIPE VOCABULARY (from the store's finishing chart) ============
+  const BASES = [
+    'Yeast Ring', 'Yeast Shell', 'Plain Cake Ring', 'Chocolate Cake Ring',
+    'Blueberry Cake Ring', 'Sour Kreme Cake Ring', 'French Cruller', 'Stick',
+    'Munchkin', 'Apple Fritter', 'Coffee Roll', 'Muffin', 'Bagel', 'Croissant', 'Other'
+  ];
+
+  const TOPPINGS = [
+    'Glaze', 'Chocolate Icing', 'Vanilla Icing', 'Strawberry Icing', 'Maple Icing',
+    'Choc & Van Icing', 'Powdered Sugar', 'Cinnamon Sugar', "Baker's Special Sugar",
+    'Sprinkles', 'Toasted Coconut', 'Coffee Cake Streusel', 'Sanding Sugar', 'None'
+  ];
+
+  const FILLINGS = [
+    'None', 'Bavarian Cream', 'Vanilla Kreme', 'Chocolate Kreme',
+    'Apple', 'Lemon', 'Apple Raspberry Jelly'
+  ];
+
+  function baseToCategory(base) {
+    if (base === 'Munchkin') return 'Munchkins';
+    if (base === 'Bagel') return 'Bagels';
+    if (base === 'Muffin') return 'Muffins';
+    if (['Apple Fritter', 'Coffee Roll', 'Croissant', 'Stick', 'Other'].indexOf(base) !== -1) return 'Specialty';
+    return 'Donuts';
+  }
+
+  function recipeLine(item) {
+    const r = item && item.recipe;
+    if (!r) return '';
+    const parts = [];
+    if (r.base) parts.push(r.base);
+    if (r.filling && r.filling !== 'None') parts.push('filled: ' + r.filling);
+    if (Array.isArray(r.toppings) && r.toppings.length) parts.push(r.toppings.join(' + '));
+    else if (r.topping) parts.push(r.topping);
+    return parts.join(' \u00b7 ');
+  }
+
+  // ===================== BUG REPORTS =====================
+  const SEVERITIES = ['Blocking', 'Annoying', 'Idea'];
+  let bugSeverity = 'Annoying';
+
+  function bugsRef() { return db.ref('tally/rooms/' + roomCode + '/bugs'); }
+
+  function drawSeverity() {
+    const grid = document.getElementById('bugSeverity');
+    if (!grid) return;
+    grid.innerHTML = SEVERITIES.map(function (sv) {
+      return '<button type="button" class="role-opt' + (sv === bugSeverity ? ' on' : '') +
+        '" data-sev="' + sv + '">' + sv + '</button>';
+    }).join('');
+  }
+
+  document.getElementById('bugSeverity').addEventListener('click', function (e) {
+    const b = e.target.closest('button[data-sev]');
+    if (!b) return;
+    bugSeverity = b.getAttribute('data-sev');
+    drawSeverity();
+  });
+
+  function openBugReport() {
+    document.getElementById('bugText').value = '';
+    bugSeverity = 'Annoying';
+    drawSeverity();
+    document.getElementById('bugGate').style.display = 'flex';
+    document.getElementById('appRoot').style.display = 'none';
+  }
+
+  function closeBugReport() {
+    document.getElementById('bugGate').style.display = 'none';
+    document.getElementById('appRoot').style.display = '';
+  }
+
+  document.getElementById('bugFab').addEventListener('click', openBugReport);
+  document.getElementById('bugCancel').addEventListener('click', closeBugReport);
+
+  document.getElementById('bugSend').addEventListener('click', async function () {
+    const ta = document.getElementById('bugText');
+    const text = ta.value.trim();
+    if (!text) { ta.style.borderColor = 'var(--red)'; return; }
+
+    const report = {
+      text: text.slice(0, 1000),
+      severity: bugSeverity,
+      by: myName || 'Unnamed',
+      role: myRole || null,
+      at: Date.now(),
+      store: roomCode || null,
+      device: (navigator.userAgent || '').slice(0, 120),
+      resolved: false
+    };
+
+    try {
+      await bugsRef().push(report);
+      closeBugReport();
+      buzz(20);
+      showCommandToast('Report sent \u2014 thanks');
+    } catch (e) {
+      // Don't lose it just because the freezer has no signal
+      try {
+        const q = JSON.parse(localStorage.getItem('tally_bugq') || '[]');
+        q.push(report);
+        localStorage.setItem('tally_bugq', JSON.stringify(q));
+        closeBugReport();
+        showCommandToast('Saved \u2014 will send when you\'re back online');
+      } catch (e2) {
+        alert('Could not send that report.');
+      }
+    }
+  });
+
+  async function flushBugQueue() {
+    let q;
+    try { q = JSON.parse(localStorage.getItem('tally_bugq') || '[]'); } catch (e) { return; }
+    if (!q.length || !isConfigured || !roomCode) return;
+    for (const r of q.slice()) {
+      try {
+        await bugsRef().push(r);
+        q.shift();
+      } catch (e) { break; }
+    }
+    localStorage.setItem('tally_bugq', JSON.stringify(q));
+  }
+
+  async function showBugs() {
+    const body = document.getElementById('auditBody');
+    document.getElementById('auditGate').style.display = 'flex';
+    document.getElementById('appRoot').style.display = 'none';
+    body.innerHTML = '<div class="audit-item-name">Reports</div><div class="audit-sub">Loading...</div>';
+
+    let list = [];
+    try {
+      const snap = await bugsRef().orderByChild('at').limitToLast(80).get();
+      const val = snap.val() || {};
+      list = Object.keys(val).map(function (k) { return Object.assign({ key: k }, val[k]); })
+        .sort(function (a, b) {
+          if (!!a.resolved !== !!b.resolved) return a.resolved ? 1 : -1;
+          return b.at - a.at;
+        });
+    } catch (e) {}
+
+    function draw() {
+      if (!list.length) {
+        body.innerHTML = '<div class="audit-item-name">Reports</div>' +
+          '<div class="audit-sub">Nothing reported yet.</div>' +
+          '<div class="audit-summary">Staff can tap the bug button in the corner of any screen to send you a report.</div>' +
+          '<div class="audit-actions"><button type="button" id="bugsClose">Close</button></div>';
+        document.getElementById('bugsClose').addEventListener('click', closeAudit);
+        return;
+      }
+
+      const open = list.filter(function (b) { return !b.resolved; }).length;
+      const rows = list.map(function (b, i) {
+        const d = new Date(b.at);
+        const when = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' +
+          d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        return '<div class="bug-row' + (b.resolved ? ' done' : '') + '">' +
+          '<span class="bug-sev ' + String(b.severity || 'Annoying').toLowerCase() + '">' +
+            escapeHtml(b.severity || '?') + '</span>' +
+          '<span class="bug-body">' + escapeHtml(b.text || '') +
+            '<div class="bug-meta">' + escapeHtml(b.by || 'Unnamed') +
+              (b.role ? ' (' + escapeHtml(b.role) + ')' : '') + ' &middot; ' + when + '</div>' +
+          '</span>' +
+          '<span class="staff-actions">' +
+            '<button type="button" class="staff-btn' + (b.resolved ? '' : ' ok') +
+              '" data-bugdone="' + i + '" title="' + (b.resolved ? 'Reopen' : 'Mark done') + '">' +
+              (b.resolved ? '\u21BA' : '\u2713') + '</button>' +
+            '<button type="button" class="staff-btn del" data-bugdel="' + i + '" title="Delete">&times;</button>' +
+          '</span>' +
+        '</div>';
+      }).join('');
+
+      body.innerHTML =
+        '<div class="audit-item-name">Reports</div>' +
+        '<div class="audit-sub">' + open + ' open &middot; ' + list.length + ' total</div>' +
+        rows +
+        '<div class="audit-actions">' +
+          '<button type="button" class="audit-skip" id="bugsCopy">Copy open</button>' +
+          '<button type="button" id="bugsClose">Close</button></div>';
+
+      document.getElementById('bugsClose').addEventListener('click', closeAudit);
+      document.getElementById('bugsCopy').addEventListener('click', function () {
+        const text = 'Tally reports \u2014 ' + roomCode + '\n\n' +
+          list.filter(function (b) { return !b.resolved; }).map(function (b) {
+            return '[' + (b.severity || '?') + '] ' + b.text +
+              '\n   \u2014 ' + (b.by || 'Unnamed') + ', ' + new Date(b.at).toLocaleString();
+          }).join('\n\n');
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(text).then(function () { alert('Copied.'); });
+        } else { prompt('Copy this:', text); }
+      });
+    }
+
+    body.addEventListener('click', async function (e) {
+      const done = e.target.closest('button[data-bugdone]');
+      const del = e.target.closest('button[data-bugdel]');
+      if (done) {
+        const b = list[parseInt(done.getAttribute('data-bugdone'), 10)];
+        if (!b) return;
+        b.resolved = !b.resolved;
+        try { await bugsRef().child(b.key).update({ resolved: b.resolved }); } catch (err) {}
+        list.sort(function (x, y) {
+          if (!!x.resolved !== !!y.resolved) return x.resolved ? 1 : -1;
+          return y.at - x.at;
+        });
+        draw();
+        return;
+      }
+      if (del) {
+        const b = list[parseInt(del.getAttribute('data-bugdel'), 10)];
+        if (!b || !confirm('Delete this report?')) return;
+        try { await bugsRef().child(b.key).remove(); } catch (err) {}
+        list = list.filter(function (x) { return x.key !== b.key; });
+        draw();
+      }
+    });
+
+    draw();
+  }
+
+  function watchBugs() {
+    if (!isConfigured || !roomCode) return;
+    bugsRef().on('value', function (snap) {
+      const val = snap.val() || {};
+      const open = Object.keys(val).filter(function (k) { return !val[k].resolved; }).length;
+      const badge = document.getElementById('bugsBadge');
+      if (badge) {
+        badge.textContent = open ? open : '';
+        badge.style.display = open ? 'inline-block' : 'none';
+      }
+    });
+  }
+
+  // ===================== HAND COUNT =====================
+  // For things you count piece by piece rather than by case — munchkins mainly.
+  // The sheet says 75; this tells you what you actually have.
+  let counterIdx = null;
+  let counterN = 0;
+  let counterHist = [];
+  let counterExpected = null;
+
+  function openCounter(idx) {
+    counterIdx = idx;
+    counterN = 0;
+    counterHist = [];
+    const item = items[idx];
+    counterExpected = item ? item.units : null;
+
+    document.getElementById('counterTitle').textContent = item ? item.name : 'Hand count';
+    document.getElementById('counterScreen').style.display = 'flex';
+    document.getElementById('appRoot').style.display = 'none';
+    drawCounter();
+  }
+
+  function closeCounter() {
+    document.getElementById('counterScreen').style.display = 'none';
+    document.getElementById('appRoot').style.display = '';
+    counterIdx = null;
+  }
+
+  function drawCounter() {
+    document.getElementById('counterNum').textContent = counterN.toLocaleString();
+    document.getElementById('counterUndo').disabled = !counterHist.length;
+
+    const item = counterIdx != null ? items[counterIdx] : null;
+    const sub = document.getElementById('counterSub');
+    const v = document.getElementById('counterVariance');
+
+    if (item) {
+      const cs = item.caseSize || 1;
+      sub.textContent = counterN >= cs
+        ? Number((counterN / cs).toFixed(2)) + ' ' + packLabel(item, counterN / cs)
+        : 'tap anywhere to count';
+    }
+
+    if (item && counterExpected != null) {
+      const diff = counterN - counterExpected;
+      if (counterN === 0) {
+        v.textContent = 'System says ' + counterExpected.toLocaleString() + ' \u2014 count what\'s really there';
+        v.className = 'counter-variance exact';
+      } else if (diff === 0) {
+        v.textContent = '\u2713 Matches the system exactly';
+        v.className = 'counter-variance exact';
+      } else {
+        v.textContent = (diff > 0 ? '+' : '') + diff.toLocaleString() +
+          ' vs system (' + counterExpected.toLocaleString() + ')';
+        v.className = 'counter-variance ' + (diff > 0 ? 'over' : 'under');
+      }
+    }
+  }
+
+  function counterAdd(n) {
+    const before = counterN;
+    counterN = Math.max(0, counterN + n);
+    if (counterN !== before) {
+      counterHist.push(counterN - before);
+      if (counterHist.length > 500) counterHist.shift();
+      buzz(n === 1 ? 8 : 16);
+    }
+    drawCounter();
+  }
+
+  document.getElementById('counterTap').addEventListener('click', function () { counterAdd(1); });
+
+  document.getElementById('counterQuick').addEventListener('click', function (e) {
+    const b = e.target.closest('button[data-add]');
+    if (!b) return;
+    counterAdd(parseInt(b.getAttribute('data-add'), 10));
+  });
+
+  document.getElementById('counterUndo').addEventListener('click', function () {
+    const last = counterHist.pop();
+    if (last == null) return;
+    counterN = Math.max(0, counterN - last);
+    buzz(8);
+    drawCounter();
+  });
+
+  document.getElementById('counterReset').addEventListener('click', function () {
+    if (counterN && !confirm('Start this count over?')) return;
+    counterN = 0;
+    counterHist = [];
+    drawCounter();
+  });
+
+  document.getElementById('counterClose').addEventListener('click', function () {
+    if (counterN && !confirm('Leave without saving this count?')) return;
+    closeCounter();
+  });
+
+  document.getElementById('counterSave').addEventListener('click', function () {
+    const item = counterIdx != null ? items[counterIdx] : null;
+    if (!item) { closeCounter(); return; }
+    const delta = counterN - item.units;
+    if (delta === 0) {
+      showCommandToast(item.name + ' already matched \u2014 nothing changed');
+      closeCounter();
+      return;
+    }
+    snapshotForUndo();
+    item.units = counterN;
+    pushHistory(item, delta, 'count');
+    render();
+    saveItems();
+    closeCounter();
+    showCommandToast(item.name + ' set to ' + counterN.toLocaleString() + ' (' +
+      (delta > 0 ? '+' : '') + delta.toLocaleString() + ')');
+  });
+
+  // Pick what to hand count — munchkins first, since that's the usual case
+  function chooseCountItem() {
+    const body = document.getElementById('auditBody');
+    document.getElementById('auditGate').style.display = 'flex';
+    document.getElementById('appRoot').style.display = 'none';
+
+    if (!items.length) {
+      body.innerHTML = '<div class="audit-item-name">Hand count</div>' +
+        '<div class="audit-sub">No items yet.</div>' +
+        '<div class="audit-actions"><button type="button" id="hcClose">Close</button></div>';
+      document.getElementById('hcClose').addEventListener('click', closeAudit);
+      return;
+    }
+
+    const order = items.map(function (it, i) { return { it: it, i: i }; })
+      .sort(function (a, b) {
+        const am = /munchkin/i.test(a.it.name) || a.it.category === 'Munchkins';
+        const bm = /munchkin/i.test(b.it.name) || b.it.category === 'Munchkins';
+        if (am !== bm) return am ? -1 : 1;
+        return a.it.name.localeCompare(b.it.name);
+      });
+
+    body.innerHTML =
+      '<div class="audit-item-name">Hand count</div>' +
+      '<div class="audit-sub">Count piece by piece and set the real number. Munchkins first.</div>' +
+      order.map(function (o) {
+        const c2 = calc(o.it.units, o.it.caseSize);
+        return '<div class="audit-result-row">' +
+          '<span>' + escapeHtml(o.it.name) +
+            '<br><span style="font-size:11px;color:var(--text-dim);">system says ' +
+            o.it.units.toLocaleString() + ' (' + c2.decimalCases + ' ' + packLabel(o.it, c2.decimalCases) + ')</span></span>' +
+          '<button type="button" class="id-btn" data-count="' + o.i + '">Count</button>' +
+        '</div>';
+      }).join('') +
+      '<div class="audit-actions"><button type="button" id="hcClose">Close</button></div>';
+
+    document.getElementById('hcClose').addEventListener('click', closeAudit);
+    body.addEventListener('click', function (e) {
+      const b = e.target.closest('button[data-count]');
+      if (!b) return;
+      closeAudit();
+      openCounter(parseInt(b.getAttribute('data-count'), 10));
+    });
+  }
+
+  document.getElementById('tallyBtn').addEventListener('click', chooseCountItem);
+
+  // ===================== HAND COUNTER =====================
+  // For loose product (munchkins especially) where the sheet number is a guess.
+  // Tap once per piece, or use the bump buttons for handfuls, and get a real number.
+  let hcIdx = null, hcCount = 0, hcHistory = [], hcBump = 10;
+
+  function startHandCount(preIdx) {
+    if (!items.length) { alert('No items yet.'); return; }
+    hcIdx = (preIdx != null) ? preIdx : null;
+    hcCount = 0;
+    hcHistory = [];
+    document.getElementById('auditGate').style.display = 'flex';
+    document.getElementById('appRoot').style.display = 'none';
+    if (hcIdx == null) pickHandCountItem();
+    else drawHandCount();
+  }
+
+  function pickHandCountItem() {
+    const body = document.getElementById('auditBody');
+    // Munchkins first, since that's the usual reason for counting by hand
+    const order = items.map(function (it, i) { return i; }).sort(function (a, b) {
+      const am = /munchkin/i.test(items[a].name) ? 0 : 1;
+      const bm = /munchkin/i.test(items[b].name) ? 0 : 1;
+      if (am !== bm) return am - bm;
+      return items[a].name.localeCompare(items[b].name);
+    });
+
+    body.innerHTML =
+      '<div class="audit-item-name">Hand count</div>' +
+      '<div class="audit-sub">Which item are you counting?</div>' +
+      order.map(function (i) {
+        const it = items[i];
+        return '<button type="button" class="sheet-item" data-hc="' + i + '" style="margin-bottom:6px;">' +
+          '<span class="si-icon">' + (/munchkin/i.test(it.name) ? '&#127849;' : '&#128230;') + '</span>' +
+          '<span class="si-text"><b>' + escapeHtml(it.name) + '</b>' +
+          '<i>says ' + it.units.toLocaleString() + ' ' + unitLabel(it, it.units) + ' now</i></span></button>';
+      }).join('') +
+      '<div class="join-hint"><button type="button" class="store-action" id="hcPickCancel">Cancel</button></div>';
+
+    document.getElementById('hcPickCancel').addEventListener('click', closeAudit);
+    body.addEventListener('click', function (e) {
+      const b = e.target.closest('button[data-hc]');
+      if (!b) return;
+      hcIdx = parseInt(b.getAttribute('data-hc'), 10);
+      hcCount = 0;
+      hcHistory = [];
+      drawHandCount();
+    });
+  }
+
+  function drawHandCount() {
+    const item = items[hcIdx];
+    if (!item) { closeAudit(); return; }
+    const body = document.getElementById('auditBody');
+    const cs = item.caseSize || 1;
+    const diff = hcCount - item.units;
+
+    body.innerHTML =
+      '<div class="hc-head">' +
+        '<div class="hc-name">' + escapeHtml(item.name) + '</div>' +
+        '<div class="hc-sub">system says ' + item.units.toLocaleString() + ' &middot; ' +
+          'tap the circle once per piece</div>' +
+      '</div>' +
+
+      '<button type="button" class="hc-tap" id="hcTap">' +
+        '<span class="hc-num">' + hcCount.toLocaleString() + '</span>' +
+        '<span class="hc-unit">' + unitLabel(item, hcCount) + '</span>' +
+      '</button>' +
+
+      '<div class="hc-stats">' +
+        '<span>' + Number((hcCount / cs).toFixed(2)) + ' ' + packLabel(item, hcCount / cs) + '</span>' +
+        '<span class="' + (diff === 0 ? '' : (diff > 0 ? 'hc-over' : 'hc-under')) + '">' +
+          (hcCount === 0 ? '&nbsp;' : (diff === 0 ? 'matches' : (diff > 0 ? '+' + diff + ' more than system' : diff + ' vs system'))) +
+        '</span>' +
+      '</div>' +
+
+      '<div class="hc-bumps">' +
+        '<button type="button" class="hc-bump" data-bump="1">+1</button>' +
+        '<button type="button" class="hc-bump" data-bump="5">+5</button>' +
+        '<button type="button" class="hc-bump" data-bump="10">+10</button>' +
+        '<button type="button" class="hc-bump" data-bump="25">+25</button>' +
+        '<button type="button" class="hc-bump" data-bump="' + cs + '">+' + cs + '</button>' +
+      '</div>' +
+
+      '<div class="hc-tools">' +
+        '<button type="button" class="admin-mini-btn" id="hcUndo"' + (hcHistory.length ? '' : ' disabled') + '>&#8617; Undo</button>' +
+        '<button type="button" class="admin-mini-btn" id="hcReset">Reset</button>' +
+      '</div>' +
+
+      '<div class="audit-actions">' +
+        '<button type="button" class="audit-skip" id="hcCancel">Cancel</button>' +
+        '<button type="button" id="hcSave">Set to ' + hcCount.toLocaleString() + '</button>' +
+      '</div>' +
+      '<div class="join-hint">Saving replaces the count with what you actually counted, and logs the difference so it shows up in the item\'s history.</div>';
+
+    function add(n) {
+      hcCount += n;
+      hcHistory.push(n);
+      buzz(n === 1 ? 10 : 18);
+      drawHandCount();
+    }
+
+    document.getElementById('hcTap').addEventListener('click', function () { add(1); });
+    body.querySelectorAll('.hc-bump').forEach(function (b) {
+      b.addEventListener('click', function () { add(parseInt(b.getAttribute('data-bump'), 10)); });
+    });
+
+    document.getElementById('hcUndo').addEventListener('click', function () {
+      if (!hcHistory.length) return;
+      hcCount = Math.max(0, hcCount - hcHistory.pop());
+      drawHandCount();
+    });
+
+    document.getElementById('hcReset').addEventListener('click', function () {
+      if (hcCount && !confirm('Start this count over?')) return;
+      hcCount = 0; hcHistory = [];
+      drawHandCount();
+    });
+
+    document.getElementById('hcCancel').addEventListener('click', function () {
+      if (hcCount && !confirm('Throw away this count of ' + hcCount + '?')) return;
+      closeAudit();
+    });
+
+    document.getElementById('hcSave').addEventListener('click', function () {
+      const delta = hcCount - item.units;
+      snapshotForUndo();
+      item.units = hcCount;
+      if (delta !== 0) pushHistory(item, delta, 'handcount');
+      touchItem(item);
+      render();
+      saveItems();
+      closeAudit();
+      showCommandToast(item.name + ' set to ' + hcCount.toLocaleString() +
+        (delta ? ' (' + (delta > 0 ? '+' : '') + delta + ')' : ''));
+    });
+  }
+
+  // ===================== TRAY COUNTER =====================
+  // Counts round product (munchkins, donut holes) on a tray from a photo.
+  // Auto-detect gets you close; you tap to fix anything it missed or doubled.
+  let trayMarkers = [];
+  let trayImg = null;
+  let trayItemIdx = null;
+
+  function otsuThreshold(gray) {
+    const hist = new Array(256).fill(0);
+    for (let i = 0; i < gray.length; i++) hist[gray[i]]++;
+    const total = gray.length;
+    let sum = 0;
+    for (let i = 0; i < 256; i++) sum += i * hist[i];
+    let sumB = 0, wB = 0, best = 0, thr = 0;
+    for (let t = 0; t < 256; t++) {
+      wB += hist[t];
+      if (!wB) continue;
+      const wF = total - wB;
+      if (!wF) break;
+      sumB += t * hist[t];
+      const mB = sumB / wB, mF = (sum - sumB) / wF;
+      const between = wB * wF * (mB - mF) * (mB - mF);
+      if (between > best) { best = between; thr = t; }
+    }
+    return thr;
+  }
+
+  function findBlobs(gray, W, H, invert) {
+    const thr = otsuThreshold(gray);
+    const bin = new Uint8Array(W * H);
+    for (let i = 0; i < gray.length; i++) {
+      bin[i] = invert ? (gray[i] < thr ? 1 : 0) : (gray[i] > thr ? 1 : 0);
+    }
+
+    const labels = new Int32Array(W * H);
+    const stack = new Int32Array(W * H);
+    const blobs = [];
+    let cur = 0;
+
+    for (let i = 0; i < W * H; i++) {
+      if (!bin[i] || labels[i]) continue;
+      cur++;
+      let sp = 0;
+      stack[sp++] = i;
+      labels[i] = cur;
+      let area = 0, sx = 0, sy = 0, minx = W, maxx = 0, miny = H, maxy = 0;
+      while (sp) {
+        const p = stack[--sp];
+        const x = p % W, y = (p / W) | 0;
+        area++; sx += x; sy += y;
+        if (x < minx) minx = x;
+        if (x > maxx) maxx = x;
+        if (y < miny) miny = y;
+        if (y > maxy) maxy = y;
+        const nb = [p - 1, p + 1, p - W, p + W];
+        for (let k = 0; k < 4; k++) {
+          const q = nb[k];
+          if (q < 0 || q >= W * H || labels[q] || !bin[q]) continue;
+          if ((k === 0 && x === 0) || (k === 1 && x === W - 1)) continue;
+          labels[q] = cur;
+          stack[sp++] = q;
+        }
+      }
+      if (area > 40) blobs.push({ area: area, cx: sx / area, cy: sy / area,
+                                  w: maxx - minx + 1, h: maxy - miny + 1 });
+    }
+    return blobs;
+  }
+
+  function blobsToMarkers(blobs) {
+    if (!blobs.length) return [];
+    // A single piece's area comes from blob geometry, not a median area:
+    // when several touch they merge, and the short side still spans one piece.
+    const est = blobs.map(function (b) {
+      const d = Math.min(b.w, b.h);
+      return Math.PI * (d / 2) * (d / 2);
+    }).sort(function (a, b) { return a - b; });
+    const unit = est[Math.floor(est.length * 0.25)] || est[0];
+    if (!unit) return [];
+
+    const markers = [];
+    blobs.filter(function (b) { return b.area > unit * 0.35; }).forEach(function (b) {
+      const n = Math.max(1, Math.round(b.area / unit));
+      if (n === 1) {
+        markers.push({ x: b.cx, y: b.cy });
+      } else {
+        // Spread markers along the cluster's long axis so they sit on the pieces
+        const horiz = b.w >= b.h;
+        for (let i = 0; i < n; i++) {
+          const t = (i + 0.5) / n - 0.5;
+          markers.push({
+            x: b.cx + (horiz ? t * b.w : 0),
+            y: b.cy + (horiz ? 0 : t * b.h)
+          });
+        }
+      }
+    });
+    return markers;
+  }
+
+  function startTrayCount(idx) {
+    trayItemIdx = (idx == null ? null : idx);
+    sourcePicker('Count a tray',
+      'Shoot straight down at the tray, even light, no shadows across it.',
+      function (cam) {
+        pickImage(cam, function (file) {
+          const body = document.getElementById('auditBody');
+          body.innerHTML = '<div class="audit-item-name">Counting</div>' +
+            '<div class="audit-sub">Looking at the photo\u2026</div>';
+          const img = new Image();
+          img.onload = function () { analyseTray(img); };
+          img.onerror = function () { ocrFailScreen('Could not open that photo.'); };
+          img.src = URL.createObjectURL(file);
+        });
+      });
+  }
+
+  function analyseTray(img) {
+    const MAXW = 520;
+    const scale = Math.min(1, MAXW / img.width);
+    const W = Math.round(img.width * scale), H = Math.round(img.height * scale);
+    const cv = document.createElement('canvas');
+    cv.width = W; cv.height = H;
+    const ctx = cv.getContext('2d');
+    ctx.drawImage(img, 0, 0, W, H);
+
+    const data = ctx.getImageData(0, 0, W, H).data;
+    const gray = new Uint8Array(W * H);
+    for (let i = 0, p = 0; i < data.length; i += 4, p++) {
+      gray[p] = (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114) | 0;
+    }
+
+    // Try both polarities; keep whichever finds a more plausible spread
+    const a = blobsToMarkers(findBlobs(gray, W, H, false));
+    const b = blobsToMarkers(findBlobs(gray, W, H, true));
+    trayMarkers = (a.length >= b.length ? a : b);
+
+    trayImg = cv.toDataURL('image/jpeg', 0.75);
+    renderTray(W, H);
+  }
+
+  function renderTray(W, H) {
+    const body = document.getElementById('auditBody');
+    const item = trayItemIdx != null ? items[trayItemIdx] : null;
+
+    body.innerHTML =
+      '<div class="audit-item-name">Tray count: <span id="trayNum">' + trayMarkers.length + '</span></div>' +
+      '<div class="audit-sub">Tap a dot to remove it, tap empty space to add one.</div>' +
+      '<div class="tray-wrap" id="trayWrap">' +
+        '<img src="' + trayImg + '" id="trayPhoto">' +
+        '<div class="tray-dots" id="trayDots"></div>' +
+      '</div>' +
+      '<div class="admin-row" style="margin-top:10px;">' +
+        '<button type="button" class="admin-mini-btn" id="trayClear">Clear all</button>' +
+        '<button type="button" class="admin-mini-btn" id="trayRedo">Retake</button>' +
+      '</div>' +
+      '<div class="audit-summary">Auto-counting is a starting point, not gospel \u2014 pieces that touch can read as one. Check the dots before saving.</div>' +
+      '<div class="audit-actions">' +
+        '<button type="button" class="audit-skip" id="trayCancel">Cancel</button>' +
+        '<button type="button" id="traySave">' +
+          (item ? 'Set ' + escapeHtml(item.name) : 'Use this count') + '</button>' +
+      '</div>';
+
+    function drawDots() {
+      const wrap = document.getElementById('trayDots');
+      wrap.innerHTML = trayMarkers.map(function (m, i) {
+        return '<span class="tray-dot" data-dot="' + i + '" style="left:' +
+          (m.x / W * 100) + '%;top:' + (m.y / H * 100) + '%;"></span>';
+      }).join('');
+      document.getElementById('trayNum').textContent = trayMarkers.length;
+    }
+    drawDots();
+
+    document.getElementById('trayWrap').addEventListener('click', function (e) {
+      const dot = e.target.closest('.tray-dot');
+      if (dot) {
+        trayMarkers.splice(parseInt(dot.getAttribute('data-dot'), 10), 1);
+        buzz(8);
+        drawDots();
+        return;
+      }
+      const r = document.getElementById('trayPhoto').getBoundingClientRect();
+      const x = (e.clientX - r.left) / r.width * W;
+      const y = (e.clientY - r.top) / r.height * H;
+      trayMarkers.push({ x: x, y: y });
+      buzz(8);
+      drawDots();
+    });
+
+    document.getElementById('trayClear').addEventListener('click', function () {
+      trayMarkers = [];
+      drawDots();
+    });
+    document.getElementById('trayRedo').addEventListener('click', function () {
+      startTrayCount(trayItemIdx);
+    });
+    document.getElementById('trayCancel').addEventListener('click', closeAudit);
+
+    document.getElementById('traySave').addEventListener('click', function () {
+      const n = trayMarkers.length;
+      if (trayItemIdx == null) {
+        // No item chosen: let them pick one now
+        const list = items.map(function (it, i) { return (i + 1) + '. ' + it.name; }).join('\n');
+        const pick = prompt('Counted ' + n + '. Which item is this?\n\n' + list, '');
+        const k = parseInt(pick, 10);
+        if (!k || !items[k - 1]) { closeAudit(); return; }
+        trayItemIdx = k - 1;
+      }
+      const item = items[trayItemIdx];
+      const delta = n - item.units;
+      snapshotForUndo();
+      item.units = n;
+      if (delta !== 0) pushHistory(item, delta, 'count');
+      bumpCount(trayItemIdx);
+      render();
+      saveItems();
+      closeAudit();
+      showCommandToast(item.name + ' set to ' + n + ' from tray count');
+    });
+  }
+
   function updateProfileChip() {
     const el = document.getElementById('profileChip');
     if (!el) return;
@@ -3827,6 +5009,16 @@
       touchItem(item);
       render();
       saveItems();
+      return;
+    }
+
+    if (btn.classList.contains('hc-open')) {
+      startHandCount(idx);
+      return;
+    }
+
+    if (btn.classList.contains('tray-btn')) {
+      startTrayCount(idx);
       return;
     }
 
@@ -6472,10 +7664,13 @@
   document.getElementById('orderBtn').addEventListener('click', showOrderList);
 
   document.getElementById('staffBtn').addEventListener('click', showStaff);
+  document.getElementById('bugsBtn').addEventListener('click', showBugs);
+  document.getElementById('trayBtn').addEventListener('click', function () { startTrayCount(null); });
 
   document.getElementById('sessionLogBtn').addEventListener('click', showSessionLog);
 
   document.getElementById('auditBtn').addEventListener('click', startAudit);
+  document.getElementById('handCountBtn').addEventListener('click', function () { startHandCount(null); });
   document.getElementById('auditHistBtn').addEventListener('click', showAuditHistory);
 
   document.getElementById('shareStoreBtn').addEventListener('click', function() {
@@ -6684,7 +7879,8 @@
         .update({ name: myName, role: myRole || null, lastSeen: Date.now(), uid: myUid || null }).catch(function() {});
     }
     loadCategories();
-    if (approved) watchPendingStaff();
+    flushBugQueue();
+    if (approved) { watchPendingStaff(); watchBugs(); }
     initSync();
     setTimeout(maybeStartTour, 600);
     startPresence();
