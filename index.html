@@ -1606,15 +1606,86 @@
 
   body.light .pending-bar { background: #f7e6c8; }
 
+  .tour-layer {
+    position: fixed;
+    top: 0; right: 0; bottom: 0; left: 0;
+    inset: 0;
+    z-index: 400;
+  }
+
+  /* The dimming is done with a huge shadow around the hole, so the real
+     control underneath stays visible and un-dimmed. */
+  .tour-hole {
+    position: absolute;
+    border-radius: 12px;
+    box-shadow: 0 0 0 9999px rgba(0,0,0,0.72);
+    border: 2px solid var(--amber);
+    pointer-events: none;
+    transition: all 0.25s ease;
+  }
+
+  .tour-layer > .tour-card {
+    position: absolute;
+    left: 16px;
+    right: 16px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 18px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    max-width: 380px;
+    margin: 0 auto;
+  }
+
+  /* When nothing is highlighted, dim the whole screen behind the card */
+  .tour-hole[style*="display: none"] + .tour-card::before {
+    content: '';
+    position: fixed;
+    top: 0; right: 0; bottom: 0; left: 0;
+    background: rgba(0,0,0,0.72);
+    z-index: -1;
+  }
+
+  .tour-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .tour-skip {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 10px 8px;
+    text-decoration: underline;
+  }
+
+  .tour-next {
+    flex: 1;
+    background: var(--amber);
+    border: none;
+    color: #241a08;
+    border-radius: 10px;
+    padding: 12px;
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
   .tour-card { text-align: center; }
 
   .tour-icon {
-    font-size: 44px;
+    font-size: 34px;
     line-height: 1;
     margin-bottom: 14px;
   }
 
-  .tour-card h2 { margin: 0 0 10px; font-size: 21px; }
+  .tour-card h2 { margin: 0 0 8px; font-size: 19px; text-align: left; }
 
   .tour-card p {
     font-size: 14px;
@@ -2069,8 +2140,9 @@
   </div>
 </div>
 
-<div class="join-gate" id="tourGate" style="display:none;">
-  <div class="join-card tour-card" id="tourBody"></div>
+<div class="tour-layer" id="tourLayer" style="display:none;">
+  <div class="tour-hole" id="tourHole"></div>
+  <div class="tour-card" id="tourCard"></div>
 </div>
 
 <div class="join-gate" id="profileGate" style="display:none;">
@@ -2161,7 +2233,7 @@
   <div class="admin-panel" id="adminPanel" style="display:none;">
     <div class="admin-title">Admin</div>
 
-    <div class="admin-sec">
+    <div class="admin-sec open">
       <button type="button" class="admin-sec-head" data-sec="people">
         <span>People &amp; devices</span><span class="chev">&#9662;</span>
       </button>
@@ -3262,6 +3334,13 @@
     }
   });
 
+  // Expand/collapse the admin sections
+  document.getElementById('adminPanel').addEventListener('click', function (e) {
+    const head = e.target.closest('.admin-sec-head');
+    if (!head) return;
+    head.parentElement.classList.toggle('open');
+  });
+
   function openMenu() {
     document.getElementById('menuScrim').style.display = 'block';
     document.getElementById('menuSheet').style.display = 'block';
@@ -3354,19 +3433,25 @@
   }
 
   // ===================== FIRST-RUN TOUR =====================
+  // Spotlight tour: dims the screen, cuts a hole around the real control,
+  // and explains it. Falls back to a centred card when there's nothing to point at.
   const TOUR = [
-    { icon: '&#127849;', title: 'Welcome to Tally',
-      text: 'This is how the store keeps track of what\u2019s in the freezer. Here\u2019s the quick version \u2014 about 30 seconds.' },
-    { icon: '&#128290;', title: 'Counting',
-      text: 'Tap an item to open it, then use the + and \u2212 buttons for whole cases, half cases, or single units. On a collapsed row you can also swipe right to add a case, left to remove one.' },
-    { icon: '&#127908;', title: 'Or just talk',
-      text: 'Tap the mic and say things like \u201cadd 3 cases of croissants\u201d or \u201cremove 5 bagels.\u201d Hands-free mode keeps listening so you can count with gloves on.' },
-    { icon: '&#9776;', title: 'The menu',
-      text: 'Everything else lives behind the menu button: scanning barcodes and delivery sheets, the order list, waste, and audits.' },
-    { icon: '&#128465;', title: 'Waste matters',
-      text: 'If you throw something out, use the Waste button on that item instead of just subtracting. It keeps waste separate from what actually sold.' },
-    { icon: '&#10052;', title: 'The freezer works',
-      text: 'No signal in the freezer is fine. Keep counting \u2014 everything saves on the phone and syncs the moment you walk back out.' }
+    { target: null, title: 'Welcome to Tally', icon: '\uD83C\uDF69',
+      text: 'This is how we keep track of what\u2019s in the freezer. Quick look around \u2014 about 30 seconds.' },
+    { target: '#itemList .item-card', title: 'Your items', place: 'below',
+      text: 'Each row is one product. The ring shows how much is left, and the number is how many cases you have. Tap a row to open it.' },
+    { target: '#itemList .item-card', title: 'Counting', place: 'below',
+      text: 'Inside an item you get + and \u2212 for whole cases, half cases, and singles. On a closed row you can also swipe right to add a case, left to remove one.' },
+    { target: '.cmd-main', title: 'Or just talk', place: 'below',
+      text: 'Tap the mic and say \u201cadd 3 cases of croissants\u201d or \u201cremove 5 bagels.\u201d Hands-free keeps listening so you can count with gloves on.' },
+    { target: '.cat-strip', title: 'Filter by category', place: 'below',
+      text: 'Jump straight to Donuts, Bagels, Munchkins and the rest. \u201cAll\u201d brings everything back.' },
+    { target: '#menuBtn', title: 'The menu', place: 'below',
+      text: 'Everything else lives here: scanning barcodes and delivery sheets, the order list, waste, and audits.' },
+    { target: null, title: 'Waste is separate', icon: '\uD83D\uDDD1',
+      text: 'If you throw something out, use the Waste button on that item instead of just subtracting. It keeps waste out of the sales numbers we order from.' },
+    { target: null, title: 'The freezer works', icon: '\u2744',
+      text: 'No signal in the freezer is fine. Keep counting \u2014 it all saves on the phone and syncs the moment you walk back out.' }
   ];
 
   let tourStep = 0;
@@ -3374,16 +3459,39 @@
   function maybeStartTour() {
     if (localStorage.getItem('tally_tour_done') === '1') return;
     tourStep = 0;
+    document.getElementById('tourLayer').style.display = 'block';
     drawTour();
-    document.getElementById('tourGate').style.display = 'flex';
   }
 
   function drawTour() {
     const s = TOUR[tourStep];
-    const body = document.getElementById('tourBody');
-    if (!s || !body) return;
-    body.innerHTML =
-      '<div class="tour-icon">' + s.icon + '</div>' +
+    const layer = document.getElementById('tourLayer');
+    const hole = document.getElementById('tourHole');
+    const card = document.getElementById('tourCard');
+    if (!s || !layer) return;
+
+    let rect = null;
+    if (s.target) {
+      const el = document.querySelector(s.target);
+      if (el) {
+        const r = el.getBoundingClientRect();
+        if (r.width && r.height && r.bottom > 0 && r.top < window.innerHeight) rect = r;
+      }
+    }
+
+    if (rect) {
+      const pad = 6;
+      hole.style.display = 'block';
+      hole.style.top = (rect.top - pad) + 'px';
+      hole.style.left = (rect.left - pad) + 'px';
+      hole.style.width = (rect.width + pad * 2) + 'px';
+      hole.style.height = (rect.height + pad * 2) + 'px';
+    } else {
+      hole.style.display = 'none';
+    }
+
+    card.innerHTML =
+      (s.icon ? '<div class="tour-icon">' + s.icon + '</div>' : '') +
       '<h2>' + s.title + '</h2>' +
       '<p>' + s.text + '</p>' +
       '<div class="tour-dots">' +
@@ -3391,67 +3499,44 @@
           return '<span class="tour-dot' + (i === tourStep ? ' on' : '') + '"></span>';
         }).join('') +
       '</div>' +
-      '<button type="button" id="tourNext">' +
-        (tourStep === TOUR.length - 1 ? 'Start counting' : 'Next') + '</button>' +
-      '<div class="join-hint"><button type="button" class="store-action" id="tourSkip">' +
-        (tourStep === TOUR.length - 1 ? '' : 'Skip') + '</button></div>';
+      '<div class="tour-actions">' +
+        '<button type="button" class="tour-skip" id="tourSkip">' +
+          (tourStep === TOUR.length - 1 ? 'Done' : 'Skip') + '</button>' +
+        '<button type="button" class="tour-next" id="tourNext">' +
+          (tourStep === TOUR.length - 1 ? 'Start counting' : 'Next') + '</button>' +
+      '</div>';
+
+    // Put the card clear of whatever is highlighted
+    card.style.top = '';
+    card.style.bottom = '';
+    if (rect && rect.top < window.innerHeight * 0.5) {
+      card.style.top = Math.min(rect.bottom + 18, window.innerHeight - 240) + 'px';
+    } else if (rect) {
+      card.style.bottom = Math.min(window.innerHeight - rect.top + 18, window.innerHeight - 240) + 'px';
+    } else {
+      card.style.top = '50%';
+      card.style.transform = 'translateY(-50%)';
+    }
+    if (rect) card.style.transform = '';
 
     document.getElementById('tourNext').addEventListener('click', function () {
       if (tourStep === TOUR.length - 1) { endTour(); return; }
       tourStep++;
       drawTour();
     });
-    const skip = document.getElementById('tourSkip');
-    if (skip) skip.addEventListener('click', endTour);
+    document.getElementById('tourSkip').addEventListener('click', endTour);
   }
 
   function endTour() {
     localStorage.setItem('tally_tour_done', '1');
-    document.getElementById('tourGate').style.display = 'none';
-    document.getElementById('appRoot').style.display = '';
+    const layer = document.getElementById('tourLayer');
+    if (layer) layer.style.display = 'none';
   }
 
-  // ============ RECIPE / COMPONENT VOCABULARY ============
-  // Straight off the store's finishing chart, so new products can be described
-  // the same way the chart does. Components (icings, fillings, sprinkles) are
-  // tracked as their own items later.
-  const BASES = [
-    'Yeast Ring', 'Yeast Shell', 'Plain Cake Ring', 'Chocolate Cake Ring',
-    'Blueberry Cake Ring', 'Sour Kreme Cake Ring', 'French Cruller', 'Stick',
-    'Munchkin', 'Apple Fritter', 'Coffee Roll', 'Muffin', 'Bagel', 'Croissant', 'Other'
-  ];
-
-  const FILLINGS = [
-    'None', 'Bavarian Cream', 'Vanilla Kreme', 'Chocolate Kreme',
-    'Apple', 'Lemon', 'Apple Raspberry Jelly'
-  ];
-
-  const TOPPINGS = [
-    'Glaze', 'Chocolate Icing', 'Vanilla Icing', 'Strawberry Icing', 'Maple Icing',
-    'Choc & Van Icing', 'Powdered Sugar', 'Cinnamon Sugar', "Baker's Special Sugar",
-    'Sprinkles', 'Toasted Coconut', 'Coffee Cake Streusel', 'Sanding Sugar'
-  ];
-
-  // How a component is counted, since these aren't cases
-  const UNIT_TYPES = ['case', 'bucket', 'box', 'bag', 'tub'];
-
-  function baseToCategory(base) {
-    if (base === 'Munchkin') return 'Munchkins';
-    if (base === 'Bagel') return 'Bagels';
-    if (base === 'Muffin') return 'Muffins';
-    if (['Apple Fritter', 'Coffee Roll', 'Croissant', 'Stick', 'Other'].indexOf(base) !== -1) return 'Specialty';
-    return 'Donuts';
-  }
-
-  function recipeLine(item) {
-    const r = item.recipe;
-    if (!r) return '';
-    const parts = [];
-    if (r.base) parts.push(r.base);
-    if (r.filling && r.filling !== 'None') parts.push('filled: ' + r.filling);
-    if (Array.isArray(r.toppings) && r.toppings.length) parts.push(r.toppings.join(' + '));
-    return parts.join(' \u00b7 ');
-  }
+  window.addEventListener('resize', function () {
+    const layer = document.getElementById('tourLayer');
+    if (layer && layer.style.display === 'block') drawTour();
+  });
 
   function updateProfileChip() {
     const el = document.getElementById('profileChip');
