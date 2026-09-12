@@ -68,57 +68,12 @@
 
   .sync-dot.syncing { background: var(--amber); }
 
-  .top-row {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 10px;
-  }
 
-  .mini-box {
-    flex: 1;
-    min-width: 0;
-    background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    padding: 10px;
-  }
 
-  .mini-box-title {
-    font-size: 11px;
-    color: var(--text-dim);
-    font-weight: 600;
-    margin-bottom: 6px;
-  }
 
-  .mini-box input {
-    width: 100%;
-    font-size: 12px;
-    padding: 7px 8px;
-  }
 
-  .mini-box-row {
-    display: flex;
-    gap: 6px;
-    margin-top: 6px;
-  }
 
-  .mini-box-row input {
-    flex: 1;
-    min-width: 0;
-  }
 
-  .add-btn-mini {
-    background: var(--amber);
-    color: #2a1c05;
-    border: none;
-    border-radius: 7px;
-    padding: 0 12px;
-    font-family: inherit;
-    font-weight: 700;
-    font-size: 12px;
-    cursor: pointer;
-    flex-shrink: 0;
-  }
 
   .search-bar {
     display: flex;
@@ -491,6 +446,20 @@
     cursor: pointer;
   }
 
+  /* Text links inside modals must not inherit the primary-button styling */
+  .join-card .store-action,
+  .join-hint .store-action {
+    width: auto !important;
+    background: none !important;
+    border: none !important;
+    color: var(--text-dim) !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    padding: 4px 6px !important;
+    text-decoration: underline;
+    border-radius: 0 !important;
+  }
+
   .join-hint {
     font-size: 11px;
     color: var(--text-dim);
@@ -637,6 +606,17 @@
     margin-bottom: 16px;
   }
 
+  .audit-voice-msg {
+    background: var(--panel-2);
+    border-radius: 8px;
+    padding: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    text-align: center;
+    margin-bottom: 12px;
+    min-height: 20px;
+  }
+
   .audit-inputs {
     display: flex;
     gap: 8px;
@@ -713,6 +693,20 @@
     line-height: 1.5;
   }
 
+  .recipe-line {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 4px;
+    font-style: italic;
+  }
+
+  .burn-line {
+    font-size: 11px;
+    color: var(--teal);
+    margin-top: 5px;
+    font-weight: 600;
+  }
+
   .item-note {
     background: var(--panel-2);
     border-left: 2px solid var(--amber-dim);
@@ -768,115 +762,109 @@
   }
 
   .splash-donut {
-    width: 132px;
-    height: 132px;
+    width: 168px;
+    height: 168px;
   }
 
-  .splash-donut circle, .splash-donut line {
-    transition: opacity 0.35s ease;
+  .splash-donut { overflow: visible; }
+
+  .donut-body {
+    transform-origin: 60px 60px;
+    animation: bob 4.4s ease-in-out infinite;
   }
 
-  /* ---- base states ---- */
-  .splash-donut .dough {
-    stroke-dasharray: 264;
-    stroke-dashoffset: 0;
+  @keyframes bob {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50%      { transform: translateY(-3px) rotate(2.5deg); }
   }
 
-  .splash-donut .icing {
-    stroke-dasharray: 264;
-    stroke-dashoffset: 0;
+  .splash-donut .glow {
+    animation: glowPulse 4.4s ease-in-out infinite;
   }
 
-  .splash-donut .hole { opacity: 0; }
-
-  .splash-donut .sprinkles line { opacity: 1; }
-
-  /* ---- scene 1: counting the dough (bare ring draws itself) ---- */
-  .splash-donut.scene-dough .icing { opacity: 0; }
-  .splash-donut.scene-dough .sprinkles line { opacity: 0; }
-  .splash-donut.scene-dough .dough {
-    animation: sweep 2.4s ease-in-out;
+  @keyframes glowPulse {
+    0%, 100% { opacity: 0.7; }
+    55%      { opacity: 1; }
   }
 
-  /* ---- scene 2: glazing (icing sweeps over) ---- */
-  .splash-donut.scene-ice .sprinkles line { opacity: 0; }
-  .splash-donut.scene-ice .icing {
-    animation: sweep 2.4s ease-in-out;
+  /* glaze pours on, spreads out, then clears for the next one */
+  .splash-donut .icing,
+  .splash-donut .icing-hole {
+    transform-origin: 60px 60px;
+    animation: pour 4.4s ease-in-out infinite;
   }
 
-  /* ---- scene 3: sprinkles pop on one by one ---- */
-  .splash-donut.scene-sprinkle .sprinkles line {
+  @keyframes pour {
+    0%   { transform: scale(0.42); opacity: 0; }
+    12%  { transform: scale(0.55); opacity: 1; }
+    34%  { transform: scale(1);    opacity: 1; }
+    86%  { transform: scale(1);    opacity: 1; }
+    96%  { transform: scale(1);    opacity: 0; }
+    100% { transform: scale(0.42); opacity: 0; }
+  }
+
+  /* shine sweeps once the glaze has settled */
+  .splash-donut .shine rect {
+    animation: sweepShine 4.4s ease-in-out infinite;
+  }
+
+  @keyframes sweepShine {
+    0%, 45%  { transform: rotate(18deg) translateX(0); }
+    72%      { transform: rotate(18deg) translateX(150px); }
+    100%     { transform: rotate(18deg) translateX(150px); }
+  }
+
+  /* sprinkles drop onto the fresh glaze */
+  .splash-donut .sprinkles line {
     opacity: 0;
-    animation: pop 0.5s ease forwards;
+    animation: drop 4.4s ease-in-out infinite;
   }
 
-  .splash-donut.scene-sprinkle .sprinkles line:nth-child(1) { animation-delay: 0.15s; }
-  .splash-donut.scene-sprinkle .sprinkles line:nth-child(2) { animation-delay: 0.23s; }
-  .splash-donut.scene-sprinkle .sprinkles line:nth-child(3) { animation-delay: 0.30s; }
-  .splash-donut.scene-sprinkle .sprinkles line:nth-child(4) { animation-delay: 0.38s; }
-  .splash-donut.scene-sprinkle .sprinkles line:nth-child(5) { animation-delay: 0.45s; }
-  .splash-donut.scene-sprinkle .sprinkles line:nth-child(6) { animation-delay: 0.53s; }
-  .splash-donut.scene-sprinkle .sprinkles line:nth-child(7) { animation-delay: 0.61s; }
-  .splash-donut.scene-sprinkle .sprinkles line:nth-child(8) { animation-delay: 0.68s; }
-  .splash-donut.scene-sprinkle .sprinkles line:nth-child(9) { animation-delay: 0.76s; }
-  .splash-donut.scene-sprinkle .sprinkles line:nth-child(10) { animation-delay: 0.83s; }
-  .splash-donut.scene-sprinkle .sprinkles line:nth-child(11) { animation-delay: 0.91s; }
-  .splash-donut.scene-sprinkle .sprinkles line:nth-child(12) { animation-delay: 0.99s; }
-  .splash-donut.scene-sprinkle .sprinkles line:nth-child(13) { animation-delay: 1.06s; }
-  .splash-donut.scene-sprinkle .sprinkles line:nth-child(14) { animation-delay: 1.14s; }
-  .splash-donut.scene-sprinkle .sprinkles line:nth-child(15) { animation-delay: 1.21s; }
-  .splash-donut.scene-sprinkle .sprinkles line:nth-child(16) { animation-delay: 1.29s; }
-  .splash-donut.scene-sprinkle .sprinkles line:nth-child(17) { animation-delay: 1.37s; }
-  .splash-donut.scene-sprinkle .sprinkles line:nth-child(18) { animation-delay: 1.44s; }
-  .splash-donut.scene-sprinkle .sprinkles line:nth-child(19) { animation-delay: 1.52s; }
-  .splash-donut.scene-sprinkle .sprinkles line:nth-child(20) { animation-delay: 1.59s; }
-  .splash-donut.scene-sprinkle .sprinkles line:nth-child(21) { animation-delay: 1.67s; }
-  .splash-donut.scene-sprinkle .sprinkles line:nth-child(22) { animation-delay: 1.75s; }
-  .splash-donut.scene-sprinkle .sprinkles line:nth-child(23) { animation-delay: 1.82s; }
-  .splash-donut.scene-sprinkle .sprinkles line:nth-child(24) { animation-delay: 1.90s; }
-  .splash-donut.scene-sprinkle .sprinkles line:nth-child(25) { animation-delay: 1.97s; }
-  .splash-donut.scene-sprinkle .sprinkles line:nth-child(26) { animation-delay: 2.05s; }
+  .splash-donut .sprinkles line:nth-child(1) { animation-delay: 1.45s; }
+  .splash-donut .sprinkles line:nth-child(2) { animation-delay: 1.52s; }
+  .splash-donut .sprinkles line:nth-child(3) { animation-delay: 1.59s; }
+  .splash-donut .sprinkles line:nth-child(4) { animation-delay: 1.67s; }
+  .splash-donut .sprinkles line:nth-child(5) { animation-delay: 1.74s; }
+  .splash-donut .sprinkles line:nth-child(6) { animation-delay: 1.81s; }
+  .splash-donut .sprinkles line:nth-child(7) { animation-delay: 1.88s; }
+  .splash-donut .sprinkles line:nth-child(8) { animation-delay: 1.95s; }
+  .splash-donut .sprinkles line:nth-child(9) { animation-delay: 2.02s; }
+  .splash-donut .sprinkles line:nth-child(10) { animation-delay: 2.10s; }
+  .splash-donut .sprinkles line:nth-child(11) { animation-delay: 2.17s; }
+  .splash-donut .sprinkles line:nth-child(12) { animation-delay: 2.24s; }
+  .splash-donut .sprinkles line:nth-child(13) { animation-delay: 2.31s; }
+  .splash-donut .sprinkles line:nth-child(14) { animation-delay: 2.38s; }
+  .splash-donut .sprinkles line:nth-child(15) { animation-delay: 2.45s; }
+  .splash-donut .sprinkles line:nth-child(16) { animation-delay: 2.53s; }
+  .splash-donut .sprinkles line:nth-child(17) { animation-delay: 2.60s; }
+  .splash-donut .sprinkles line:nth-child(18) { animation-delay: 2.67s; }
+  .splash-donut .sprinkles line:nth-child(19) { animation-delay: 2.74s; }
+  .splash-donut .sprinkles line:nth-child(20) { animation-delay: 2.81s; }
+  .splash-donut .sprinkles line:nth-child(21) { animation-delay: 2.88s; }
+  .splash-donut .sprinkles line:nth-child(22) { animation-delay: 2.96s; }
+  .splash-donut .sprinkles line:nth-child(23) { animation-delay: 3.03s; }
+  .splash-donut .sprinkles line:nth-child(24) { animation-delay: 3.10s; }
 
-  /* ---- scene 4: hole (ring pulses around the middle) ---- */
-  .splash-donut.scene-hole .hole {
-    opacity: 1;
-    animation: holePulse 1.4s ease-in-out infinite;
-  }
-
-  /* ---- scene 5: finished donut, gentle breathe ---- */
-  .splash-donut.scene-done {
-    animation: breathe 2.6s ease-in-out infinite;
-  }
-
-  @keyframes sweep {
-    from { stroke-dashoffset: 264; }
-    to   { stroke-dashoffset: 0; }
-  }
-
-  @keyframes pop {
-    from { opacity: 0; }
-    to   { opacity: 1; }
-  }
-
-  @keyframes holePulse {
-    0%, 100% { r: 29; opacity: 0.9; }
-    50%      { r: 33; opacity: 0.35; }
-  }
-
-  @keyframes breathe {
-    0%, 100% { transform: scale(1); }
-    50%      { transform: scale(1.06); }
+  @keyframes drop {
+    0%   { opacity: 0; transform: translateY(-20px); }
+    6%   { opacity: 1; transform: translateY(0); }
+    78%  { opacity: 1; transform: translateY(0); }
+    88%  { opacity: 0; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-20px); }
   }
 
   .splash-tagline {
-    font-size: 12px;
+    position: absolute;
+    bottom: 48px;
+    left: 0;
+    right: 0;
+    font-size: 13px;
     color: var(--text-dim);
-    margin-top: 8px;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.05em;
     text-align: center;
     padding: 0 28px;
     opacity: 0;
-    transition: opacity 0.3s ease;
+    transition: opacity 0.35s ease;
   }
 
   .splash-status {
@@ -1098,6 +1086,719 @@
     cursor: pointer;
   }
 
+  /* ---------- light mode ---------- */
+  body.light {
+    --bg: #faf3ec;
+    --panel: #ffffff;
+    --panel-2: #f2e7dc;
+    --amber: #a8701c;
+    --amber-dim: #e8cfae;
+    --teal: #2f7d5c;
+    --red: #b8422f;
+    --text: #2e2018;
+    --text-dim: #82705f;
+    --line: #e2d3c2;
+    color-scheme: light;
+  }
+
+  body.light .item-card.low-stock {
+    background: linear-gradient(to right, rgba(184,66,47,0.12), rgba(184,66,47,0.04));
+  }
+
+  /* ---------- texture ---------- */
+  .item-card {
+    box-shadow: 0 1px 2px rgba(0,0,0,0.18);
+    border-radius: 12px;
+  }
+
+  .display {
+    border-radius: 10px;
+  }
+
+  button:active {
+    transform: translateY(1px);
+  }
+
+  /* ---------- count change flash ---------- */
+  @keyframes countFlash {
+    0%   { transform: scale(1); }
+    35%  { transform: scale(1.14); }
+    100% { transform: scale(1); }
+  }
+
+  .count-bump {
+    animation: countFlash 0.32s ease;
+  }
+
+  /* ---------- per-item progress ring ---------- */
+  .ring {
+    width: 26px;
+    height: 26px;
+    flex-shrink: 0;
+  }
+
+  .ring .track {
+    stroke: var(--line);
+  }
+
+  .ring .fill {
+    stroke: var(--teal);
+    transition: stroke-dashoffset 0.4s ease, stroke 0.3s ease;
+  }
+
+  .ring.warn .fill { stroke: var(--amber); }
+  .ring.low .fill { stroke: var(--red); }
+
+  /* ---------- low stock donut marker ---------- */
+  .low-donut {
+    font-size: 12px;
+    margin-left: 5px;
+    vertical-align: middle;
+  }
+
+  /* ---------- sticky controls ---------- */
+  .sticky-bar {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    background: var(--bg);
+    padding: 8px 0 6px;
+    margin-bottom: 8px;
+  }
+
+  /* ---------- swipe ---------- */
+  .item-card.mini {
+    touch-action: pan-y;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .mini-row {
+    transition: transform 0.18s ease;
+  }
+
+  .swipe-hint {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 13px;
+    opacity: 0;
+    transition: opacity 0.12s ease;
+    pointer-events: none;
+  }
+
+  .swipe-hint.left  { left: 0;  color: var(--teal); }
+  .swipe-hint.right { right: 0; color: var(--red); }
+
+  .item-card.mini.swiping .swipe-hint.show { opacity: 1; }
+
+  .scan-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 500;
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .scan-overlay video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .scan-frame {
+    position: relative;
+    width: 78%;
+    max-width: 320px;
+    aspect-ratio: 5 / 3;
+    border: 3px solid var(--amber);
+    border-radius: 14px;
+    box-shadow: 0 0 0 9999px rgba(0,0,0,0.5);
+  }
+
+  .scan-top {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    padding: 54px 20px 16px;
+    text-align: center;
+    color: #fff;
+    font-size: 15px;
+    font-weight: 700;
+    font-family: 'Quicksand', system-ui, sans-serif;
+  }
+
+  .scan-bottom {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 20px 20px 42px;
+    text-align: center;
+  }
+
+  .scan-msg {
+    color: var(--amber);
+    font-size: 14px;
+    font-weight: 700;
+    min-height: 20px;
+    margin-bottom: 14px;
+    font-family: 'Quicksand', system-ui, sans-serif;
+  }
+
+  .scan-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+  }
+
+  .scan-done {
+    background: var(--amber);
+    border: none;
+    color: #241a08;
+    border-radius: 10px;
+    padding: 12px 24px;
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .scan-close {
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.4);
+    color: #fff;
+    border-radius: 10px;
+    padding: 12px 28px;
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .cmd-card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 10px;
+    margin-bottom: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+
+  .cmd-main {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .cmd-main input {
+    flex: 1;
+    min-width: 0;
+    font-size: 15px;
+    padding: 12px 12px;
+    border-radius: 10px;
+  }
+
+  .cmd-mic, .cmd-go {
+    flex-shrink: 0;
+    width: 46px;
+    height: 46px;
+    border: none;
+    border-radius: 12px;
+    font-size: 19px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .cmd-mic {
+    background: var(--amber);
+    color: #241a08;
+  }
+
+  .cmd-mic.listening {
+    background: var(--red);
+    color: #fff;
+    animation: pulse 1.1s infinite;
+  }
+
+  .cmd-go {
+    background: var(--panel-2);
+    border: 1px solid var(--line) !important;
+    color: var(--text-dim);
+    font-size: 20px;
+  }
+
+  .cmd-toast {
+    font-size: 12px;
+    color: var(--teal);
+    font-weight: 600;
+    min-height: 0;
+    margin: 0;
+    overflow: hidden;
+    transition: min-height 0.2s ease, margin 0.2s ease;
+  }
+
+  .cmd-toast.show {
+    min-height: 16px;
+    margin-top: 8px;
+  }
+
+  .cmd-toast.error { color: var(--red); }
+
+  .cmd-tools {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  .cmd-tool {
+    flex: 1;
+    background: none;
+    border: 1px solid var(--line);
+    color: var(--text-dim);
+    border-radius: 9px;
+    padding: 8px 4px;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  #speakBtn { flex: 0 0 42px; }
+
+  .cmd-tool.on {
+    border-color: var(--teal);
+    color: var(--teal);
+  }
+
+  .cmd-tool.live {
+    border-color: var(--red);
+    color: var(--red);
+    animation: pulse 1.2s infinite;
+  }
+
+  .cmd-tool:disabled {
+    opacity: 0.35;
+    cursor: default;
+  }
+
+  #undoBtn:not(:disabled) {
+    border-color: var(--amber);
+    color: var(--amber);
+  }
+
+  .cat-strip {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    margin-top: 8px;
+    padding-bottom: 2px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .cat-strip::-webkit-scrollbar { display: none; }
+
+  .cat-chip {
+    flex-shrink: 0;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    color: var(--text-dim);
+    border-radius: 20px;
+    padding: 6px 12px;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .cat-chip.on {
+    background: var(--amber);
+    border-color: var(--amber);
+    color: #241a08;
+  }
+
+  .cat-tag {
+    display: inline-block;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    color: var(--text-dim);
+    border-radius: 5px;
+    padding: 1px 6px;
+    font-size: 10px;
+    font-weight: 600;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+
+  .waste-btn {
+    background: none;
+    border: 1px solid var(--line);
+    color: var(--text-dim);
+    border-radius: 7px;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 6px 10px;
+    flex-shrink: 0;
+  }
+
+  .waste-btn:active {
+    border-color: var(--red);
+    color: var(--red);
+  }
+
+  .offline-bar {
+    position: sticky;
+    top: 0;
+    z-index: 60;
+    background: #4a3418;
+    color: var(--amber);
+    border: 1px solid var(--amber-dim);
+    border-radius: 9px;
+    padding: 9px 12px;
+    font-size: 11.5px;
+    font-weight: 600;
+    line-height: 1.4;
+    margin-bottom: 10px;
+  }
+
+  .offline-bar.pending {
+    background: #4a2a1f;
+    border-color: var(--red);
+    color: var(--red);
+  }
+
+  .offline-bar.syncing {
+    background: #1d3a2c;
+    border-color: var(--teal);
+    color: var(--teal);
+  }
+
+  .offline-bar.hidden { display: none; }
+
+  body.light .offline-bar { background: #f6e7cd; }
+  body.light .offline-bar.pending { background: #f7dcd6; }
+  body.light .offline-bar.syncing { background: #d8efe3; }
+
+  .role-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    text-align: left;
+    margin: 12px 0 6px;
+    font-weight: 600;
+  }
+
+  .role-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+
+  .role-opt {
+    background: var(--panel-2) !important;
+    border: 1px solid var(--line) !important;
+    color: var(--text-dim) !important;
+    border-radius: 9px;
+    padding: 10px 6px !important;
+    font-family: inherit;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    cursor: pointer;
+    width: auto !important;
+  }
+
+  .role-opt.on {
+    background: var(--amber) !important;
+    border-color: var(--amber) !important;
+    color: #241a08 !important;
+  }
+
+  .role-tag {
+    display: inline-block;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    color: var(--text-dim);
+    border-radius: 5px;
+    padding: 1px 6px;
+    font-size: 10px;
+    font-weight: 600;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+
+  .meta-row {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+  }
+
+  .meta-sep {
+    width: 1px;
+    height: 14px;
+    background: var(--line);
+  }
+
+  .profile-chip-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .store-chip.alt {
+    color: var(--text);
+    font-family: 'Quicksand', system-ui, sans-serif;
+    font-weight: 700;
+  }
+
+  .sync-text {
+    font-size: 10px;
+    color: var(--text-dim);
+  }
+
+  .pending-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #4a3418;
+    border: 1px solid var(--amber);
+    color: var(--amber);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.35;
+    margin-bottom: 10px;
+  }
+
+  .pending-bar span { flex: 1; }
+
+  .pending-bar button {
+    background: var(--amber);
+    border: none;
+    color: #241a08;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  body.light .pending-bar { background: #f7e6c8; }
+
+  .tour-card { text-align: center; }
+
+  .tour-icon {
+    font-size: 44px;
+    line-height: 1;
+    margin-bottom: 14px;
+  }
+
+  .tour-card h2 { margin: 0 0 10px; font-size: 21px; }
+
+  .tour-card p {
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--text-dim);
+    margin: 0 0 18px;
+    text-align: left;
+  }
+
+  .tour-dots {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    margin-bottom: 16px;
+  }
+
+  .tour-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--line);
+  }
+
+  .tour-dot.on { background: var(--amber); width: 18px; border-radius: 3px; }
+
+  .id-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-bottom: 4px;
+  }
+
+  .id-chip {
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    color: var(--text-dim);
+    border-radius: 16px;
+    padding: 6px 10px;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    width: auto !important;
+  }
+
+  .id-chip.on {
+    background: var(--amber) !important;
+    border-color: var(--amber);
+    color: #241a08 !important;
+  }
+
+  .id-btn {
+    background: var(--amber);
+    border: none;
+    color: #241a08;
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .head-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .menu-btn {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    color: var(--text);
+    border-radius: 11px;
+    width: 42px;
+    height: 42px;
+    font-size: 19px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .sheet-scrim {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    z-index: 300;
+  }
+
+  .sheet {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 301;
+    background: var(--panel);
+    border-top: 1px solid var(--line);
+    border-radius: 20px 20px 0 0;
+    padding: 8px 14px calc(20px + env(safe-area-inset-bottom));
+    max-height: 86vh;
+    overflow-y: auto;
+    box-shadow: 0 -8px 24px rgba(0,0,0,0.35);
+    animation: sheetUp 0.22s ease;
+  }
+
+  @keyframes sheetUp {
+    from { transform: translateY(100%); }
+    to   { transform: translateY(0); }
+  }
+
+  .sheet-handle {
+    width: 38px;
+    height: 4px;
+    border-radius: 4px;
+    background: var(--line);
+    margin: 6px auto 14px;
+  }
+
+  .sheet-group { margin-bottom: 16px; }
+
+  .sheet-label {
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    font-weight: 700;
+    margin: 0 4px 7px;
+  }
+
+  .sheet-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 6px;
+    font-family: inherit;
+    color: var(--text);
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .sheet-item:active { border-color: var(--amber); }
+
+  .si-icon {
+    font-size: 20px;
+    flex-shrink: 0;
+    width: 26px;
+    text-align: center;
+  }
+
+  .si-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .si-text b { font-size: 14px; font-weight: 700; }
+
+  .si-text i {
+    font-style: normal;
+    font-size: 11px;
+    color: var(--text-dim);
+    line-height: 1.3;
+  }
+
+  .sheet-close {
+    width: 100%;
+    background: none;
+    border: 1px solid var(--line);
+    color: var(--text-dim);
+    border-radius: 11px;
+    padding: 12px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
   .name-bar {
     display: flex;
     align-items: center;
@@ -1266,106 +1967,23 @@
     min-height: 14px;
   }
 
-  .command-mic {
-    background: var(--amber);
-    color: #fff;
-    border: none;
-    border-radius: 8px;
-    width: 36px;
-    flex-shrink: 0;
-    font-size: 14px;
-    cursor: pointer;
-  }
 
-  .command-mic.listening {
-    background: var(--red);
-    animation: pulse 1s infinite;
-  }
 
   @keyframes pulse {
     0%, 100% { transform: scale(1); }
     50% { transform: scale(1.08); }
   }
 
-  .command-go {
-    background: var(--teal);
-    color: #fff;
-    border: none;
-    border-radius: 8px;
-    padding: 0 10px;
-    font-family: inherit;
-    font-weight: 700;
-    font-size: 12px;
-    cursor: pointer;
-    flex-shrink: 0;
-  }
 
-  .command-toast {
-    font-size: 11px;
-    color: var(--teal);
-    margin-top: 6px;
-    min-height: 13px;
-    font-weight: 600;
-  }
 
-  .command-toast.error { color: var(--red); }
 
-  .voice-opts {
-    display: flex;
-    gap: 6px;
-    margin-top: 6px;
-  }
 
-  .voice-opt {
-    background: none;
-    border: 1px solid var(--line);
-    color: var(--text-dim);
-    border-radius: 7px;
-    padding: 5px 6px;
-    font-family: inherit;
-    font-size: 10px;
-    font-weight: 600;
-    cursor: pointer;
-    white-space: nowrap;
-  }
 
-  .voice-opt:first-child { flex: 1; }
 
-  .voice-opt.on {
-    border-color: var(--teal);
-    color: var(--teal);
-  }
 
-  .voice-opt.live {
-    border-color: var(--red);
-    color: var(--red);
-    animation: pulse 1.2s infinite;
-  }
 
-  .undo-btn {
-    display: block;
-    width: 100%;
-    margin-top: 6px;
-    background: none;
-    border: 1px solid var(--line);
-    color: var(--text-dim);
-    border-radius: 7px;
-    padding: 5px 0;
-    font-family: inherit;
-    font-size: 11px;
-    font-weight: 600;
-    cursor: pointer;
-  }
 
-  .undo-btn:disabled {
-    opacity: 0.35;
-    cursor: default;
-  }
 
-  .undo-btn:not(:disabled) {
-    border-color: var(--amber);
-    color: var(--amber);
-  }
 
   .toast.error { color: var(--red); }
 </style>
@@ -1374,43 +1992,67 @@
 
 <div class="splash" id="splash">
   <svg class="splash-donut" id="splashDonut" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
-    <circle class="dough" cx="60" cy="60" r="42" fill="none" stroke="#d6a060"
-            stroke-width="26" stroke-linecap="round" transform="rotate(-90 60 60)"/>
-    <circle class="icing" cx="60" cy="60" r="42" fill="none" stroke="#5c3224"
-            stroke-width="26" stroke-linecap="round" transform="rotate(-90 60 60)"/>
-    <circle class="hole" cx="60" cy="60" r="29" fill="none" stroke="#d6a060" stroke-width="2"/>
-    <g class="sprinkles" stroke-width="3" stroke-linecap="round">
-      <line x1="106.5" y1="58.8" x2="99.5" y2="60.5" stroke="#f47a9e"/>
-      <line x1="101.9" y1="66.4" x2="100.0" y2="73.3" stroke="#fcd65c"/>
-      <line x1="99.8" y1="74.2" x2="97.0" y2="80.8" stroke="#78cdeb"/>
-      <line x1="83.2" y1="82.0" x2="87.4" y2="87.8" stroke="#96de96"/>
-      <line x1="91.5" y1="93.6" x2="87.4" y2="99.5" stroke="#ffffff"/>
-      <line x1="85.0" y1="104.5" x2="77.8" y2="105.3" stroke="#f47a9e"/>
-      <line x1="60.9" y1="101.9" x2="67.2" y2="105.4" stroke="#fcd65c"/>
-      <line x1="55.0" y1="101.8" x2="62.1" y2="103.1" stroke="#78cdeb"/>
-      <line x1="45.0" y1="95.8" x2="52.1" y2="96.4" stroke="#96de96"/>
-      <line x1="40.1" y1="92.2" x2="33.7" y2="95.6" stroke="#ffffff"/>
-      <line x1="26.8" y1="85.6" x2="26.8" y2="92.8" stroke="#f47a9e"/>
-      <line x1="20.6" y1="75.4" x2="25.2" y2="80.9" stroke="#fcd65c"/>
-      <line x1="13.8" y1="65.8" x2="7.5" y2="69.3" stroke="#78cdeb"/>
-      <line x1="18.3" y1="56.2" x2="23.7" y2="60.9" stroke="#96de96"/>
-      <line x1="28.3" y1="50.5" x2="22.9" y2="55.3" stroke="#ffffff"/>
-      <line x1="16.3" y1="35.3" x2="18.8" y2="42.0" stroke="#f47a9e"/>
-      <line x1="23.5" y1="25.6" x2="30.7" y2="25.6" stroke="#fcd65c"/>
-      <line x1="30.0" y1="17.9" x2="30.7" y2="25.1" stroke="#78cdeb"/>
-      <line x1="45.5" y1="20.4" x2="52.5" y2="22.0" stroke="#96de96"/>
-      <line x1="53.1" y1="11.1" x2="57.9" y2="16.5" stroke="#ffffff"/>
-      <line x1="65.4" y1="20.3" x2="58.3" y2="21.1" stroke="#f47a9e"/>
-      <line x1="71.7" y1="24.6" x2="76.8" y2="29.6" stroke="#fcd65c"/>
-      <line x1="80.6" y1="27.7" x2="74.9" y2="32.0" stroke="#78cdeb"/>
-      <line x1="89.9" y1="26.2" x2="91.0" y2="33.3" stroke="#96de96"/>
-      <line x1="95.9" y1="35.1" x2="102.5" y2="38.0" stroke="#ffffff"/>
-      <line x1="94.1" y1="48.8" x2="95.9" y2="55.8" stroke="#f47a9e"/>
+    <defs>
+      <radialGradient id="glow" cx="50%" cy="45%" r="55%">
+        <stop offset="0%" stop-color="#c8912f" stop-opacity="0.30"/>
+        <stop offset="100%" stop-color="#c8912f" stop-opacity="0"/>
+      </radialGradient>
+      <linearGradient id="glaze" x1="0" y1="0" x2="0.35" y2="1">
+        <stop offset="0%" stop-color="#7a452f"/>
+        <stop offset="55%" stop-color="#5c3224"/>
+        <stop offset="100%" stop-color="#41221a"/>
+      </linearGradient>
+      <linearGradient id="doughG" x1="0" y1="0" x2="0.4" y2="1">
+        <stop offset="0%" stop-color="#e8b473"/>
+        <stop offset="100%" stop-color="#c78e4c"/>
+      </linearGradient>
+      <clipPath id="icingClip"><path d="M 103.4 60.0 L 104.6 62.5 L 104.5 65.1 L 103.3 67.5 L 101.4 69.6 L 99.2 71.5 L 97.2 73.3 L 95.7 75.1 L 94.6 77.0 L 93.6 79.0 L 92.6 80.9 L 91.3 82.8 L 89.9 84.4 L 88.5 86.1 L 87.2 88.0 L 86.2 90.3 L 85.4 92.9 L 84.3 95.6 L 82.9 98.0 L 80.9 99.7 L 78.4 100.2 L 75.5 99.7 L 72.5 98.5 L 69.7 97.1 L 67.3 96.1 L 65.2 96.0 L 63.2 96.7 L 61.1 98.0 L 58.9 99.5 L 56.5 100.6 L 54.1 101.2 L 51.7 101.1 L 49.3 100.7 L 47.0 100.1 L 44.6 99.5 L 42.3 98.8 L 40.0 97.9 L 38.0 96.5 L 36.5 94.4 L 35.5 91.8 L 34.9 89.0 L 34.3 86.4 L 33.5 84.4 L 31.9 83.0 L 29.5 82.1 L 26.6 81.5 L 23.5 80.6 L 20.9 79.2 L 19.1 77.3 L 18.4 74.9 L 18.5 72.2 L 19.1 69.5 L 19.7 67.0 L 20.2 64.6 L 20.4 62.3 L 20.6 60.0 L 20.9 57.8 L 21.5 55.6 L 22.4 53.5 L 23.2 51.4 L 23.7 49.3 L 23.6 47.0 L 23.1 44.4 L 22.3 41.5 L 21.9 38.5 L 22.2 35.7 L 23.6 33.6 L 26.0 32.2 L 29.0 31.5 L 32.2 31.4 L 35.0 31.2 L 37.4 30.6 L 39.1 29.5 L 40.6 27.8 L 42.0 25.9 L 43.6 24.0 L 45.4 22.4 L 47.4 21.3 L 49.6 20.3 L 51.8 19.4 L 54.0 18.4 L 56.3 17.3 L 58.8 16.5 L 61.2 16.4 L 63.7 17.1 L 65.9 18.8 L 67.9 21.1 L 69.6 23.5 L 71.2 25.5 L 73.0 26.6 L 75.2 26.7 L 77.8 26.2 L 80.8 25.5 L 83.8 25.2 L 86.5 25.7 L 88.6 26.9 L 90.2 28.9 L 91.4 31.2 L 92.4 33.5 L 93.4 35.8 L 94.4 37.9 L 95.3 40.0 L 96.0 42.3 L 96.2 44.7 L 96.1 47.1 L 95.9 49.5 L 96.0 51.6 L 96.8 53.6 L 98.3 55.6 L 100.4 57.7 L 102.6 60.0 Z"/></clipPath>
+      <mask id="holeMask">
+        <rect width="120" height="120" fill="#fff"/>
+        <path d="M 83.6 60.0 L 84.0 61.4 L 84.1 62.8 L 83.8 64.1 L 83.1 65.4 L 82.4 66.6 L 81.6 67.7 L 80.8 68.8 L 80.2 69.9 L 79.6 71.1 L 78.9 72.2 L 78.2 73.2 L 77.4 74.2 L 76.5 75.2 L 75.7 76.1 L 74.9 77.2 L 74.1 78.3 L 73.3 79.4 L 72.4 80.5 L 71.3 81.4 L 70.0 82.0 L 68.6 82.2 L 67.2 82.1 L 65.8 81.9 L 64.4 81.7 L 63.1 81.6 L 61.9 81.8 L 60.6 82.1 L 59.4 82.5 L 58.0 82.8 L 56.7 83.0 L 55.4 82.9 L 54.1 82.6 L 52.8 82.3 L 51.5 81.9 L 50.2 81.5 L 49.0 80.9 L 47.8 80.3 L 46.7 79.4 L 45.9 78.3 L 45.2 77.1 L 44.6 75.9 L 43.9 74.7 L 43.2 73.8 L 42.2 72.9 L 41.1 72.2 L 39.9 71.4 L 38.8 70.4 L 37.9 69.3 L 37.3 68.1 L 37.1 66.7 L 37.0 65.3 L 37.1 64.0 L 37.2 62.6 L 37.2 61.3 L 37.3 60.0 L 37.4 58.7 L 37.6 57.4 L 37.9 56.2 L 38.3 55.0 L 38.7 53.7 L 39.0 52.5 L 39.1 51.2 L 39.2 49.8 L 39.4 48.3 L 39.7 47.0 L 40.3 45.7 L 41.3 44.7 L 42.5 44.0 L 43.9 43.4 L 45.2 43.0 L 46.5 42.5 L 47.6 41.8 L 48.6 41.1 L 49.6 40.2 L 50.6 39.4 L 51.7 38.7 L 52.9 38.1 L 54.1 37.7 L 55.4 37.3 L 56.7 36.9 L 58.0 36.5 L 59.3 36.2 L 60.7 36.1 L 62.0 36.2 L 63.4 36.7 L 64.6 37.4 L 65.7 38.3 L 66.8 39.1 L 67.9 39.8 L 69.0 40.2 L 70.3 40.4 L 71.7 40.6 L 73.1 40.8 L 74.4 41.3 L 75.6 42.0 L 76.6 42.9 L 77.5 44.0 L 78.2 45.1 L 78.8 46.3 L 79.5 47.5 L 80.1 48.6 L 80.6 49.9 L 81.0 51.1 L 81.2 52.4 L 81.3 53.7 L 81.4 55.0 L 81.7 56.2 L 82.1 57.5 L 82.7 58.7 L 83.3 60.0 Z" fill="#000"/>
+      </mask>
+    </defs>
+
+    <circle class="glow" cx="60" cy="60" r="58" fill="url(#glow)"/>
+
+    <g class="donut-body" mask="url(#holeMask)">
+      <path class="dough" d="M 109.3 60.0 L 109.0 62.8 L 108.2 65.5 L 107.2 68.2 L 106.2 70.8 L 105.4 73.3 L 104.7 75.9 L 103.8 78.5 L 102.7 81.0 L 101.4 83.4 L 100.2 85.8 L 99.0 88.3 L 97.7 90.8 L 96.2 93.2 L 94.2 95.2 L 91.9 96.8 L 89.2 97.9 L 86.6 98.9 L 84.2 100.1 L 81.9 101.5 L 79.7 103.1 L 77.4 104.7 L 74.9 106.0 L 72.3 106.9 L 69.6 107.5 L 66.9 108.0 L 64.2 108.4 L 61.4 108.5 L 58.6 108.4 L 55.9 107.8 L 53.3 106.8 L 50.7 105.9 L 48.1 105.3 L 45.4 104.9 L 42.6 104.7 L 39.8 104.3 L 37.1 103.4 L 34.7 102.0 L 32.5 100.2 L 30.6 98.1 L 28.7 96.1 L 26.8 94.2 L 24.9 92.2 L 23.2 90.1 L 21.7 87.8 L 20.2 85.6 L 18.7 83.3 L 17.0 81.1 L 15.2 78.9 L 13.7 76.5 L 12.7 73.9 L 12.4 71.1 L 12.5 68.2 L 12.9 65.4 L 13.1 62.7 L 13.0 60.0 L 12.8 57.3 L 12.6 54.6 L 12.7 51.8 L 13.1 49.1 L 13.7 46.4 L 14.4 43.7 L 15.2 41.1 L 16.2 38.5 L 17.6 36.1 L 19.4 33.9 L 21.6 32.1 L 23.7 30.3 L 25.6 28.4 L 27.2 26.3 L 28.8 23.9 L 30.4 21.6 L 32.4 19.6 L 34.7 18.1 L 37.3 16.9 L 39.9 16.0 L 42.6 15.2 L 45.2 14.4 L 47.8 13.7 L 50.5 13.3 L 53.3 13.2 L 56.0 13.1 L 58.7 12.9 L 61.4 12.4 L 64.1 11.8 L 67.0 11.5 L 69.8 11.7 L 72.5 12.6 L 75.0 13.9 L 77.3 15.5 L 79.6 17.0 L 82.0 18.3 L 84.4 19.5 L 86.9 20.7 L 89.2 22.2 L 91.4 23.8 L 93.5 25.6 L 95.6 27.3 L 97.7 29.2 L 99.6 31.2 L 101.2 33.5 L 102.2 36.1 L 102.9 38.9 L 103.3 41.7 L 104.0 44.3 L 105.0 46.8 L 106.2 49.2 L 107.4 51.8 L 108.3 54.5 L 108.7 57.2 L 108.7 60.0 Z" fill="url(#doughG)"/>
+      <path class="icing" d="M 103.4 60.0 L 104.6 62.5 L 104.5 65.1 L 103.3 67.5 L 101.4 69.6 L 99.2 71.5 L 97.2 73.3 L 95.7 75.1 L 94.6 77.0 L 93.6 79.0 L 92.6 80.9 L 91.3 82.8 L 89.9 84.4 L 88.5 86.1 L 87.2 88.0 L 86.2 90.3 L 85.4 92.9 L 84.3 95.6 L 82.9 98.0 L 80.9 99.7 L 78.4 100.2 L 75.5 99.7 L 72.5 98.5 L 69.7 97.1 L 67.3 96.1 L 65.2 96.0 L 63.2 96.7 L 61.1 98.0 L 58.9 99.5 L 56.5 100.6 L 54.1 101.2 L 51.7 101.1 L 49.3 100.7 L 47.0 100.1 L 44.6 99.5 L 42.3 98.8 L 40.0 97.9 L 38.0 96.5 L 36.5 94.4 L 35.5 91.8 L 34.9 89.0 L 34.3 86.4 L 33.5 84.4 L 31.9 83.0 L 29.5 82.1 L 26.6 81.5 L 23.5 80.6 L 20.9 79.2 L 19.1 77.3 L 18.4 74.9 L 18.5 72.2 L 19.1 69.5 L 19.7 67.0 L 20.2 64.6 L 20.4 62.3 L 20.6 60.0 L 20.9 57.8 L 21.5 55.6 L 22.4 53.5 L 23.2 51.4 L 23.7 49.3 L 23.6 47.0 L 23.1 44.4 L 22.3 41.5 L 21.9 38.5 L 22.2 35.7 L 23.6 33.6 L 26.0 32.2 L 29.0 31.5 L 32.2 31.4 L 35.0 31.2 L 37.4 30.6 L 39.1 29.5 L 40.6 27.8 L 42.0 25.9 L 43.6 24.0 L 45.4 22.4 L 47.4 21.3 L 49.6 20.3 L 51.8 19.4 L 54.0 18.4 L 56.3 17.3 L 58.8 16.5 L 61.2 16.4 L 63.7 17.1 L 65.9 18.8 L 67.9 21.1 L 69.6 23.5 L 71.2 25.5 L 73.0 26.6 L 75.2 26.7 L 77.8 26.2 L 80.8 25.5 L 83.8 25.2 L 86.5 25.7 L 88.6 26.9 L 90.2 28.9 L 91.4 31.2 L 92.4 33.5 L 93.4 35.8 L 94.4 37.9 L 95.3 40.0 L 96.0 42.3 L 96.2 44.7 L 96.1 47.1 L 95.9 49.5 L 96.0 51.6 L 96.8 53.6 L 98.3 55.6 L 100.4 57.7 L 102.6 60.0 Z" fill="url(#glaze)"/>
+      <path class="icing-hole" d="M 88.4 60.0 L 87.7 61.6 L 86.8 63.1 L 86.0 64.5 L 85.3 65.9 L 84.7 67.3 L 84.3 68.7 L 83.9 70.1 L 83.5 71.5 L 82.9 72.9 L 82.2 74.3 L 81.4 75.5 L 80.6 76.8 L 79.7 78.1 L 79.0 79.5 L 78.1 80.9 L 77.2 82.4 L 76.2 83.7 L 74.9 84.7 L 73.4 85.4 L 71.8 85.7 L 70.0 85.7 L 68.2 85.3 L 66.6 85.0 L 65.0 84.7 L 63.5 84.7 L 62.1 84.9 L 60.7 85.5 L 59.3 86.1 L 57.7 86.7 L 56.1 87.1 L 54.5 87.2 L 52.9 87.1 L 51.3 86.6 L 49.9 86.0 L 48.4 85.3 L 47.0 84.6 L 45.6 83.8 L 44.3 82.9 L 43.1 81.9 L 42.0 80.7 L 41.2 79.4 L 40.5 77.9 L 40.0 76.4 L 39.5 74.9 L 38.9 73.5 L 38.2 72.3 L 37.1 71.3 L 35.8 70.2 L 34.5 69.1 L 33.2 67.9 L 32.1 66.5 L 31.5 64.9 L 31.3 63.3 L 31.5 61.6 L 32.0 60.0 L 32.7 58.4 L 33.3 56.9 L 33.9 55.5 L 34.4 54.1 L 34.9 52.6 L 35.3 51.2 L 35.9 49.8 L 36.5 48.5 L 37.3 47.2 L 38.1 45.9 L 38.9 44.7 L 39.7 43.4 L 40.3 41.9 L 40.9 40.4 L 41.6 38.8 L 42.5 37.3 L 43.6 36.0 L 45.0 35.1 L 46.6 34.6 L 48.4 34.5 L 50.2 34.7 L 51.9 35.0 L 53.5 35.3 L 55.0 35.3 L 56.4 35.1 L 57.8 34.7 L 59.3 34.1 L 60.8 33.6 L 62.3 33.2 L 63.9 33.0 L 65.5 33.1 L 67.0 33.3 L 68.5 33.7 L 70.1 34.2 L 71.6 34.6 L 73.1 35.2 L 74.6 35.9 L 75.9 36.7 L 77.1 37.8 L 78.0 39.2 L 78.7 40.7 L 79.2 42.4 L 79.7 43.9 L 80.2 45.3 L 80.9 46.6 L 81.9 47.6 L 83.2 48.6 L 84.5 49.6 L 85.9 50.8 L 87.1 52.1 L 87.9 53.5 L 88.3 55.1 L 88.4 56.7 L 88.1 58.4 L 87.7 60.0 Z" fill="url(#doughG)"/>
+      <g class="shine" clip-path="url(#icingClip)">
+        <rect x="-58" y="-25" width="22" height="175" fill="#fff" opacity="0.16" transform="rotate(18 60 60)"/>
+      </g>
+      <g class="sprinkles" stroke-width="2.6" stroke-linecap="round">
+        <line x1="94.3" y1="60.1" x2="91.4" y2="62.2" stroke="#f47a9e"/>
+        <line x1="92.2" y1="71.9" x2="88.7" y2="72.8" stroke="#fcd65c"/>
+        <line x1="91.6" y1="72.0" x2="88.1" y2="72.6" stroke="#78cdeb"/>
+        <line x1="80.8" y1="83.8" x2="84.2" y2="85.1" stroke="#96de96"/>
+        <line x1="76.4" y1="85.6" x2="75.9" y2="89.2" stroke="#ffffff"/>
+        <line x1="66.1" y1="89.3" x2="68.9" y2="91.6" stroke="#c77dff"/>
+        <line x1="63.4" y1="92.0" x2="60.7" y2="94.4" stroke="#f47a9e"/>
+        <line x1="52.9" y1="91.8" x2="56.2" y2="93.3" stroke="#fcd65c"/>
+        <line x1="41.5" y1="86.8" x2="45.1" y2="86.8" stroke="#78cdeb"/>
+        <line x1="33.9" y1="78.9" x2="36.8" y2="81.1" stroke="#96de96"/>
+        <line x1="28.2" y1="71.1" x2="30.4" y2="74.0" stroke="#ffffff"/>
+        <line x1="28.8" y1="62.8" x2="26.9" y2="65.8" stroke="#c77dff"/>
+        <line x1="27.9" y1="61.3" x2="25.8" y2="64.2" stroke="#f47a9e"/>
+        <line x1="28.3" y1="45.9" x2="30.4" y2="48.8" stroke="#fcd65c"/>
+        <line x1="30.4" y1="44.5" x2="33.6" y2="46.0" stroke="#78cdeb"/>
+        <line x1="35.4" y1="38.6" x2="34.3" y2="42.0" stroke="#96de96"/>
+        <line x1="39.0" y1="32.6" x2="40.7" y2="35.8" stroke="#ffffff"/>
+        <line x1="49.7" y1="26.8" x2="49.9" y2="30.4" stroke="#c77dff"/>
+        <line x1="59.4" y1="26.3" x2="57.3" y2="29.2" stroke="#f47a9e"/>
+        <line x1="62.8" y1="26.8" x2="66.4" y2="27.1" stroke="#fcd65c"/>
+        <line x1="76.7" y1="32.5" x2="80.3" y2="32.7" stroke="#78cdeb"/>
+        <line x1="84.9" y1="37.5" x2="84.0" y2="41.0" stroke="#96de96"/>
+        <line x1="83.3" y1="39.8" x2="86.3" y2="41.7" stroke="#ffffff"/>
+        <line x1="92.7" y1="54.5" x2="90.1" y2="57.0" stroke="#c77dff"/>
+      </g>
     </g>
   </svg>
   <div class="splash-title">Tally</div>
-  <div class="splash-tagline" id="splashTagline"></div>
   <div class="splash-status" id="splashStatus"></div>
+  <div class="splash-tagline" id="splashTagline"></div>
 </div>
 
 <input type="file" id="invoiceInput" accept="image/*" capture="environment" style="display:none;">
@@ -1427,13 +2069,19 @@
   </div>
 </div>
 
+<div class="join-gate" id="tourGate" style="display:none;">
+  <div class="join-card tour-card" id="tourBody"></div>
+</div>
+
 <div class="join-gate" id="profileGate" style="display:none;">
   <div class="join-card">
     <h2>&#128075; Welcome</h2>
     <p>Set up your profile. This saves on this device, so you'll only do this once.</p>
     <input type="text" id="profileName" placeholder="Your name" maxlength="24" autocapitalize="words">
+    <div class="role-label">Your position</div>
+    <div class="role-grid" id="roleGrid"></div>
     <button type="button" id="profileSaveBtn">Start counting</button>
-    <div class="join-hint">Your name appears on counts and audits you make, so the team knows who did what.</div>
+    <div class="join-hint">Your name and position show on counts, audits and the activity log, so the team knows who did what.</div>
   </div>
 </div>
 
@@ -1475,20 +2123,40 @@
   </div>
 </div>
 
+<div class="scan-overlay" id="barcodeGate" style="display:none;">
+  <video id="barcodeVideo" playsinline muted></video>
+  <div class="scan-frame"></div>
+  <div class="scan-top" id="barcodeTitle">Point at a barcode</div>
+  <div class="scan-bottom">
+    <div class="scan-msg" id="barcodeMsg"></div>
+    <div class="scan-actions">
+      <button type="button" class="scan-close" id="barcodeClose">Close</button>
+      <button type="button" class="scan-done" id="batchDoneBtn" style="display:none;">Done &middot; <span id="batchCount">0</span></button>
+    </div>
+  </div>
+</div>
+
 <div class="join-gate" id="auditGate" style="display:none;">
   <div class="join-card audit-card" id="auditBody"></div>
 </div>
 
 <div id="appRoot">
+<div class="offline-bar hidden" id="offlineBar"></div>
+<div class="pending-bar" id="pendingBar" style="display:none;"></div>
 <div class="header">
-  <h1>&#127849; Tally</h1>
-  <div class="store-row">
+  <div class="head-row">
+    <h1>&#127849; Tally</h1>
+    <button type="button" class="menu-btn" id="menuBtn" aria-label="Menu">&#9776;</button>
+  </div>
+  <div class="meta-row">
     <span class="store-chip" id="storeChip">Store: —</span>
-    <button type="button" class="store-action" id="scanBtn">Scan invoice</button>
-    <button type="button" class="store-action" id="orderBtn">Order list</button>
-    <button type="button" class="store-action" id="auditBtn">Spot audit</button>
-    <button type="button" class="store-action" id="auditHistBtn">Audit log</button>
-    <button type="button" class="store-action" id="adminBtn">Admin</button>
+    <span class="meta-sep"></span>
+    <span class="profile-chip-wrap">
+      <span class="store-chip alt" id="profileChip">—</span>
+      <button type="button" class="store-action" id="editProfileBtn">edit</button>
+    </span>
+    <span class="sync-dot" id="syncDot"></span>
+    <span class="sync-text" id="syncText"></span>
   </div>
   <div class="admin-panel" id="adminPanel" style="display:none;">
     <div class="admin-title">Admin</div>
@@ -1557,50 +2225,46 @@
 
     <button type="button" class="admin-lock" id="adminLogoutBtn">Lock admin</button>
   </div>
-  <div class="sync-row">
-    <div class="sync-dot" id="syncDot"></div>
-    <span id="syncText">Loading...</span>
+</div>
+
+<div class="cmd-card">
+  <div class="cmd-main">
+    <button type="button" class="cmd-mic" id="commandMic" aria-label="Speak a command">&#127908;</button>
+    <input type="text" id="commandInput" placeholder="add 3 cases of napkins">
+    <button type="button" class="cmd-go" id="commandGo" aria-label="Run">&#8594;</button>
   </div>
-  <div class="name-bar">
-    <span>You are:</span>
-    <span class="store-chip" id="profileChip">—</span>
-    <button type="button" class="store-action" id="editProfileBtn">change</button>
+  <div class="cmd-toast" id="commandToast"></div>
+  <div class="cmd-tools">
+    <button type="button" class="cmd-tool" id="handsFreeBtn">&#128260; Hands-free</button>
+    <button type="button" class="cmd-tool" id="speakBtn" aria-label="Voice replies">&#128266;</button>
+    <button type="button" class="cmd-tool" id="addItemBtn">&#10133; Item</button>
+    <button type="button" class="cmd-tool" id="undoBtn" disabled>&#8617; Undo</button>
   </div>
 </div>
 
-<div class="top-row">
-  <div class="mini-box">
-    <div class="mini-box-title">&#127908; Talk</div>
-    <input type="text" id="commandInput" placeholder="add 3 cases...">
-    <div class="mini-box-row">
-      <button type="button" class="command-mic" id="commandMic" aria-label="Speak a command">&#127908;</button>
-      <button type="button" class="command-go" id="commandGo">Go</button>
-    </div>
-    <div class="voice-opts">
-      <button type="button" class="voice-opt" id="handsFreeBtn">&#128260; Hands-free</button>
-      <button type="button" class="voice-opt" id="speakBtn">&#128266;</button>
-    </div>
-    <div class="command-toast" id="commandToast"></div>
-    <button type="button" class="undo-btn" id="undoBtn" disabled>&#8617; Undo last change</button>
-  </div>
-
-  <div class="mini-box">
-    <div class="mini-box-title">&#10133; Add item</div>
-    <input type="text" id="newName" placeholder="Item name">
-    <div class="mini-box-row">
-      <input type="number" id="newCaseSize" placeholder="Per case" min="1">
-      <button type="button" class="add-btn-mini" id="addBtn">Add</button>
-    </div>
+<div class="join-gate" id="addItemGate" style="display:none;">
+  <div class="join-card">
+    <h2>&#10133; New item</h2>
+    <p>What are you adding, and how many come in a case?</p>
+    <input type="text" id="newName" placeholder="Item name" autocapitalize="words">
+    <input type="number" id="newCaseSize" placeholder="Units per case" min="1" style="margin-top:-4px;">
+    <button type="button" id="addBtn">Add item</button>
+    <div class="join-hint">It starts at 1 full case. You can set a low-stock level and link a barcode once it is on the list.<br><br>
+    <button type="button" class="store-action" id="addItemCancel">Cancel</button></div>
   </div>
 </div>
 
+<div class="sticky-bar">
 <div class="search-bar" id="searchBar">
   <button type="button" class="search-icon-btn" id="searchToggle" aria-label="Search items">&#128269;</button>
   <button type="button" class="sort-toggle" id="sortToggle">Recent first</button>
   <button type="button" class="sort-toggle" id="collapseAllBtn">Collapse all</button>
+  <button type="button" class="search-icon-btn" id="themeToggle" aria-label="Toggle light or dark">&#9789;</button>
   <div class="search-input-wrap">
     <input type="text" id="searchInput" placeholder="Search items...">
   </div>
+</div>
+<div class="cat-strip" id="catStrip"></div>
 </div>
 
 <div class="setup-banner" id="setupBanner" style="display:none;">
@@ -1608,6 +2272,62 @@
 </div>
 
 <div id="itemList"></div>
+</div>
+
+
+<div class="sheet-scrim" id="menuScrim" style="display:none;"></div>
+<div class="sheet" id="menuSheet" style="display:none;">
+  <div class="sheet-handle"></div>
+
+  <div class="sheet-group">
+    <div class="sheet-label">Count</div>
+    <button type="button" class="sheet-item" id="barcodeBtn">
+      <span class="si-icon">&#128290;</span>
+      <span class="si-text"><b>Scan barcode</b><i>Point at a case to add it</i></span>
+    </button>
+    <button type="button" class="sheet-item" id="sheetBtn">
+      <span class="si-icon">&#128203;</span>
+      <span class="si-text"><b>Scan order sheet</b><i>Reads product codes and quantities</i></span>
+    </button>
+    <button type="button" class="sheet-item" id="scanBtn">
+      <span class="si-icon">&#129534;</span>
+      <span class="si-text"><b>Scan invoice</b><i>Free-form delivery paperwork</i></span>
+    </button>
+    <button type="button" class="sheet-item" id="auditBtn">
+      <span class="si-icon">&#9989;</span>
+      <span class="si-text"><b>Spot audit</b><i>Count a random sample, tap or hands-free</i></span>
+    </button>
+  </div>
+
+  <div class="sheet-group">
+    <div class="sheet-label">Review</div>
+    <button type="button" class="sheet-item" id="orderBtn">
+      <span class="si-icon">&#128722;</span>
+      <span class="si-text"><b>Order list</b><i>What to order, from your real usage</i></span>
+    </button>
+    <button type="button" class="sheet-item" id="wasteBtn">
+      <span class="si-icon">&#128465;</span>
+      <span class="si-text"><b>Waste</b><i>Last 4 weeks, worst first</i></span>
+    </button>
+    <button type="button" class="sheet-item" id="auditHistBtn">
+      <span class="si-icon">&#128220;</span>
+      <span class="si-text"><b>Audit log</b><i>Past counts and discrepancies</i></span>
+    </button>
+  </div>
+
+  <div class="sheet-group">
+    <div class="sheet-label">Set up</div>
+    <button type="button" class="sheet-item" id="catBtn">
+      <span class="si-icon">&#127991;</span>
+      <span class="si-text"><b>Categories</b><i>Rename, reorder, add</i></span>
+    </button>
+    <button type="button" class="sheet-item" id="adminBtn">
+      <span class="si-icon">&#128274;</span>
+      <span class="si-text"><b>Admin</b><i>Staff, devices, backups</i></span>
+    </button>
+  </div>
+
+  <button type="button" class="sheet-close" id="menuClose">Close</button>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -1701,6 +2421,23 @@
     return { cases, rem, decimalCases };
   }
 
+  // Ring shows stock level relative to the low-stock line (full = 2x the line)
+  function buildRing(item) {
+    const t = lowThresholdUnits(item);
+    if (t == null || t <= 0) return '<span class="ring"></span>';
+    const target = t * 2;
+    const pct = Math.max(0, Math.min(1, item.units / target));
+    const circ = 2 * Math.PI * 9;
+    const offset = circ * (1 - pct);
+    const cls = item.units <= t ? 'low' : (pct < 0.75 ? 'warn' : '');
+    return '<svg class="ring ' + cls + '" viewBox="0 0 24 24">' +
+      '<circle class="track" cx="12" cy="12" r="9" fill="none" stroke-width="4"/>' +
+      '<circle class="fill" cx="12" cy="12" r="9" fill="none" stroke-width="4" stroke-linecap="round" ' +
+        'transform="rotate(-90 12 12)" stroke-dasharray="' + circ.toFixed(1) + '" ' +
+        'stroke-dashoffset="' + offset.toFixed(1) + '"/>' +
+    '</svg>';
+  }
+
   function render() {
     const list = document.getElementById('itemList');
     if (!items.length) {
@@ -1708,9 +2445,13 @@
       return;
     }
     const q = searchQuery.trim().toLowerCase();
-    let visibleIdx = q
-      ? items.map(function(it, i) { return i; }).filter(function(i) { return items[i].name.toLowerCase().includes(q); })
-      : items.map(function(it, i) { return i; });
+    let visibleIdx = items.map(function (it, i) { return i; }).filter(function (i) {
+      const it = items[i];
+      if (q && !it.name.toLowerCase().includes(q)) return false;
+      if (catFilter === '__none') { if (itemCategory(it)) return false; }
+      else if (catFilter && itemCategory(it) !== catFilter) return false;
+      return true;
+    });
 
     if (sortMode === 'recent') {
       visibleIdx = visibleIdx.slice().sort(function(a, b) {
@@ -1719,7 +2460,11 @@
     }
 
     if (!visibleIdx.length) {
-      list.innerHTML = '<div class="empty">No items match "' + escapeHtml(searchQuery.trim()) + '".</div>';
+      const why = catFilter && q ? 'No items in ' + escapeHtml(catFilter) + ' match "' + escapeHtml(searchQuery.trim()) + '".'
+        : catFilter ? 'Nothing in ' + escapeHtml(catFilter) + ' yet.'
+        : 'No items match "' + escapeHtml(searchQuery.trim()) + '".';
+      list.innerHTML = '<div class="empty">' + why + '</div>';
+      renderCatStrip();
       return;
     }
 
@@ -1730,10 +2475,11 @@
       const isCase = mode === 'case';
 
       const primaryValue = isCase ? c.decimalCases : item.units;
-      const primaryUnit = isCase ? ('case' + (c.decimalCases === 1 ? '' : 's')) : ('unit' + (item.units === 1 ? '' : 's'));
+      const primaryUnit = isCase ? packLabel(item, c.decimalCases) : unitLabel(item, item.units);
       const secondaryText = isCase
-        ? item.units.toLocaleString() + ' total units'
-        : c.decimalCases.toLocaleString() + ' case' + (c.decimalCases === 1 ? '' : 's') + ' (' + c.cases + ' whole + ' + c.rem + ' unit' + (c.rem === 1 ? '' : 's') + ')';
+        ? item.units.toLocaleString() + ' total ' + unitLabel(item, item.units)
+        : c.decimalCases.toLocaleString() + ' ' + packLabel(item, c.decimalCases) +
+          ' (' + c.cases + ' whole + ' + c.rem + ' ' + unitLabel(item, c.rem) + ')';
 
       const lowT = lowThresholdUnits(item);
       const lowStock = lowT != null && item.units <= lowT;
@@ -1741,9 +2487,12 @@
       if (minimized.has(idx)) {
         return (
           '<div class="item-card mini' + (lowStock ? ' low-stock' : '') + '" data-idx="' + idx + '">' +
+            '<span class="swipe-hint left">+1 cs</span>' +
+            '<span class="swipe-hint right">&minus;1 cs</span>' +
             '<button type="button" class="mini-row" data-action="toggle-mini" data-idx="' + idx + '" aria-label="Expand ' + escapeHtml(item.name) + '">' +
-              '<span class="mini-name">' + escapeHtml(item.name) + (item.note ? '<span class="note-dot" title="Has a note">&#128221;</span>' : '') + (lowStock ? '<span class="low-stock-badge">Low</span>' : '') + '</span>' +
-              '<span class="mini-count">' + primaryValue.toLocaleString() + ' <span class="mini-unit">' + primaryUnit + '</span></span>' +
+              buildRing(item) +
+              '<span class="mini-name">' + escapeHtml(item.name) + (item.note ? '<span class="note-dot" title="Has a note">&#128221;</span>' : '') + (lowStock ? '<span class="low-donut" title="Low stock">&#129384;</span>' : '') + '</span>' +
+              '<span class="mini-count" data-count="' + idx + '">' + primaryValue.toLocaleString() + ' <span class="mini-unit">' + primaryUnit + '</span></span>' +
               '<span class="expand-btn">&#9660;</span>' +
             '</button>' +
           '</div>'
@@ -1752,7 +2501,7 @@
 
       const caseButtons =
         '<div class="ctrl-group">' +
-          '<div class="ctrl-label">Case</div>' +
+          '<div class="ctrl-label">' + packOf(item).one.charAt(0).toUpperCase() + packOf(item).one.slice(1) + '</div>' +
           '<div class="ctrl-buttons">' +
             '<button class="minus" data-action="case-1" data-idx="' + idx + '">&minus;1</button>' +
             '<button class="plus" data-action="case+1" data-idx="' + idx + '">+1</button>' +
@@ -1764,7 +2513,7 @@
         '</div>';
       const unitButtons =
         '<div class="ctrl-group">' +
-          '<div class="ctrl-label">Unit</div>' +
+          '<div class="ctrl-label">' + unitLabel(item, 2).charAt(0).toUpperCase() + unitLabel(item, 2).slice(1) + '</div>' +
           '<div class="ctrl-buttons">' +
             '<button class="minus" data-action="unit-1" data-idx="' + idx + '">&minus;1</button>' +
             '<button class="plus" data-action="unit+1" data-idx="' + idx + '">+1</button>' +
@@ -1775,10 +2524,18 @@
         '<div class="item-card' + (lowStock ? ' low-stock' : '') + '" data-idx="' + idx + '">' +
           '<div class="item-top">' +
             '<div>' +
-              '<div class="item-name">' + escapeHtml(item.name) + (lowStock ? '<span class="low-stock-badge">Low</span>' : '') + '</div>' +
-              '<div class="item-case-size">' + item.caseSize + ' per case &middot; <button class="edit-case" data-idx="' + idx + '">change</button>' +
+              '<div class="item-name">' + buildRing(item) + ' ' + escapeHtml(item.name) + (lowStock ? '<span class="low-donut" title="Low stock">&#129384;</span>' : '') + '</div>' +
+              '<div class="item-case-size">' + item.caseSize + ' per ' + packOf(item).one + ' &middot; <button class="edit-case" data-idx="' + idx + '">change</button>' +
                 ' &middot; <button class="edit-lowstock" data-idx="' + idx + '">low stock' + (lowThresholdLabel(item) ? ' (' + lowThresholdLabel(item) + ')' : '') + '</button>' +
-                ' &middot; <button class="edit-note" data-idx="' + idx + '">' + (item.note ? 'edit note' : 'add note') + '</button></div>' +
+                ' &middot; <button class="edit-cat" data-idx="' + idx + '">' +
+                  (itemCategory(item) ? escapeHtml(itemCategory(item)) : 'set category') + '</button>' +
+                ' &middot; <button class="edit-note" data-idx="' + idx + '">' + (item.note ? 'edit note' : 'add note') + '</button>' +
+                ' &middot; <button class="edit-barcode" data-idx="' + idx + '">' +
+                  (Array.isArray(item.barcodes) && item.barcodes.length
+                    ? '&#9646;&#9474;&#9646; ' + item.barcodes.length
+                    : 'link barcode') + '</button></div>' +
+              (recipeLine(item) ? '<div class="recipe-line">' + escapeHtml(recipeLine(item)) + '</div>' : '') +
+              (burnLabel(item) ? '<div class="burn-line">&#128200; ' + burnLabel(item) + '</div>' : '') +
               (item.note ? '<div class="item-note">' + escapeHtml(item.note) + '</div>' : '') +
             '</div>' +
             '<div class="top-actions">' +
@@ -1790,11 +2547,11 @@
             '</div>' +
           '</div>' +
           '<div class="mode-toggle" data-idx="' + idx + '">' +
-            '<button type="button" class="mode-btn ' + (isCase ? 'active' : '') + '" data-idx="' + idx + '" data-mode="case">Count by case</button>' +
-            '<button type="button" class="mode-btn ' + (!isCase ? 'active' : '') + '" data-idx="' + idx + '" data-mode="unit">Count by unit</button>' +
+            '<button type="button" class="mode-btn ' + (isCase ? 'active' : '') + '" data-idx="' + idx + '" data-mode="case">By ' + packLabel(item, 2) + '</button>' +
+            '<button type="button" class="mode-btn ' + (!isCase ? 'active' : '') + '" data-idx="' + idx + '" data-mode="unit">By ' + unitLabel(item, 2) + '</button>' +
           '</div>' +
           '<div class="display">' +
-            '<div class="total">' + primaryValue.toLocaleString() + ' <span style="font-size:14px; color: var(--text-dim);">' + primaryUnit + '</span></div>' +
+            '<div class="total" data-count="' + idx + '">' + primaryValue.toLocaleString() + ' <span style="font-size:14px; color: var(--text-dim);">' + primaryUnit + '</span></div>' +
             '<div class="breakdown">' + secondaryText + '</div>' +
           '</div>' +
           '<div class="controls">' +
@@ -1804,12 +2561,17 @@
             '<button type="button" class="history-toggle" data-action="toggle-history" data-idx="' + idx + '">' +
               (expanded.has(idx) ? 'Hide history' : 'Show history') +
             '</button>' +
+            '<button type="button" class="waste-btn" data-idx="' + idx + '">&#128465; Waste</button>' +
             '<button type="button" class="remove-btn" data-idx="' + idx + '">Delete item</button>' +
           '</div>' +
           (expanded.has(idx) ? buildHistoryPanel(item, idx) : '') +
         '</div>'
       );
     }).join('');
+
+    updateCollapseAllBtn();
+    applyBump();
+    renderCatStrip();
   }
 
   function formatRelative(ts) {
@@ -1821,6 +2583,107 @@
     if (hours < 24) return hours + 'h ago';
     const days = Math.round(hours / 24);
     return days + 'd ago';
+  }
+
+  // ===================== BURN RATE =====================
+  // Works out how fast an item actually moves from its own history,
+  // weighting recent days more and accounting for day-of-week swings.
+  const DAY_MS = 86400000;
+
+  function computeBurn(item) {
+    const hist = (item && item.history) || [];
+    // Waste is a loss, not a sales pace — exclude it from the forecast
+    const usage = hist.filter(function (h) { return h.delta < 0 && h.kind !== 'waste'; });
+    if (usage.length < 3) return null;
+
+    const now = Date.now();
+    const firstTs = usage[0].ts;
+    const spanDays = Math.max(1, (now - firstTs) / DAY_MS);
+    if (spanDays < 2) return null;
+
+    // Total used per calendar day, and per weekday
+    const byDay = {};
+    const byWeekday = [[], [], [], [], [], [], []];
+    usage.forEach(function (h) {
+      const d = new Date(h.ts);
+      d.setHours(0, 0, 0, 0);
+      const key = d.getTime();
+      byDay[key] = (byDay[key] || 0) + Math.abs(h.delta);
+    });
+
+    Object.keys(byDay).forEach(function (k) {
+      const ts = Number(k);
+      byWeekday[new Date(ts).getDay()].push(byDay[ts]);
+    });
+
+    // Recency-weighted average units per day (last 28 days count most)
+    let wSum = 0, w = 0;
+    Object.keys(byDay).forEach(function (k) {
+      const ageDays = (now - Number(k)) / DAY_MS;
+      const weight = Math.exp(-ageDays / 21);
+      wSum += byDay[k] * weight;
+      w += weight;
+    });
+
+    const activeDays = Object.keys(byDay).length;
+    // Spread across the whole span, not just days with activity
+    const perDay = (wSum / Math.max(w, 0.0001)) * (activeDays / spanDays);
+    if (!isFinite(perDay) || perDay <= 0) return null;
+
+    const weekdayAvg = byWeekday.map(function (arr) {
+      if (!arr.length) return null;
+      return arr.reduce(function (s, v) { return s + v; }, 0) / arr.length;
+    });
+
+    // Days of stock left, walking forward through the actual weekdays ahead
+    let remaining = item.units;
+    let days = 0;
+    const today = new Date().getDay();
+    while (remaining > 0 && days < 120) {
+      const wd = (today + days) % 7;
+      const rate = weekdayAvg[wd] != null ? weekdayAvg[wd] : perDay;
+      remaining -= rate;
+      days++;
+    }
+
+    const cs = item.caseSize || 1;
+    return {
+      perDay: perDay,
+      perDayCases: perDay / cs,
+      daysLeft: remaining > 0 ? null : days,
+      outDate: remaining > 0 ? null : new Date(now + days * DAY_MS),
+      weekdayAvg: weekdayAvg,
+      sampleDays: activeDays,
+      confident: activeDays >= 5 && spanDays >= 6
+    };
+  }
+
+  function burnLabel(item) {
+    const b = computeBurn(item);
+    if (!b) return '';
+    const rate = b.perDayCases >= 0.1
+      ? b.perDayCases.toFixed(1) + ' cs/day'
+      : Math.round(b.perDay) + ' un/day';
+    if (b.daysLeft == null) return '~' + rate;
+    const when = b.daysLeft <= 1 ? 'today'
+      : b.daysLeft <= 2 ? 'tomorrow'
+      : 'in ' + b.daysLeft + ' days';
+    return '~' + rate + ' \u00b7 out ' + when + (b.confident ? '' : ' (rough)');
+  }
+
+  function suggestOrderCases(item) {
+    // Enough to cover the next week of real usage, on top of the low-stock line
+    const b = computeBurn(item);
+    const cs = item.caseSize || 1;
+    const t = lowThresholdUnits(item);
+    if (!b) {
+      if (t == null) return 1;
+      return Math.max(1, Math.ceil((t - item.units) / cs));
+    }
+    const weekNeed = b.perDay * 7;
+    const floor = t != null ? t : 0;
+    const need = (floor + weekNeed) - item.units;
+    return Math.max(1, Math.ceil(need / cs));
   }
 
   function getWeekStart(ts) {
@@ -1847,22 +2710,27 @@
 
     const recent = history.slice(-6).reverse();
     const recentHtml = recent.map(function(h) {
-      const verb = h.delta > 0 ? 'added' : 'removed';
+      const verb = h.kind === 'waste' ? 'wasted' : (h.delta > 0 ? 'added' : 'removed');
       return '<div class="history-entry"><span>' + verb + ' ' + Math.abs(h.delta).toLocaleString() + ' units</span>' +
-        '<span class="who">' + escapeHtml(h.actor || 'someone') + ' &middot; ' + formatRelative(h.ts) + '</span></div>';
+        '<span class="who">' + escapeHtml(h.actor || 'someone') +
+        (h.role ? ' (' + escapeHtml(h.role) + ')' : '') +
+        ' &middot; ' + formatRelative(h.ts) + '</span></div>';
     }).join('');
 
     const weekMap = {};
     history.forEach(function(h) {
       const wk = getWeekStart(h.ts);
-      if (!weekMap[wk]) weekMap[wk] = { bought: 0, used: 0 };
+      if (!weekMap[wk]) weekMap[wk] = { bought: 0, used: 0, wasted: 0 };
       if (h.delta > 0) weekMap[wk].bought += h.delta;
+      else if (h.kind === 'waste') weekMap[wk].wasted += Math.abs(h.delta);
       else weekMap[wk].used += Math.abs(h.delta);
     });
     const weeks = Object.keys(weekMap).map(Number).sort(function(a, b) { return b - a; }).slice(0, 6);
     const weekRows = weeks.map(function(wk) {
       const w = weekMap[wk];
-      return '<tr><td>' + formatWeekLabel(wk) + '</td><td>' + w.bought.toLocaleString() + '</td><td>' + w.used.toLocaleString() + '</td></tr>';
+      return '<tr><td>' + formatWeekLabel(wk) + '</td><td>' + w.bought.toLocaleString() + '</td><td>' +
+        w.used.toLocaleString() + '</td><td style="color:' + (w.wasted ? 'var(--red)' : 'inherit') + ';">' +
+        w.wasted.toLocaleString() + '</td></tr>';
     }).join('');
 
     return (
@@ -1870,7 +2738,7 @@
         '<div class="history-section-label">Recent activity</div>' +
         recentHtml +
         '<div class="history-section-label" style="margin-top:12px;">Bought vs used, by week</div>' +
-        '<table class="week-table"><tr><th>Week</th><th>Bought</th><th>Used</th></tr>' + weekRows + '</table>' +
+        '<table class="week-table"><tr><th>Week</th><th>In</th><th>Used</th><th>Waste</th></tr>' + weekRows + '</table>' +
         '<button type="button" class="clear-history-btn" data-action="clear-history" data-idx="' + idx + '">Clear history</button>' +
       '</div>'
     );
@@ -1887,7 +2755,10 @@
     const text = document.getElementById('syncText');
     if (!dot || !text) return;
     dot.classList.toggle('syncing', !!isSyncing);
-    text.textContent = msg;
+    // Stay quiet when everything is fine; speak up only for problems
+    const calm = /^(Connected|Synced|Saving)/i.test(msg);
+    text.textContent = calm ? '' : msg;
+    dot.style.opacity = isSyncing ? '1' : (calm ? '0.35' : '1');
   }
 
   const SESSION_ID = (function() {
@@ -1911,6 +2782,7 @@
       presenceRef.onDisconnect().remove();
       presenceRef.set({
         name: myName || 'Unnamed',
+        role: myRole || null,
         since: Date.now(),
         lastSeen: Date.now()
       });
@@ -1926,7 +2798,7 @@
 
     setInterval(function() {
       if (presenceRef) {
-        presenceRef.update({ lastSeen: Date.now(), name: myName || 'Unnamed' });
+        presenceRef.update({ lastSeen: Date.now(), name: myName || 'Unnamed', role: myRole || null });
       }
     }, 30000);
 
@@ -1961,7 +2833,8 @@
         const dur = mins < 1 ? 'just opened' : (mins < 60 ? mins + 'm' : Math.round(mins / 60) + 'h');
         const isMe = p.id === SESSION_ID;
         return '<div class="store-entry' + (isMe ? ' active' : '') + '">' +
-          '<span class="code">' + escapeHtml(p.name || 'Unnamed') + (isMe ? ' (you)' : '') + '</span>' +
+          '<span class="code">' + escapeHtml(p.name || 'Unnamed') + (isMe ? ' (you)' : '') +
+            (p.role ? '<span class="role-tag">' + escapeHtml(p.role) + '</span>' : '') + '</span>' +
           '<span style="font-size:10px;color:var(--text-dim);">' + dur + '</span>' +
         '</div>';
       }).join('');
@@ -1975,15 +2848,42 @@
       return;
     }
 
+    // Show whatever we last had on this device straight away, so the app is
+    // usable in the freezer before (or without) any connection.
+    const cached = loadLocal();
+    if (cached) {
+      items = cached.items;
+      hasPending = !!cached.pending;
+      suppressRemote = hasPending;
+      minimized.clear();
+      expanded.clear();
+      items.forEach(function (it, i) { minimized.add(i); });
+      render();
+      setOfflineBanner();
+    }
+
     db.ref('.info/connected').on('value', function(snap) {
-      if (snap.val() === true) setSyncStatus('Connected — live sync on', false);
-      else setSyncStatus('Reconnecting...', true);
+      const was = isOnline;
+      isOnline = snap.val() === true;
+      setOfflineBanner();
+      if (isOnline) {
+        setSyncStatus('Connected', false);
+        if (!was && hasPending) flushPending();
+      } else {
+        setSyncStatus('Offline', false);
+      }
     });
 
     let firstLoad = true;
     itemsRef.on('value', function(snapshot) {
+      // Don't let the server overwrite work we haven't pushed yet
+      if (suppressRemote && hasPending) {
+        if (firstLoad) { firstLoad = false; runUrlCommand(); }
+        return;
+      }
       const val = snapshot.val();
       items = val && val.list ? val.list : [];
+      saveLocal();
       if (firstLoad) {
         minimized.clear();
         expanded.clear();
@@ -2010,14 +2910,92 @@
     window.history.replaceState({}, '', clean);
   }
 
+  // ===================== OFFLINE =====================
+  // Everything you do offline is kept on the device and pushed when you're back.
+  let isOnline = false;          // Firebase connection, not just wifi
+  let hasPending = false;        // local edits not yet written to the server
+  let suppressRemote = false;    // ignore server echoes while we hold unsynced work
+
+  function localKey() { return 'tally_local_' + (roomCode || 'MAIN'); }
+
+  function saveLocal() {
+    try {
+      localStorage.setItem(localKey(), JSON.stringify({
+        items: items,
+        savedAt: Date.now(),
+        pending: hasPending
+      }));
+    } catch (e) {}
+  }
+
+  function loadLocal() {
+    try {
+      const raw = localStorage.getItem(localKey());
+      if (!raw) return null;
+      const data = JSON.parse(raw);
+      return (data && Array.isArray(data.items)) ? data : null;
+    } catch (e) { return null; }
+  }
+
+  function setOfflineBanner() {
+    const el = document.getElementById('offlineBar');
+    if (!el) return;
+    if (!isOnline && hasPending) {
+      el.textContent = '\u26A1 Offline \u2014 your changes are saved on this device and will sync when you reconnect';
+      el.className = 'offline-bar pending';
+    } else if (!isOnline) {
+      el.textContent = '\u26A1 Offline \u2014 you can keep counting';
+      el.className = 'offline-bar';
+    } else if (hasPending) {
+      el.textContent = '\u21BB Syncing your offline changes\u2026';
+      el.className = 'offline-bar syncing';
+    } else {
+      el.className = 'offline-bar hidden';
+    }
+  }
+
   function saveItems() {
+    saveLocal();
     if (!isConfigured) return;
+
+    if (!isOnline) {
+      hasPending = true;
+      suppressRemote = true;
+      saveLocal();
+      setOfflineBanner();
+      return;
+    }
+
     setSyncStatus('Saving...', true);
     itemsRef.set({ list: items }).then(function() {
-      setSyncStatus('Connected — live sync on', false);
+      hasPending = false;
+      suppressRemote = false;
+      saveLocal();
+      setOfflineBanner();
+      setSyncStatus('Connected', false);
       maybeAutoSnapshot();
     }).catch(function(err) {
+      // Treat any failed write as pending rather than losing it
+      hasPending = true;
+      suppressRemote = true;
+      saveLocal();
+      setOfflineBanner();
       setSyncStatus('Save failed: ' + err.message, false);
+    });
+  }
+
+  function flushPending() {
+    if (!hasPending || !isOnline || !isConfigured) return;
+    setOfflineBanner();
+    itemsRef.set({ list: items }).then(function () {
+      hasPending = false;
+      suppressRemote = false;
+      saveLocal();
+      setOfflineBanner();
+      showCommandToast('Offline changes synced');
+      maybeAutoSnapshot();
+    }).catch(function () {
+      // stay pending; we'll try again on the next reconnect
     });
   }
 
@@ -2042,13 +3020,59 @@
     return null;
   }
 
+  // ---------- haptics ----------
+  function buzz(ms) {
+    if (navigator.vibrate) {
+      try { navigator.vibrate(ms || 12); } catch (e) {}
+    }
+  }
+
+
+  // ---------- count change flash ----------
+  let pendingBump = null;
+  function bumpCount(idx) {
+    pendingBump = idx;
+  }
+  function applyBump() {
+    if (pendingBump == null) return;
+    const els = document.querySelectorAll('[data-count="' + pendingBump + '"]');
+    els.forEach(function (el) {
+      el.classList.remove('count-bump');
+      void el.offsetWidth;
+      el.classList.add('count-bump');
+    });
+    pendingBump = null;
+  }
+
+  // ---------- theme ----------
+  function applyTheme() {
+    const light = localStorage.getItem('tally_theme') === 'light';
+    document.body.classList.toggle('light', light);
+    const btn = document.getElementById('themeToggle');
+    if (btn) btn.innerHTML = light ? '&#9728;' : '&#9789;';
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', light ? '#faf3ec' : '#17110e');
+  }
+
+  document.getElementById('themeToggle').addEventListener('click', function () {
+    const light = localStorage.getItem('tally_theme') === 'light';
+    localStorage.setItem('tally_theme', light ? 'dark' : 'light');
+    applyTheme();
+    buzz(8);
+  });
+
+  applyTheme();
+
   function touchItem(item) {
     if (item) item.touched = Date.now();
   }
 
-  function pushHistory(item, delta) {
+  function pushHistory(item, delta, kind) {
     if (!item.history) item.history = [];
-    item.history.push({ ts: Date.now(), delta: delta, actor: myName || 'someone' });
+    const entry = { ts: Date.now(), delta: delta, actor: myName || 'someone' };
+    if (myRole) entry.role = myRole;
+    if (kind) entry.kind = kind;
+    item.history.push(entry);
     if (item.history.length > 300) item.history = item.history.slice(-300);
     touchItem(item);
   }
@@ -2105,14 +3129,361 @@
     render();
   });
 
-  function updateProfileChip() {
-    const el = document.getElementById('profileChip');
-    if (el) el.textContent = myName || '—';
+  // ===================== PACK TYPES =====================
+  // Not everything comes in a case: icing is a bucket, sprinkles a box, etc.
+  const PACK_TYPES = {
+    case:   { one: 'case',   many: 'cases',   short: 'cs',  unit: 'unit',   units: 'units' },
+    bucket: { one: 'bucket', many: 'buckets', short: 'bkt', unit: 'scoop',  units: 'scoops' },
+    box:    { one: 'box',    many: 'boxes',   short: 'bx',  unit: 'unit',   units: 'units' },
+    bag:    { one: 'bag',    many: 'bags',    short: 'bag', unit: 'unit',   units: 'units' },
+    tub:    { one: 'tub',    many: 'tubs',    short: 'tub', unit: 'unit',   units: 'units' },
+    tray:   { one: 'tray',   many: 'trays',   short: 'tray', unit: 'unit',  units: 'units' }
+  };
+
+  function packOf(item) {
+    return PACK_TYPES[(item && item.packType) || 'case'] || PACK_TYPES.case;
   }
 
-  function saveProfile(name) {
+  function packLabel(item, n) {
+    const p = packOf(item);
+    return n === 1 ? p.one : p.many;
+  }
+
+  function unitLabel(item, n) {
+    const p = packOf(item);
+    return n === 1 ? p.unit : p.units;
+  }
+
+  // ===================== CATEGORIES =====================
+  // Seeded from the store's finishing chart; editable in Admin.
+  const CATEGORY_DEFAULTS = ['Donuts', 'Bagels', 'Specialty', 'Munchkins', 'Muffins'];
+
+  let categories = CATEGORY_DEFAULTS.slice();
+  let catFilter = localStorage.getItem('tally_catfilter') || '';
+
+  function catsRef() {
+    return db.ref('tally/rooms/' + roomCode + '/categories');
+  }
+
+  async function loadCategories() {
+    if (!isConfigured || !roomCode) return;
+    try {
+      const snap = await catsRef().get();
+      const val = snap.val();
+      if (Array.isArray(val) && val.length) {
+        categories = val;
+      } else {
+        categories = CATEGORY_DEFAULTS.slice();
+        await catsRef().set(categories).catch(function () {});
+      }
+    } catch (e) {}
+  }
+
+  async function saveCategories() {
+    if (!isConfigured || !roomCode) return;
+    try { await catsRef().set(categories); } catch (e) {}
+  }
+
+  // Best-guess category from an item name, used when seeding or adding
+  function guessCategory(name) {
+    const n = String(name).toLowerCase();
+    if (/munchkin/.test(n)) return 'Munchkins';
+    if (/bagel/.test(n)) return 'Bagels';
+    if (/muffin/.test(n)) return 'Muffins';
+    if (/croissant|fritter|coffee roll|fancy|stick|baker.s choice/.test(n)) return 'Specialty';
+    if (/donut|ring|frost|glaz|kreme|creme|jelly|cruller|chocolate|sprinkle|sugar/.test(n)) return 'Donuts';
+    return '';
+  }
+
+  function itemCategory(item) {
+    return item.category || '';
+  }
+
+  function renderCatStrip() {
+    const strip = document.getElementById('catStrip');
+    if (!strip) return;
+
+    const counts = {};
+    let uncat = 0;
+    items.forEach(function (it) {
+      const cat = itemCategory(it);
+      if (cat) counts[cat] = (counts[cat] || 0) + 1;
+      else uncat++;
+    });
+
+    // "All" is always available, then every category that has items, in your order
+    let html = '<button type="button" class="cat-chip' + (catFilter ? '' : ' on') +
+      '" data-cat="">All ' + items.length + '</button>';
+
+    categories.forEach(function (cat) {
+      if (!counts[cat]) return;
+      html += '<button type="button" class="cat-chip' + (catFilter === cat ? ' on' : '') +
+        '" data-cat="' + escapeHtml(cat) + '">' + escapeHtml(cat) + ' ' + counts[cat] + '</button>';
+    });
+
+    if (uncat) {
+      html += '<button type="button" class="cat-chip' + (catFilter === '__none' ? ' on' : '') +
+        '" data-cat="__none">Uncategorised ' + uncat + '</button>';
+    }
+
+    strip.innerHTML = items.length ? html : '';
+  }
+
+  document.getElementById('catStrip').addEventListener('click', function (e) {
+    const chip = e.target.closest('button[data-cat]');
+    if (!chip) return;
+    catFilter = chip.getAttribute('data-cat');
+    localStorage.setItem('tally_catfilter', catFilter);
+    render();
+  });
+
+  // Register the service worker so the app opens without a connection.
+  // Harmless if sw.js isn't uploaded — the app just won't launch offline.
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').catch(function () {});
+    });
+  }
+
+  window.addEventListener('online', function () {
+    if (isConfigured && db) { try { db.goOnline(); } catch (e) {} }
+  });
+
+  window.addEventListener('offline', function () {
+    isOnline = false;
+    setOfflineBanner();
+  });
+
+  // Warn before leaving with unsynced work
+  window.addEventListener('beforeunload', function (e) {
+    if (hasPending) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  });
+
+  function openMenu() {
+    document.getElementById('menuScrim').style.display = 'block';
+    document.getElementById('menuSheet').style.display = 'block';
+  }
+
+  function closeMenu() {
+    document.getElementById('menuScrim').style.display = 'none';
+    document.getElementById('menuSheet').style.display = 'none';
+  }
+
+  document.getElementById('menuBtn').addEventListener('click', openMenu);
+  document.getElementById('menuClose').addEventListener('click', closeMenu);
+  document.getElementById('menuScrim').addEventListener('click', closeMenu);
+
+  // Picking anything in the menu closes it first, so the screen you open is clean
+  document.getElementById('menuSheet').addEventListener('click', function (e) {
+    if (e.target.closest('.sheet-item')) closeMenu();
+  }, true);
+
+  // ============ PENDING-APPROVAL ALERTS FOR ADMINS ============
+  let pendingWatch = null;
+  let knownPending = {};
+
+  function watchPendingStaff() {
+    if (!isConfigured || !roomCode || pendingWatch) return;
+    pendingWatch = db.ref('tally/rooms/' + roomCode + '/staff');
+    pendingWatch.on('value', function (snap) {
+      const val = snap.val() || {};
+      const waiting = Object.keys(val)
+        .map(function (k) { return Object.assign({ id: k }, val[k]); })
+        .filter(function (p) { return p.pending && p.uid; });
+
+      // Ring only for people we haven't already been told about
+      waiting.forEach(function (p) {
+        if (!knownPending[p.id]) {
+          knownPending[p.id] = true;
+          notifyAdmin(p);
+        }
+      });
+      Object.keys(knownPending).forEach(function (id) {
+        if (!waiting.some(function (p) { return p.id === id; })) delete knownPending[id];
+      });
+
+      renderPendingBar(waiting);
+    });
+  }
+
+  function renderPendingBar(waiting) {
+    const bar = document.getElementById('pendingBar');
+    if (!bar) return;
+    if (!isAdmin || !waiting.length) {
+      bar.style.display = 'none';
+      return;
+    }
+    const names = waiting.map(function (p) {
+      return escapeHtml(p.name || 'Someone') + (p.role ? ' (' + escapeHtml(p.role) + ')' : '');
+    }).join(', ');
+    bar.innerHTML =
+      '<span>&#128100; ' + names + ' ' + (waiting.length > 1 ? 'are' : 'is') + ' waiting for approval</span>' +
+      '<button type="button" id="pendingReview">Review</button>';
+    bar.style.display = 'flex';
+    document.getElementById('pendingReview').addEventListener('click', showStaff);
+  }
+
+  function notifyAdmin(person) {
+    if (!isAdmin) return;
+    buzz([60, 40, 60]);
+    const who = (person.name || 'Someone') + (person.role ? ' (' + person.role + ')' : '');
+    showCommandToast(who + ' is waiting for approval', true);
+
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    try {
+      const body = who + ' set up a profile and needs approving.';
+      if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+        navigator.serviceWorker.ready.then(function (reg) {
+          reg.showNotification('Tally — approval needed', {
+            body: body, tag: 'tally-pending', renotify: true
+          });
+        }).catch(function () { new Notification('Tally — approval needed', { body: body }); });
+      } else {
+        new Notification('Tally — approval needed', { body: body });
+      }
+    } catch (e) {}
+  }
+
+  function askNotifyPermission() {
+    if (!('Notification' in window)) return;
+    if (Notification.permission !== 'default') return;
+    Notification.requestPermission().catch(function () {});
+  }
+
+  // ===================== FIRST-RUN TOUR =====================
+  const TOUR = [
+    { icon: '&#127849;', title: 'Welcome to Tally',
+      text: 'This is how the store keeps track of what\u2019s in the freezer. Here\u2019s the quick version \u2014 about 30 seconds.' },
+    { icon: '&#128290;', title: 'Counting',
+      text: 'Tap an item to open it, then use the + and \u2212 buttons for whole cases, half cases, or single units. On a collapsed row you can also swipe right to add a case, left to remove one.' },
+    { icon: '&#127908;', title: 'Or just talk',
+      text: 'Tap the mic and say things like \u201cadd 3 cases of croissants\u201d or \u201cremove 5 bagels.\u201d Hands-free mode keeps listening so you can count with gloves on.' },
+    { icon: '&#9776;', title: 'The menu',
+      text: 'Everything else lives behind the menu button: scanning barcodes and delivery sheets, the order list, waste, and audits.' },
+    { icon: '&#128465;', title: 'Waste matters',
+      text: 'If you throw something out, use the Waste button on that item instead of just subtracting. It keeps waste separate from what actually sold.' },
+    { icon: '&#10052;', title: 'The freezer works',
+      text: 'No signal in the freezer is fine. Keep counting \u2014 everything saves on the phone and syncs the moment you walk back out.' }
+  ];
+
+  let tourStep = 0;
+
+  function maybeStartTour() {
+    if (localStorage.getItem('tally_tour_done') === '1') return;
+    tourStep = 0;
+    drawTour();
+    document.getElementById('tourGate').style.display = 'flex';
+  }
+
+  function drawTour() {
+    const s = TOUR[tourStep];
+    const body = document.getElementById('tourBody');
+    if (!s || !body) return;
+    body.innerHTML =
+      '<div class="tour-icon">' + s.icon + '</div>' +
+      '<h2>' + s.title + '</h2>' +
+      '<p>' + s.text + '</p>' +
+      '<div class="tour-dots">' +
+        TOUR.map(function (_, i) {
+          return '<span class="tour-dot' + (i === tourStep ? ' on' : '') + '"></span>';
+        }).join('') +
+      '</div>' +
+      '<button type="button" id="tourNext">' +
+        (tourStep === TOUR.length - 1 ? 'Start counting' : 'Next') + '</button>' +
+      '<div class="join-hint"><button type="button" class="store-action" id="tourSkip">' +
+        (tourStep === TOUR.length - 1 ? '' : 'Skip') + '</button></div>';
+
+    document.getElementById('tourNext').addEventListener('click', function () {
+      if (tourStep === TOUR.length - 1) { endTour(); return; }
+      tourStep++;
+      drawTour();
+    });
+    const skip = document.getElementById('tourSkip');
+    if (skip) skip.addEventListener('click', endTour);
+  }
+
+  function endTour() {
+    localStorage.setItem('tally_tour_done', '1');
+    document.getElementById('tourGate').style.display = 'none';
+    document.getElementById('appRoot').style.display = '';
+  }
+
+  // ============ RECIPE / COMPONENT VOCABULARY ============
+  // Straight off the store's finishing chart, so new products can be described
+  // the same way the chart does. Components (icings, fillings, sprinkles) are
+  // tracked as their own items later.
+  const BASES = [
+    'Yeast Ring', 'Yeast Shell', 'Plain Cake Ring', 'Chocolate Cake Ring',
+    'Blueberry Cake Ring', 'Sour Kreme Cake Ring', 'French Cruller', 'Stick',
+    'Munchkin', 'Apple Fritter', 'Coffee Roll', 'Muffin', 'Bagel', 'Croissant', 'Other'
+  ];
+
+  const FILLINGS = [
+    'None', 'Bavarian Cream', 'Vanilla Kreme', 'Chocolate Kreme',
+    'Apple', 'Lemon', 'Apple Raspberry Jelly'
+  ];
+
+  const TOPPINGS = [
+    'Glaze', 'Chocolate Icing', 'Vanilla Icing', 'Strawberry Icing', 'Maple Icing',
+    'Choc & Van Icing', 'Powdered Sugar', 'Cinnamon Sugar', "Baker's Special Sugar",
+    'Sprinkles', 'Toasted Coconut', 'Coffee Cake Streusel', 'Sanding Sugar'
+  ];
+
+  // How a component is counted, since these aren't cases
+  const UNIT_TYPES = ['case', 'bucket', 'box', 'bag', 'tub'];
+
+  function baseToCategory(base) {
+    if (base === 'Munchkin') return 'Munchkins';
+    if (base === 'Bagel') return 'Bagels';
+    if (base === 'Muffin') return 'Muffins';
+    if (['Apple Fritter', 'Coffee Roll', 'Croissant', 'Stick', 'Other'].indexOf(base) !== -1) return 'Specialty';
+    return 'Donuts';
+  }
+
+  function recipeLine(item) {
+    const r = item.recipe;
+    if (!r) return '';
+    const parts = [];
+    if (r.base) parts.push(r.base);
+    if (r.filling && r.filling !== 'None') parts.push('filled: ' + r.filling);
+    if (Array.isArray(r.toppings) && r.toppings.length) parts.push(r.toppings.join(' + '));
+    return parts.join(' \u00b7 ');
+  }
+
+  function updateProfileChip() {
+    const el = document.getElementById('profileChip');
+    if (!el) return;
+    el.innerHTML = escapeHtml(myName || '\u2014') +
+      (myRole ? '<span class="role-tag">' + escapeHtml(myRole) + '</span>' : '');
+  }
+
+  const ROLES = ['Crew', 'Baker', 'Shift Leader', 'Asst. Manager', 'Manager', 'Other'];
+  let myRole = localStorage.getItem('tally_role') || '';
+
+  function renderRoleGrid(selected) {
+    const grid = document.getElementById('roleGrid');
+    if (!grid) return;
+    grid.innerHTML = ROLES.map(function (r) {
+      return '<button type="button" class="role-opt' + (r === selected ? ' on' : '') +
+        '" data-role="' + r + '">' + r + '</button>';
+    }).join('');
+  }
+
+  document.getElementById('roleGrid').addEventListener('click', function (e) {
+    const b = e.target.closest('button[data-role]');
+    if (!b) return;
+    myRole = b.getAttribute('data-role');
+    renderRoleGrid(myRole);
+  });
+
+  function saveProfile(name, role) {
     myName = name.trim().slice(0, 24);
+    if (role != null) myRole = role;
     localStorage.setItem(NAME_KEY, myName);
+    localStorage.setItem('tally_role', myRole || '');
     if (!profileId) {
       profileId = 'p' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
       localStorage.setItem('tally_profile_id', profileId);
@@ -2121,18 +3492,23 @@
     if (isConfigured && roomCode) {
       db.ref('tally/rooms/' + roomCode + '/staff/' + profileId).update({
         name: myName,
+        role: myRole || null,
         lastSeen: Date.now(),
         uid: myUid || null,
         createdAt: firebase.database.ServerValue.TIMESTAMP
       }).catch(function() {});
     }
-    if (presenceRef) presenceRef.update({ name: myName || 'Unnamed' });
+    if (presenceRef) presenceRef.update({ name: myName || 'Unnamed', role: myRole || null });
   }
 
   document.getElementById('profileSaveBtn').addEventListener('click', function() {
     const val = document.getElementById('profileName').value.trim();
     if (!val) {
       document.getElementById('profileName').style.borderColor = 'var(--red)';
+      return;
+    }
+    if (!myRole) {
+      document.getElementById('roleGrid').style.outline = '1px solid var(--red)';
       return;
     }
     saveProfile(val);
@@ -2145,11 +3521,46 @@
     if (e.key === 'Enter') document.getElementById('profileSaveBtn').click();
   });
 
-  document.getElementById('editProfileBtn').addEventListener('click', function() {
-    const val = prompt('Your name:', myName);
-    if (val === null || !val.trim()) return;
-    saveProfile(val);
-    render();
+  document.getElementById('editProfileBtn').addEventListener('click', function () {
+    const body = document.getElementById('auditBody');
+    document.getElementById('auditGate').style.display = 'flex';
+    document.getElementById('appRoot').style.display = 'none';
+
+    body.innerHTML =
+      '<div class="audit-item-name">Your profile</div>' +
+      '<div class="audit-sub">Shown on counts, audits and the activity log.</div>' +
+      '<input type="text" id="editName" maxlength="24" autocapitalize="words" value="' +
+        escapeHtml(myName) + '" placeholder="Your name">' +
+      '<div class="role-label">Position</div>' +
+      '<div class="role-grid" id="editRoleGrid"></div>' +
+      '<div class="audit-actions">' +
+        '<button type="button" class="audit-skip" id="editCancel">Cancel</button>' +
+        '<button type="button" id="editSave">Save</button></div>';
+
+    let picked = myRole;
+    function drawRoles() {
+      document.getElementById('editRoleGrid').innerHTML = ROLES.map(function (r) {
+        return '<button type="button" class="role-opt' + (r === picked ? ' on' : '') +
+          '" data-erole="' + r + '">' + r + '</button>';
+      }).join('');
+    }
+    drawRoles();
+
+    document.getElementById('editRoleGrid').addEventListener('click', function (e) {
+      const b = e.target.closest('button[data-erole]');
+      if (!b) return;
+      picked = b.getAttribute('data-erole');
+      drawRoles();
+    });
+
+    document.getElementById('editCancel').addEventListener('click', closeAudit);
+    document.getElementById('editSave').addEventListener('click', function () {
+      const v = document.getElementById('editName').value.trim();
+      if (!v) { document.getElementById('editName').style.borderColor = 'var(--red)'; return; }
+      saveProfile(v, picked);
+      closeAudit();
+      render();
+    });
   });
 
   document.getElementById('addBtn').addEventListener('click', function() {
@@ -2168,13 +3579,89 @@
     nameInput.style.borderColor = '';
     caseInput.style.borderColor = '';
     snapshotForUndo();
-    items.push({ name: name, caseSize: caseSize, units: caseSize, mode: 'case', touched: Date.now() });
+    items.push({ name: name, caseSize: caseSize, units: caseSize, mode: 'case', touched: Date.now(), category: guessCategory(name) || null });
     minimized.add(items.length - 1);
     nameInput.value = '';
     caseInput.value = '';
+    closeAddItem();
     render();
     saveItems();
   });
+
+  // ---------- swipe a collapsed row: right = +1 case, left = -1 case ----------
+  (function () {
+    const list = document.getElementById('itemList');
+    if (!list) return;
+
+    let card = null, row = null, startX = 0, startY = 0, dx = 0, active = false, decided = false;
+    const TRIGGER = 62;
+
+    list.addEventListener('touchstart', function (e) {
+      const c2 = e.target.closest('.item-card.mini');
+      if (!c2) return;
+      card = c2;
+      row = c2.querySelector('.mini-row');
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      dx = 0;
+      active = true;
+      decided = false;
+    }, { passive: true });
+
+    list.addEventListener('touchmove', function (e) {
+      if (!active || !card) return;
+      const nx = e.touches[0].clientX - startX;
+      const ny = e.touches[0].clientY - startY;
+
+      if (!decided) {
+        // Let vertical scrolling win if that is clearly the intent
+        if (Math.abs(ny) > Math.abs(nx)) { active = false; return; }
+        decided = true;
+        card.classList.add('swiping');
+      }
+
+      dx = Math.max(-110, Math.min(110, nx));
+      if (row) row.style.transform = 'translateX(' + dx + 'px)';
+
+      const l = card.querySelector('.swipe-hint.left');
+      const r = card.querySelector('.swipe-hint.right');
+      if (l) l.classList.toggle('show', dx > 18);
+      if (r) r.classList.toggle('show', dx < -18);
+    }, { passive: true });
+
+    function endSwipe() {
+      if (!card) { active = false; return; }
+      const idx = parseInt(card.getAttribute('data-idx'), 10);
+      const item = items[idx];
+      const moved = dx;
+
+      if (row) row.style.transform = '';
+      card.classList.remove('swiping');
+      const l = card.querySelector('.swipe-hint.left');
+      const r = card.querySelector('.swipe-hint.right');
+      if (l) l.classList.remove('show');
+      if (r) r.classList.remove('show');
+
+      card = null; row = null; active = false;
+
+      if (!item || Math.abs(moved) < TRIGGER) return;
+
+      const cs = item.caseSize || 1;
+      const delta = moved > 0 ? cs : -Math.min(cs, item.units);
+      if (delta === 0) return;
+
+      snapshotForUndo();
+      item.units = Math.max(0, item.units + delta);
+      pushHistory(item, delta);
+      buzz(22);
+      bumpCount(idx);
+      render();
+      saveItems();
+    }
+
+    list.addEventListener('touchend', endSwipe);
+    list.addEventListener('touchcancel', endSwipe);
+  })();
 
   document.getElementById('itemList').addEventListener('click', function(e) {
     const btn = e.target.closest('button');
@@ -2210,6 +3697,74 @@
         render();
         saveItems();
       }
+      return;
+    }
+
+    if (btn.classList.contains('edit-barcode')) {
+      const item = items[idx];
+      const codes = Array.isArray(item.barcodes) ? item.barcodes : [];
+      if (codes.length) {
+        const which = confirm('"' + item.name + '" has ' + codes.length + ' linked code(s):\n\n' +
+          codes.join('\n') + '\n\nOK = scan another code\nCancel = remove all codes');
+        if (which) { openBarcode('link', idx); return; }
+        if (confirm('Remove all barcodes from "' + item.name + '"?')) {
+          item.barcodes = [];
+          touchItem(item);
+          render();
+          saveItems();
+        }
+        return;
+      }
+      openBarcode('link', idx);
+      return;
+    }
+
+    if (btn.classList.contains('edit-cat')) {
+      const item = items[idx];
+      const list = categories.slice();
+      const menu = list.map(function (cat, i) { return (i + 1) + '. ' + cat; }).join('\n');
+      const pick = prompt('Category for "' + item.name + '"\n\n' + menu +
+        '\n\nType a number, or type a new category name. Blank clears it.',
+        itemCategory(item));
+      if (pick === null) return;
+      const val = pick.trim();
+      if (!val) {
+        item.category = null;
+      } else if (/^\d+$/.test(val) && list[parseInt(val, 10) - 1]) {
+        item.category = list[parseInt(val, 10) - 1];
+      } else {
+        item.category = val;
+        if (categories.indexOf(val) === -1) {
+          categories.push(val);
+          saveCategories();
+        }
+      }
+      touchItem(item);
+      render();
+      saveItems();
+      return;
+    }
+
+    if (btn.classList.contains('waste-btn')) {
+      const item = items[idx];
+      const cs = item.caseSize || 1;
+      const ans = prompt('Log waste for "' + item.name + '".\n\n' +
+        'How much was thrown out? Add "cs" for cases (e.g. "12" = 12 units, "1 cs" = 1 case).', '');
+      if (ans === null) return;
+      const txt = ans.trim().toLowerCase();
+      const num = parseFloat(txt);
+      if (isNaN(num) || num <= 0) return;
+      const units = /\b(cs|case|cases|box|boxes)\b/.test(txt) ? Math.round(num * cs) : Math.round(num);
+      const delta = -Math.min(units, item.units);
+      if (delta === 0) { alert('Nothing on hand to waste.'); return; }
+      snapshotForUndo();
+      item.units = Math.max(0, item.units + delta);
+      pushHistory(item, delta, 'waste');
+      buzz(20);
+      bumpCount(idx);
+      render();
+      saveItems();
+      showCommandToast('Logged ' + Math.abs(delta) + ' units wasted \u2014 ' + item.name, true);
       return;
     }
 
@@ -2283,6 +3838,8 @@
       snapshotForUndo();
       item.units = Math.max(0, item.units + delta);
       pushHistory(item, delta);
+      buzz(Math.abs(delta) >= item.caseSize ? 22 : 12);
+      bumpCount(idx);
     }
     render();
     saveItems();
@@ -2300,7 +3857,7 @@
   function wordsToDigits(text) {
     const words = text.split(/\s+/);
     const out = [];
-    let i = Math.floor(Math.random() * SCENES.length);
+    let i = 0;
     while (i < words.length) {
       const clean = words[i].toLowerCase().replace(/[^a-z]/g, '');
       if (Object.prototype.hasOwnProperty.call(NUM_WORDS, clean)) {
@@ -2478,8 +4035,9 @@
 
   function showCommandToast(msg, isError) {
     const t = document.getElementById('commandToast');
-    t.textContent = msg;
+    t.textContent = msg || '';
     t.classList.toggle('error', !!isError);
+    t.classList.toggle('show', !!msg);
   }
 
   function submitGlobalCommand(speakResult) {
@@ -2555,7 +4113,7 @@
       if (result.type === 'create') {
         if (!anyChange) snapshotForUndo();
         anyChange = true;
-        items.push({ name: result.name, caseSize: result.caseSize, units: result.caseSize, mode: 'case', history: [], touched: Date.now() });
+        items.push({ name: result.name, caseSize: result.caseSize, units: result.caseSize, mode: 'case', history: [], touched: Date.now(), category: guessCategory(result.name) || null });
         minimized.add(items.length - 1);
         messages.push('Created "' + result.name + '", ' + result.caseSize + ' per case');
         return;
@@ -2592,6 +4150,28 @@
   document.getElementById('undoBtn').addEventListener('click', performUndo);
   document.getElementById('commandInput').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') submitGlobalCommand(false);
+  });
+
+  // ---- add item modal ----
+  function openAddItem() {
+    const n = document.getElementById('newName');
+    const cs = document.getElementById('newCaseSize');
+    n.value = ''; cs.value = '';
+    n.style.borderColor = ''; cs.style.borderColor = '';
+    document.getElementById('addItemGate').style.display = 'flex';
+    document.getElementById('appRoot').style.display = 'none';
+    n.focus();
+  }
+
+  function closeAddItem() {
+    document.getElementById('addItemGate').style.display = 'none';
+    document.getElementById('appRoot').style.display = '';
+  }
+
+  document.getElementById('addItemBtn').addEventListener('click', openAddItem);
+  document.getElementById('addItemCancel').addEventListener('click', closeAddItem);
+  document.getElementById('newCaseSize').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') document.getElementById('addBtn').click();
   });
 
   function updateVoiceButtons() {
@@ -2833,6 +4413,8 @@
     }
     isAdmin = true;
     sessionStorage.setItem('tally_admin', '1');
+    askNotifyPermission();
+    watchPendingStaff();
     document.getElementById('adminGate').style.display = 'none';
     document.getElementById('appRoot').style.display = '';
     document.getElementById('adminPanel').style.display = 'block';
@@ -2911,6 +4493,31 @@
       alert('No items to audit yet.');
       return;
     }
+
+    // Offer hands-free before starting
+    const body = document.getElementById('auditBody');
+    document.getElementById('auditGate').style.display = 'flex';
+    document.getElementById('appRoot').style.display = 'none';
+    body.innerHTML =
+      '<div class="audit-item-name">Spot audit</div>' +
+      '<div class="audit-sub">A random sample of your items. How do you want to count?</div>' +
+      '<div class="scan-choice">' +
+        '<button type="button" class="scan-source" id="auditTapBtn">' +
+          '<span class="scan-icon">&#128241;</span><span>Tap the numbers in</span>' +
+        '</button>' +
+        '<button type="button" class="scan-source" id="auditVoiceBtn">' +
+          '<span class="scan-icon">&#127908;</span><span>Hands-free &mdash; it asks, you answer</span>' +
+        '</button>' +
+      '</div>' +
+      '<div class="join-hint">Hands-free reads each item out loud and listens for your count. Good for gloves and cold hands.<br><br>' +
+      '<button type="button" class="store-action" id="auditPickCancel">Cancel</button></div>';
+
+    document.getElementById('auditPickCancel').addEventListener('click', closeAudit);
+    document.getElementById('auditTapBtn').addEventListener('click', function () { beginAudit(false); });
+    document.getElementById('auditVoiceBtn').addEventListener('click', function () { beginAudit(true); });
+  }
+
+  function beginAudit(handsFreeMode) {
     const count = Math.min(items.length, Math.max(3, Math.ceil(items.length * 0.25)));
     const pool = items.map(function(it, i) { return i; });
     for (let i = pool.length - 1; i > 0; i--) {
@@ -2921,7 +4528,8 @@
       queue: pool.slice(0, count),
       step: 0,
       results: [],
-      startedAt: Date.now()
+      startedAt: Date.now(),
+      voice: !!handsFreeMode
     };
     document.getElementById('auditGate').style.display = 'flex';
     document.getElementById('appRoot').style.display = 'none';
@@ -2929,6 +4537,7 @@
   }
 
   function closeAudit() {
+    stopAuditVoice();
     auditState = null;
     document.getElementById('auditGate').style.display = 'none';
     document.getElementById('appRoot').style.display = '';
@@ -2959,13 +4568,162 @@
       '</div>' +
       '<div class="join-hint"><button type="button" class="store-action" id="auditCancelBtn">Cancel audit</button></div>';
 
-    document.getElementById('auditCases').focus();
-    document.getElementById('auditNextBtn').addEventListener('click', recordAuditStep);
+    if (auditState.voice) {
+      const vm = document.createElement('div');
+      vm.className = 'audit-voice-msg';
+      vm.id = 'auditVoiceMsg';
+      vm.textContent = 'Starting\u2026';
+      body.insertBefore(vm, body.querySelector('.audit-inputs'));
+      setTimeout(auditAsk, 250);
+    } else {
+      document.getElementById('auditCases').focus();
+    }
+    document.getElementById('auditNextBtn').addEventListener('click', function () {
+      stopAuditVoice();
+      recordAuditStep();
+    });
     document.getElementById('auditSkipBtn').addEventListener('click', function() {
+      stopAuditVoice();
       auditState.step++;
       renderAuditStep();
     });
     document.getElementById('auditCancelBtn').addEventListener('click', closeAudit);
+  }
+
+  // ---------- hands-free audit: speak the item, listen for the count ----------
+  let auditRecog = null;
+
+  function stopAuditVoice() {
+    if (auditRecog) {
+      try { auditRecog.abort(); } catch (e) {}
+      auditRecog = null;
+    }
+    if ('speechSynthesis' in window) {
+      try { window.speechSynthesis.cancel(); } catch (e) {}
+    }
+  }
+
+  function say(text, done) {
+    if (!('speechSynthesis' in window)) { if (done) done(); return; }
+    try {
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.rate = 1.0;
+      u.onend = function () { if (done) done(); };
+      u.onerror = function () { if (done) done(); };
+      window.speechSynthesis.speak(u);
+    } catch (e) { if (done) done(); }
+  }
+
+  // "two and a half" / "3.5" / "two cases six" -> units
+  function parseSpokenCount(text, item) {
+    const t = wordsToDigits(String(text).toLowerCase());
+    const cs = item.caseSize || 1;
+
+    if (/\b(none|zero|empty|out|nothing)\b/.test(t)) return 0;
+    if (/\b(skip|pass|next)\b/.test(t)) return 'skip';
+
+    // "three point five" -> "3.5"
+    const t2 = t.replace(/(\d+)\s*point\s*(\d+)/g, '$1.$2');
+    const nums = (t2.match(/\d+(\.\d+)?/g) || []).map(parseFloat);
+
+    // "three quarters" arrives as "3 quarters" after word-to-digit conversion
+    if (/\b3\s+quarters\b/.test(t2)) return Math.round(0.75 * cs);
+
+    let frac = 0;
+    if (/\bquarters?\b/.test(t2)) frac = 0.25;
+    else if (/\bhalf\b/.test(t2)) frac = 0.5;
+
+    // A bare "half" or "a quarter" with no number still means something
+    if (!nums.length) {
+      if (!frac) return null;
+      return Math.round(frac * cs);
+    }
+
+    // "2 cases and 30" style
+    const caseThenUnits = t2.match(/(\d+(?:\.\d+)?)\s*(?:cs|case|cases|box|boxes)\D+(\d+)/);
+    if (caseThenUnits) {
+      return Math.round(parseFloat(caseThenUnits[1]) * cs) + parseInt(caseThenUnits[2], 10);
+    }
+
+    const saysUnits = /\b(unit|units|each|piece|pieces|singles?)\b/.test(t2);
+    const n = nums[0] + frac;
+    return saysUnits ? Math.round(n) : Math.round(n * cs);
+  }
+
+  function auditAsk() {
+    if (!auditState || !auditState.voice) return;
+    const idx = auditState.queue[auditState.step];
+    const item = items[idx];
+    if (!item) return;
+
+    const prompt = 'How many cases of ' + item.name + '?';
+    setAuditVoiceMsg(prompt, false);
+    say(prompt, function () { auditListen(); });
+  }
+
+  function setAuditVoiceMsg(msg, listening) {
+    const el = document.getElementById('auditVoiceMsg');
+    if (!el) return;
+    el.textContent = msg;
+    el.style.color = listening ? 'var(--teal)' : 'var(--text-dim)';
+  }
+
+  function auditListen() {
+    if (!auditState || !auditState.voice) return;
+    if (!SpeechRecognitionAPI) {
+      setAuditVoiceMsg('Voice not supported here \u2014 type it in.', false);
+      return;
+    }
+    const idx = auditState.queue[auditState.step];
+    const item = items[idx];
+    if (!item) return;
+
+    stopAuditVoice();
+    const rec = new SpeechRecognitionAPI();
+    auditRecog = rec;
+    rec.lang = 'en-US';
+    rec.interimResults = false;
+    rec.maxAlternatives = 1;
+
+    rec.onstart = function () { setAuditVoiceMsg('Listening\u2026', true); };
+
+    rec.onresult = function (e) {
+      const said = e.results[0][0].transcript;
+      const parsed = parseSpokenCount(said, item);
+
+      if (parsed === 'skip') {
+        say('Skipped.', function () {
+          auditState.step++;
+          renderAuditStep();
+        });
+        return;
+      }
+      if (parsed == null) {
+        say('Sorry, how many?', function () { auditListen(); });
+        setAuditVoiceMsg('Didn\'t catch "' + said + '"', false);
+        return;
+      }
+
+      const cases = Number((parsed / (item.caseSize || 1)).toFixed(2));
+      auditState.results.push({
+        idx: idx, name: item.name, expected: item.units,
+        counted: parsed, caseSize: item.caseSize
+      });
+      buzz(20);
+      setAuditVoiceMsg('Got ' + cases + ' cases', true);
+      say('Got it, ' + cases + '.', function () {
+        auditState.step++;
+        renderAuditStep();
+      });
+    };
+
+    rec.onerror = function (e) {
+      if (e.error === 'no-speech') { say('Still there?', function () { auditListen(); }); return; }
+      setAuditVoiceMsg('Mic problem \u2014 tap to retry', false);
+    };
+
+    try { rec.start(); } catch (e) {}
   }
 
   function recordAuditStep() {
@@ -3047,6 +4805,7 @@
     const record = {
       ts: Date.now(),
       by: myName || 'someone',
+      byRole: myRole || null,
       counted: results.length,
       discrepancies: results.filter(function(r) { return r.counted !== r.expected; }).length,
       lines: results.map(function(r) {
@@ -3306,6 +5065,7 @@
       const waiting = p.uid && !isOk;
       return '<div class="audit-result-row"' + (waiting ? ' style="background:rgba(194,79,63,0.12);border-radius:6px;"' : '') + '>' +
         '<span>' + escapeHtml(p.name || 'Unnamed') + (isMe ? ' (you)' : '') +
+          (p.role ? '<span class="role-tag">' + escapeHtml(p.role) + '</span>' : '') +
           '<br><span style="font-size:11px;color:' + (waiting ? 'var(--red)' : 'var(--text-dim)') + ';">' +
             (waiting ? 'waiting for approval' : 'last seen ' + seen + (isAdminUser ? ' · admin' : '')) +
             (p.uid ? '' : ' · no device linked yet') + '</span></span>' +
@@ -3394,508 +5154,87 @@
     document.getElementById('auditGate').style.display = 'flex';
     document.getElementById('appRoot').style.display = 'none';
 
-    const needed = items.map(function(it) {
+    const rows = items.map(function (it, i) {
       const t = lowThresholdUnits(it);
-      if (t == null || it.units > t) return null;
-      const shortUnits = Math.max(0, t - it.units);
+      const b = computeBurn(it);
       const cs = it.caseSize || 1;
+      const isLow = t != null && it.units <= t;
+      // Flag anything low now, or forecast to run out within a week
+      const soon = b && b.daysLeft != null && b.daysLeft <= 7;
+      if (!isLow && !soon) return null;
       return {
+        idx: i,
         name: it.name,
         note: it.note,
-        haveUnits: it.units,
         haveCases: Number((it.units / cs).toFixed(2)),
-        targetUnits: t,
-        targetCases: Number((t / cs).toFixed(2)),
-        orderCases: Math.max(1, Math.ceil(shortUnits / cs)),
-        caseSize: cs
+        daysLeft: b && b.daysLeft != null ? b.daysLeft : null,
+        rate: b ? b.perDayCases : null,
+        order: suggestOrderCases(it),
+        isLow: isLow
       };
-    }).filter(Boolean).sort(function(a, b) { return b.orderCases - a.orderCases; });
+    }).filter(Boolean).sort(function (a, b2) {
+      const da = a.daysLeft == null ? 99 : a.daysLeft;
+      const db = b2.daysLeft == null ? 99 : b2.daysLeft;
+      return da - db;
+    });
 
-    if (!needed.length) {
+    if (!rows.length) {
       body.innerHTML = '<div class="audit-item-name">Order list</div>' +
-        '<div class="audit-sub">Nothing is at or below its low-stock level. You\'re good.</div>' +
+        '<div class="audit-sub">Nothing is low or forecast to run out this week.</div>' +
         '<div class="audit-actions"><button type="button" id="orderCloseBtn">Close</button></div>';
       document.getElementById('orderCloseBtn').addEventListener('click', closeAudit);
       return;
     }
 
-    const rows = needed.map(function(n) {
+    const html = rows.map(function (r) {
+      const urgency = r.daysLeft == null ? '' :
+        (r.daysLeft <= 1 ? 'out today' :
+         r.daysLeft <= 2 ? 'out tomorrow' :
+         'out in ' + r.daysLeft + 'd');
+      const sub = [
+        'have ' + r.haveCases + ' cs',
+        r.rate ? r.rate.toFixed(1) + ' cs/day' : null,
+        urgency || (r.isLow ? 'below low line' : null),
+        r.note ? escapeHtml(r.note) : null
+      ].filter(Boolean).join(' \u00b7 ');
+      const cls = (r.daysLeft != null && r.daysLeft <= 2) ? 'off' : 'ok';
       return '<div class="audit-result-row">' +
-        '<span>' + escapeHtml(n.name) +
-          '<br><span style="font-size:11px;color:var(--text-dim);">have ' + n.haveCases +
-          ' cs · low at ' + n.targetCases + ' cs' +
-          (n.note ? ' · ' + escapeHtml(n.note) : '') + '</span></span>' +
-        '<span class="audit-var off">order ' + n.orderCases + ' cs</span>' +
+        '<span>' + escapeHtml(r.name) +
+          '<br><span style="font-size:11px;color:var(--text-dim);">' + sub + '</span></span>' +
+        '<span class="audit-var ' + cls + '">' + r.order + ' cs</span>' +
       '</div>';
     }).join('');
 
-    const totalCases = needed.reduce(function(s, n) { return s + n.orderCases; }, 0);
+    const total = rows.reduce(function (s, r) { return s + r.order; }, 0);
 
     body.innerHTML =
       '<div class="audit-item-name">Order list</div>' +
-      '<div class="audit-sub">' + needed.length + ' item(s) to order · ' + totalCases + ' case(s) total</div>' +
-      rows +
-      '<div class="audit-summary">Based on your low-stock settings. Quantities bring each item back up to its low-stock level, rounded up to whole cases.</div>' +
+      '<div class="audit-sub">' + rows.length + ' item(s) \u00b7 ' + total + ' case(s) \u00b7 soonest first</div>' +
+      html +
+      '<div class="audit-summary">Quantities cover about a week of your actual usage plus your low-stock buffer. Usage is learned from this store\'s own history, including which days run heavier. Items without enough history fall back to your low-stock line.</div>' +
       '<div class="audit-actions">' +
         '<button type="button" class="audit-skip" id="orderCopyBtn">Copy list</button>' +
         '<button type="button" id="orderCloseBtn">Close</button>' +
       '</div>';
 
     document.getElementById('orderCloseBtn').addEventListener('click', closeAudit);
-    document.getElementById('orderCopyBtn').addEventListener('click', function() {
-      const text = 'Order list — ' + roomCode + ' — ' + new Date().toLocaleDateString() + '\n\n' +
-        needed.map(function(n) {
-          return n.orderCases + ' cs  ' + n.name + '  (have ' + n.haveCases + ' cs)' +
-            (n.note ? '  [' + n.note + ']' : '');
+    document.getElementById('orderCopyBtn').addEventListener('click', function () {
+      const text = 'Order list \u2014 ' + roomCode + ' \u2014 ' + new Date().toLocaleDateString() + '\n\n' +
+        rows.map(function (r) {
+          return r.order + ' cs  ' + r.name + '  (have ' + r.haveCases + ' cs' +
+            (r.daysLeft != null ? ', out in ' + r.daysLeft + 'd' : '') + ')' +
+            (r.note ? '  [' + r.note + ']' : '');
         }).join('\n');
       if (navigator.clipboard) {
-        navigator.clipboard.writeText(text).then(function() { alert('Order list copied.'); });
+        navigator.clipboard.writeText(text).then(function () { alert('Order list copied.'); });
       } else {
         prompt('Copy this:', text);
       }
     });
   }
 
-  document.getElementById('deviceIdBtn').addEventListener('click', function() {
-    if (!myUid) {
-      const detail = authError
-        ? ('\n\nError: ' + authError +
-           (String(authError).indexOf('operation-not-allowed') !== -1
-             ? '\n\nFix: in Firebase go to Authentication -> Sign-in method -> Anonymous -> enable it.'
-             : ''))
-        : '';
-      alert('Not signed in yet.' + detail);
-      return;
-    }
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(myUid).then(function() {
-        alert('Your device ID (copied to clipboard):\n\n' + myUid + '\n\nPaste this into your Firebase security rules where it says ADMIN_UID.');
-      }).catch(function() {
-        prompt('Your device ID — copy it:', myUid);
-      });
-    } else {
-      prompt('Your device ID — copy it:', myUid);
-    }
-  });
-
-  document.getElementById('resetAdminBtn').addEventListener('click', async function() {
-    if (!confirm('Clear ALL approved admin devices?\n\nThe next device that opens Tally becomes the admin. Do this only when you are about to open it yourself.')) return;
-    try {
-      await configRef().child('adminUids').remove();
-      await configRef().child('adminUid').remove();
-      alert('Admin cleared. Reload Tally on the device you want as admin — it will claim it automatically.');
-      isAdmin = false;
-      sessionStorage.removeItem('tally_admin');
-      document.getElementById('adminPanel').style.display = 'none';
-      document.getElementById('adminBtn').style.display = 'none';
-    } catch (e) {
-      alert('Could not reset — this device is not an approved admin device.');
-    }
-  });
-
-  document.getElementById('addDeviceBtn').addEventListener('click', async function() {
-    const uid = prompt('Paste the device ID to approve.\n\nGet it by opening Tally on that device, then having it read out its ID from the setup screen.');
-    if (uid === null) return;
-    const clean = uid.trim();
-    if (!clean) return;
-    const label = prompt('Name this device (e.g. "Office laptop", "Backup phone"):', 'Device') || 'Device';
-    try {
-      const update = {};
-      update['adminUids/' + clean] = { label: label.trim().slice(0, 30), addedAt: Date.now() };
-      await configRef().update(update);
-      const cfg = await loadConfig();
-      renderApprovedDevices(cfg);
-      alert('Device approved. Remember to add this ID to your Firebase rules too if you locked them to specific UIDs.');
-    } catch (e) {
-      alert('Could not approve device — this device is not an approved admin device.');
-    }
-  });
-
-  document.getElementById('deviceList').addEventListener('click', async function(e) {
-    const btn = e.target.closest('button[data-revoke]');
-    if (!btn) return;
-    const uid = btn.getAttribute('data-revoke');
-    if (!confirm('Revoke admin access for this device?')) return;
-    try {
-      await configRef().child('adminUids').child(uid).remove();
-      const cfg = await loadConfig();
-      renderApprovedDevices(cfg);
-    } catch (e) {
-      alert('Could not revoke — this device is not an approved admin device.');
-    }
-  });
-
-  document.getElementById('addDeviceBtn').disabled = false;
-
-  // Long-press the store chip to reveal this device's ID (needed to get approved)
-  (function() {
-    const chip = document.getElementById('storeChip');
-    if (!chip) return;
-    let timer = null;
-    function begin() {
-      timer = setTimeout(function() {
-        const id = myUid || '(not signed in)';
-        if (navigator.clipboard && myUid) {
-          navigator.clipboard.writeText(myUid).catch(function() {});
-        }
-        prompt('This device\'s ID (copied if possible) — send it to your admin to be approved:', id);
-      }, 1200);
-    }
-    function cancel() { if (timer) { clearTimeout(timer); timer = null; } }
-    chip.addEventListener('touchstart', begin, { passive: true });
-    chip.addEventListener('touchend', cancel);
-    chip.addEventListener('touchmove', cancel);
-    chip.addEventListener('mousedown', begin);
-    chip.addEventListener('mouseup', cancel);
-    chip.addEventListener('mouseleave', cancel);
-  })();
-
-  function downloadFile(filename, text, mime) {
-    try {
-      const blob = new Blob([text], { type: mime || 'text/plain' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(function() { URL.revokeObjectURL(url); }, 2000);
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  async function showBackup() {
-    const body = document.getElementById('auditBody');
-    document.getElementById('auditGate').style.display = 'flex';
-    document.getElementById('appRoot').style.display = 'none';
-    body.innerHTML = '<div class="audit-item-name">Backup &amp; export</div><div class="audit-sub">Gathering data...</div>';
-
-    let audits = {}, staff = {}, sessions = {};
-    try {
-      const base = 'tally/rooms/' + roomCode + '/';
-      audits = (await db.ref(base + 'audits').get()).val() || {};
-      staff = (await db.ref(base + 'staff').get()).val() || {};
-      sessions = (await db.ref(base + 'sessions').get()).val() || {};
-    } catch (e) {}
-
-    const backup = {
-      tallyBackup: 1,
-      store: roomCode,
-      exportedAt: new Date().toISOString(),
-      exportedBy: myName || 'unknown',
-      items: items,
-      audits: audits,
-      staff: staff,
-      sessions: sessions
-    };
-    const json = JSON.stringify(backup, null, 2);
-
-    const csvRows = [['Item', 'Units', 'Cases', 'Units per case', 'Low stock', 'Note'].join(',')];
-    items.forEach(function(it) {
-      const c = calc(it.units, it.caseSize);
-      const label = lowThresholdLabel(it) || '';
-      csvRows.push([
-        '"' + String(it.name).replace(/"/g, '""') + '"',
-        it.units,
-        c.decimalCases,
-        it.caseSize,
-        '"' + label + '"',
-        '"' + String(it.note || '').replace(/"/g, '""') + '"'
-      ].join(','));
-    });
-    const csv = csvRows.join('\n');
-
-    const auditCount = Object.keys(audits).length;
-
-    body.innerHTML =
-      '<div class="audit-item-name">Backup &amp; export</div>' +
-      '<div class="audit-sub">' + items.length + ' item(s) · ' + auditCount + ' audit(s) · store ' + roomCode + '</div>' +
-      '<div class="audit-summary">The JSON backup holds everything and can be restored later. The CSV is a plain item list for spreadsheets.</div>' +
-      '<div class="audit-actions">' +
-        '<button type="button" class="audit-skip" id="bkCsvBtn">Download CSV</button>' +
-        '<button type="button" id="bkJsonBtn">Download backup</button>' +
-      '</div>' +
-      '<div class="audit-actions">' +
-        '<button type="button" class="audit-skip" id="bkCopyBtn">Copy backup text</button>' +
-        '<button type="button" class="audit-skip" id="bkCloseBtn">Close</button>' +
-      '</div>';
-
-    const stamp = roomCode + '-' + new Date().toISOString().slice(0, 10);
-
-    document.getElementById('bkJsonBtn').addEventListener('click', function() {
-      if (!downloadFile('tally-backup-' + stamp + '.json', json, 'application/json')) {
-        prompt('Copy this backup:', json);
-      }
-    });
-    document.getElementById('bkCsvBtn').addEventListener('click', function() {
-      if (!downloadFile('tally-items-' + stamp + '.csv', csv, 'text/csv')) {
-        prompt('Copy this CSV:', csv);
-      }
-    });
-    document.getElementById('bkCopyBtn').addEventListener('click', function() {
-      if (navigator.clipboard) {
-        navigator.clipboard.writeText(json).then(function() { alert('Backup copied. Paste it somewhere safe.'); });
-      } else {
-        prompt('Copy this backup:', json);
-      }
-    });
-    document.getElementById('bkCloseBtn').addEventListener('click', closeAudit);
-  }
-
-  function showRestore() {
-    const body = document.getElementById('auditBody');
-    document.getElementById('auditGate').style.display = 'flex';
-    document.getElementById('appRoot').style.display = 'none';
-    body.innerHTML =
-      '<div class="audit-item-name">Restore from backup</div>' +
-      '<div class="audit-sub">Paste a backup file\'s contents below.</div>' +
-      '<textarea id="restoreText" style="width:100%;height:130px;background:var(--panel-2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:10px;font-family:monospace;font-size:11px;" placeholder="Paste backup JSON here"></textarea>' +
-      '<div class="audit-summary">This replaces the current item list for store ' + roomCode + '. Audit and staff records are left alone. You can undo right after.</div>' +
-      '<div class="audit-actions">' +
-        '<button type="button" class="audit-skip" id="rsCloseBtn">Cancel</button>' +
-        '<button type="button" id="rsGoBtn">Restore items</button>' +
-      '</div>';
-
-    document.getElementById('rsCloseBtn').addEventListener('click', closeAudit);
-    document.getElementById('rsGoBtn').addEventListener('click', function() {
-      let parsed;
-      try {
-        parsed = JSON.parse(document.getElementById('restoreText').value);
-      } catch (e) {
-        alert('That is not valid backup text.');
-        return;
-      }
-      const list = Array.isArray(parsed) ? parsed : parsed.items;
-      if (!Array.isArray(list)) {
-        alert('No item list found in that backup.');
-        return;
-      }
-      if (!confirm('Replace the current ' + items.length + ' item(s) with ' + list.length + ' from the backup?')) return;
-      snapshotForUndo();
-      items = list;
-      minimized.clear();
-      items.forEach(function(it, i) { minimized.add(i); });
-      render();
-      saveItems();
-      closeAudit();
-      showCommandToast('Restored ' + list.length + ' item(s)');
-    });
-  }
-
-  document.getElementById('snapshotsBtn').addEventListener('click', showSnapshots);
-
-
-  let tesseractLoading = null;
-
-  function loadTesseract() {
-    if (window.Tesseract) return Promise.resolve();
-    if (tesseractLoading) return tesseractLoading;
-    tesseractLoading = new Promise(function(resolve, reject) {
-      const s = document.createElement('script');
-      s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
-      s.onload = resolve;
-      s.onerror = function() { reject(new Error('Could not load scanner')); };
-      document.head.appendChild(s);
-    });
-    return tesseractLoading;
-  }
-
-  function parseInvoiceLines(text) {
-    const lines = text.split('\n').map(function(l) { return l.trim(); }).filter(Boolean);
-    const out = [];
-
-    lines.forEach(function(line) {
-      if (/\b(subtotal|total|tax|invoice|date|page|thank you|signature|driver|account|balance)\b/i.test(line)) return;
-      if (line.replace(/[^a-z]/gi, '').length < 3) return;
-
-      let qty = null, name = null;
-      let m = line.match(/^(\d{1,3})\s*(?:cs|case|cases|ct|ea|bx|box)?\s+(.{3,})$/i);
-      if (m) {
-        qty = parseInt(m[1], 10);
-        name = m[2];
-      } else {
-        m = line.match(/^(.{3,}?)\s+(\d{1,3})(?:\s*(?:cs|case|cases|ct|ea)?)?$/i);
-        if (m) { name = m[1]; qty = parseInt(m[2], 10); }
-      }
-      if (qty == null || !name || qty < 1 || qty > 999) return;
-
-      name = name
-        .replace(/\$\s*\d+[.,]?\d*/g, ' ')
-        .replace(/\b\d{5,}\b/g, ' ')
-        .replace(/[|_*#]+/g, ' ')
-        .replace(/\s{2,}/g, ' ')
-        .trim();
-      if (name.replace(/[^a-z]/gi, '').length < 3) return;
-
-      const matchIdx = matchItem(name);
-      out.push({ qty: qty, rawName: name, matchIdx: matchIdx, include: matchIdx !== -1 });
-    });
-
-    return out;
-  }
-
-  let scanResults = [];
-
-  function startScan() {
-    const body = document.getElementById('auditBody');
-    document.getElementById('auditGate').style.display = 'flex';
-    document.getElementById('appRoot').style.display = 'none';
-    body.innerHTML =
-      '<div class="audit-item-name">Scan invoice</div>' +
-      '<div class="audit-sub">Flat, bright, straight-on photos read best.</div>' +
-      '<div class="scan-choice">' +
-        '<button type="button" class="scan-source" id="scanCameraBtn">' +
-          '<span class="scan-icon">&#128247;</span><span>Take a photo</span>' +
-        '</button>' +
-        '<button type="button" class="scan-source" id="scanLibraryBtn">' +
-          '<span class="scan-icon">&#128444;</span><span>Choose from photos</span>' +
-        '</button>' +
-      '</div>' +
-      '<div class="join-hint"><button type="button" class="store-action" id="scanChoiceCancel">Cancel</button></div>';
-
-    document.getElementById('scanChoiceCancel').addEventListener('click', closeAudit);
-    document.getElementById('scanCameraBtn').addEventListener('click', function() { pickInvoiceImage(true); });
-    document.getElementById('scanLibraryBtn').addEventListener('click', function() { pickInvoiceImage(false); });
-  }
-
-  function pickInvoiceImage(useCamera) {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    if (useCamera) input.setAttribute('capture', 'environment');
-    input.addEventListener('change', async function() {
-      const file = input.files && input.files[0];
-      if (!file) return;
-
-      const body = document.getElementById('auditBody');
-      document.getElementById('auditGate').style.display = 'flex';
-      document.getElementById('appRoot').style.display = 'none';
-      body.innerHTML = '<div class="audit-item-name">Reading invoice</div>' +
-        '<div class="audit-sub" id="scanStatus">Loading scanner...</div>';
-
-      try {
-        await loadTesseract();
-      } catch (e) {
-        body.innerHTML = '<div class="audit-item-name">Scanner unavailable</div>' +
-          '<div class="audit-sub">Could not load the scanner. Check your connection and try again.</div>' +
-          '<div class="audit-actions"><button type="button" id="scanCloseBtn">Close</button></div>';
-        document.getElementById('scanCloseBtn').addEventListener('click', closeAudit);
-        return;
-      }
-
-      const status = document.getElementById('scanStatus');
-      let text = '';
-      try {
-        const result = await window.Tesseract.recognize(file, 'eng', {
-          logger: function(m) {
-            if (status && m.status === 'recognizing text') {
-              status.textContent = 'Reading... ' + Math.round((m.progress || 0) * 100) + '%';
-            }
-          }
-        });
-        text = (result && result.data && result.data.text) || '';
-      } catch (e) {
-        body.innerHTML = '<div class="audit-item-name">Couldn\'t read that</div>' +
-          '<div class="audit-sub">The scan failed. Try a flatter, brighter photo.</div>' +
-          '<div class="audit-actions"><button type="button" id="scanCloseBtn">Close</button></div>';
-        document.getElementById('scanCloseBtn').addEventListener('click', closeAudit);
-        return;
-      }
-
-      scanResults = parseInvoiceLines(text);
-      renderScanReview(text);
-    });
-    input.click();
-  }
-
-  function renderScanReview(rawText) {
-    const body = document.getElementById('auditBody');
-
-    if (!scanResults.length) {
-      body.innerHTML = '<div class="audit-item-name">Nothing found</div>' +
-        '<div class="audit-sub">Couldn\'t pick out any quantity and item lines. Faint or slanted invoice text often fails — try a flatter, brighter photo, or add the items by hand.</div>' +
-        '<div class="audit-actions">' +
-          '<button type="button" class="audit-skip" id="scanRawBtn">See raw text</button>' +
-          '<button type="button" id="scanCloseBtn">Close</button>' +
-        '</div>';
-      document.getElementById('scanCloseBtn').addEventListener('click', closeAudit);
-      document.getElementById('scanRawBtn').addEventListener('click', function() {
-        alert(rawText.slice(0, 1500) || '(nothing read)');
-      });
-      return;
-    }
-
-    const rows = scanResults.map(function(r, i) {
-      const known = r.matchIdx !== -1;
-      const label = known ? items[r.matchIdx].name : r.rawName;
-      return '<div class="audit-result-row">' +
-        '<label style="display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;">' +
-          '<input type="checkbox" data-scan="' + i + '"' + (r.include ? ' checked' : '') + (known ? '' : ' disabled') + '>' +
-          '<span>' + escapeHtml(label) +
-            '<br><span style="font-size:11px;color:' + (known ? 'var(--text-dim)' : 'var(--red)') + ';">' +
-              (known ? 'matches your item' : 'no match — skipped') + '</span>' +
-          '</span>' +
-        '</label>' +
-        '<span class="audit-var ' + (known ? 'ok' : 'off') + '">' +
-          '<input type="number" class="scan-qty" data-qty="' + i + '" value="' + r.qty + '" min="0"> cs' +
-        '</span>' +
-      '</div>';
-    }).join('');
-
-    const matched = scanResults.filter(function(r) { return r.matchIdx !== -1; }).length;
-
-    body.innerHTML =
-      '<div class="audit-item-name">Review scan</div>' +
-      '<div class="audit-sub">' + scanResults.length + ' line(s) read · ' + matched + ' matched</div>' +
-      rows +
-      '<div class="audit-summary">Check every line before applying. Photo scanning is unreliable and gets quantities wrong, so treat this as a first draft, not a source of truth. Quantities are added as CASES. Unmatched lines are skipped — create those items first if you need them.</div>' +
-      '<div class="audit-actions">' +
-        '<button type="button" class="audit-skip" id="scanCancelBtn">Cancel</button>' +
-        '<button type="button" id="scanApplyBtn">Add to counts</button>' +
-      '</div>';
-
-    document.getElementById('scanCancelBtn').addEventListener('click', closeAudit);
-
-    body.addEventListener('change', function(e) {
-      const cb = e.target.closest('input[data-scan]');
-      if (cb) scanResults[parseInt(cb.getAttribute('data-scan'), 10)].include = cb.checked;
-      const q = e.target.closest('input[data-qty]');
-      if (q) {
-        const n = parseInt(q.value, 10);
-        scanResults[parseInt(q.getAttribute('data-qty'), 10)].qty = isNaN(n) ? 0 : n;
-      }
-    });
-
-    document.getElementById('scanApplyBtn').addEventListener('click', function() {
-      const toApply = scanResults.filter(function(r) {
-        return r.include && r.matchIdx !== -1 && r.qty > 0;
-      });
-      if (!toApply.length) { alert('Nothing selected to apply.'); return; }
-      snapshotForUndo();
-      toApply.forEach(function(r) {
-        const item = items[r.matchIdx];
-        if (!item) return;
-        const delta = r.qty * (item.caseSize || 1);
-        item.units += delta;
-        pushHistory(item, delta);
-      });
-      render();
-      saveItems();
-      closeAudit();
-      showCommandToast('Added ' + toApply.length + ' item(s) from invoice');
-    });
-  }
-
-  document.getElementById('adminPanel').addEventListener('click', function(e) {
-    const head = e.target.closest('.admin-sec-head');
-    if (!head) return;
-    head.parentElement.classList.toggle('open');
-  });
-
-  const SNAPSHOT_INTERVAL = 2 * 60 * 1000; // at most one snapshot every 2 minutes
+  // ===================== AUTO BACKUPS =====================
+  const SNAPSHOT_INTERVAL = 2 * 60 * 1000;
   const SNAPSHOT_KEEP = 30;
   let lastSnapshotTs = 0;
 
@@ -3908,47 +5247,54 @@
     if (Date.now() - lastSnapshotTs < SNAPSHOT_INTERVAL) return;
     lastSnapshotTs = Date.now();
     try {
-      const lastSnap = await snapshotsRef().orderByChild('ts').limitToLast(1).get();
-      const val = lastSnap.val() || {};
+      const last = await snapshotsRef().orderByChild('ts').limitToLast(1).get();
+      const val = last.val() || {};
       const keys = Object.keys(val);
       const lastTs = keys.length ? (val[keys[0]].ts || 0) : 0;
-
-      if (Date.now() - lastTs < SNAPSHOT_INTERVAL) {
-        lastSnapshotTs = lastTs;
-        return;
-      }
+      if (Date.now() - lastTs < SNAPSHOT_INTERVAL) return;
 
       await snapshotsRef().push({
         ts: Date.now(),
         by: myName || 'auto',
         itemCount: items.length,
-        totalUnits: items.reduce(function(s, it) { return s + (it.units || 0); }, 0),
-        items: items.map(function(it) {
+        totalUnits: items.reduce(function (s, it) { return s + (it.units || 0); }, 0),
+        items: items.map(function (it) {
           return {
             name: it.name,
             units: it.units,
             caseSize: it.caseSize,
             mode: it.mode || 'case',
             note: it.note || null,
+            category: it.category || null,
+            productCode: it.productCode || null,
             lowStockValue: it.lowStockValue != null ? it.lowStockValue : null,
-            lowStockMode: it.lowStockMode || null
+            lowStockMode: it.lowStockMode || null,
+            barcodes: Array.isArray(it.barcodes) ? it.barcodes : null
           };
         })
       });
 
-      // Trim old snapshots
       const all = await snapshotsRef().orderByChild('ts').get();
-      const allVal = all.val() || {};
-      const sorted = Object.keys(allVal).sort(function(a, b) {
-        return (allVal[a].ts || 0) - (allVal[b].ts || 0);
-      });
-      const excess = sorted.length - SNAPSHOT_KEEP;
-      for (let i = 0; i < excess; i++) {
-        await snapshotsRef().child(sorted[i]).remove().catch(function() {});
+      const av = all.val() || {};
+      const sorted = Object.keys(av).sort(function (a, b) { return (av[a].ts || 0) - (av[b].ts || 0); });
+      for (let i = 0; i < sorted.length - SNAPSHOT_KEEP; i++) {
+        await snapshotsRef().child(sorted[i]).remove().catch(function () {});
       }
-    } catch (e) {
-      // Snapshots are best-effort; never block the app
-    }
+    } catch (e) {}
+  }
+
+  function downloadFile(filename, text, mime) {
+    const blob = new Blob([text], { type: mime || 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+  }
+
+  function csvEscape(v) {
+    const s = String(v == null ? '' : v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
   }
 
   async function showSnapshots() {
@@ -3961,49 +5307,57 @@
     try {
       const snap = await snapshotsRef().orderByChild('ts').get();
       const val = snap.val() || {};
-      snaps = Object.keys(val).map(function(k) { return { key: k, ...val[k] }; })
-        .sort(function(a, b) { return b.ts - a.ts; });
+      snaps = Object.keys(val).map(function (k) { return Object.assign({ key: k }, val[k]); })
+        .sort(function (a, b) { return b.ts - a.ts; });
     } catch (e) {}
 
-    if (!snaps.length) {
-      body.innerHTML = '<div class="audit-item-name">Backups</div>' +
-        '<div class="audit-sub">No automatic backups yet. One is saved as you sync, up to once an hour.</div>' +
-        '<div class="audit-actions">' +
-          '<button type="button" class="audit-skip" id="snapExportBtn">Download copy</button>' +
-          '<button type="button" id="snapCloseBtn">Close</button>' +
-        '</div>';
-      document.getElementById('snapCloseBtn').addEventListener('click', closeAudit);
-      document.getElementById('snapExportBtn').addEventListener('click', showBackup);
-      return;
-    }
+    const stamp = new Date().toISOString().slice(0, 10);
 
-    const rows = snaps.map(function(s, i) {
+    const rows = snaps.map(function (s, i) {
       const d = new Date(s.ts);
       const when = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' +
         d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
       return '<div class="audit-result-row">' +
         '<span>' + when + '<br><span style="font-size:11px;color:var(--text-dim);">' +
-          s.itemCount + ' items · ' + (s.totalUnits || 0).toLocaleString() + ' units</span></span>' +
+          s.itemCount + ' items &middot; ' + (s.totalUnits || 0).toLocaleString() + ' units</span></span>' +
         '<button type="button" class="store-action" data-snap="' + i + '">restore</button>' +
       '</div>';
     }).join('');
 
     body.innerHTML =
       '<div class="audit-item-name">Backups</div>' +
-      '<div class="audit-sub">' + snaps.length + ' snapshot(s) · newest first</div>' +
+      '<div class="audit-sub">' + (snaps.length ? snaps.length + ' snapshot(s) &middot; newest first'
+        : 'No snapshots yet &mdash; one saves as your changes sync.') + '</div>' +
       rows +
-      '<div class="audit-summary">Backups save automatically as you sync, at most once every couple of minutes, keeping the last ' + SNAPSHOT_KEEP + '. These live in the same database, so they protect against bad edits — not against losing the Firebase project. Download a copy for an off-site backup.</div>' +
+      '<div class="audit-summary">Snapshots save automatically when your changes sync, keeping the last ' + SNAPSHOT_KEEP +
+      '. They live in the same database, so they protect against bad edits &mdash; not against losing the project. Download a copy for an off-site backup.</div>' +
       '<div class="audit-actions">' +
-        '<button type="button" class="audit-skip" id="snapExportBtn">Download copy</button>' +
-        '<button type="button" class="audit-skip" id="snapFileBtn">Restore file</button>' +
-        '<button type="button" id="snapCloseBtn">Close</button>' +
-      '</div>';
+        '<button type="button" class="audit-skip" id="snapCsv">Spreadsheet</button>' +
+        '<button type="button" id="snapJson">Download backup</button></div>' +
+      '<div class="join-hint"><button type="button" class="store-action" id="snapClose">Close</button></div>';
 
-    document.getElementById('snapCloseBtn').addEventListener('click', closeAudit);
-    document.getElementById('snapExportBtn').addEventListener('click', showBackup);
-    document.getElementById('snapFileBtn').addEventListener('click', showRestore);
+    document.getElementById('snapClose').addEventListener('click', closeAudit);
 
-    body.addEventListener('click', function(e) {
+    document.getElementById('snapJson').addEventListener('click', function () {
+      downloadFile('tally-backup-' + roomCode + '-' + stamp + '.json',
+        JSON.stringify({ tallyBackup: 1, store: roomCode, exportedAt: Date.now(),
+                         exportedBy: myName || 'unknown', items: items }, null, 2),
+        'application/json');
+    });
+
+    document.getElementById('snapCsv').addEventListener('click', function () {
+      const header = ['Item', 'Category', 'Product code', 'Units', 'Per case', 'Cases', 'Low stock', 'Note'];
+      const lines = items.map(function (it) {
+        const cs = it.caseSize || 1;
+        return [it.name, it.category || '', it.productCode || '', it.units, cs,
+                Number((it.units / cs).toFixed(2)), lowThresholdLabel(it) || '', it.note || '']
+               .map(csvEscape).join(',');
+      });
+      downloadFile('tally-' + roomCode + '-' + stamp + '.csv',
+        [header.join(',')].concat(lines).join('\n'), 'text/csv');
+    });
+
+    body.addEventListener('click', function (e) {
       const btn = e.target.closest('button[data-snap]');
       if (!btn) return;
       const s = snaps[parseInt(btn.getAttribute('data-snap'), 10)];
@@ -4011,30 +5365,1024 @@
       if (!confirm('Restore the snapshot from ' + new Date(s.ts).toLocaleString() + '?\n\n' +
           s.itemCount + ' items will REPLACE your current list. Undo is available right after.')) return;
       snapshotForUndo();
-      items = s.items.map(function(it) {
+      items = s.items.map(function (it) {
         return {
-          name: it.name,
-          units: it.units,
-          caseSize: it.caseSize,
-          mode: it.mode || 'case',
-          note: it.note || null,
-          lowStockValue: it.lowStockValue,
-          lowStockMode: it.lowStockMode,
-          history: [],
-          touched: Date.now()
+          name: it.name, units: it.units, caseSize: it.caseSize, mode: it.mode || 'case',
+          note: it.note || null, category: it.category || null, productCode: it.productCode || null,
+          lowStockValue: it.lowStockValue, lowStockMode: it.lowStockMode,
+          barcodes: Array.isArray(it.barcodes) ? it.barcodes : [],
+          history: [], touched: Date.now()
         };
       });
-      minimized.clear();
-      expanded.clear();
-      items.forEach(function(it, i) { minimized.add(i); });
-      render();
-      saveItems();
-      closeAudit();
+      minimized.clear(); expanded.clear();
+      items.forEach(function (it, i) { minimized.add(i); });
+      render(); saveItems(); closeAudit();
       showCommandToast('Restored snapshot from ' + new Date(s.ts).toLocaleDateString());
     });
   }
 
+  document.getElementById('snapshotsBtn').addEventListener('click', showSnapshots);
+
+  document.getElementById('deviceIdBtn').addEventListener('click', function () {
+    if (!myUid) { alert('Not signed in yet. Reload and try again.'); return; }
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(myUid).then(function () {
+        alert('Device ID copied:\n\n' + myUid);
+      }).catch(function () { prompt('Device ID:', myUid); });
+    } else { prompt('Device ID:', myUid); }
+  });
+
+  document.getElementById('addDeviceBtn').addEventListener('click', async function () {
+    const uid = prompt('Paste the device ID to approve:');
+    if (uid === null) return;
+    const clean = uid.trim();
+    if (!clean) return;
+    const label = (prompt('Name this device:', 'Device') || 'Device').trim().slice(0, 30);
+    try {
+      const update = {};
+      update['adminUids/' + clean] = { label: label, addedAt: Date.now() };
+      await configRef().update(update);
+      renderApprovedDevices(await loadConfig());
+      alert('Device approved.');
+    } catch (e) {
+      alert('Could not approve — this device is not an approved admin device.');
+    }
+  });
+
+  document.getElementById('resetAdminBtn').addEventListener('click', async function () {
+    if (!confirm('Clear ALL approved admin devices?\n\nThe next device that opens Tally becomes the admin. Do this only when you are about to open it yourself.')) return;
+    try {
+      await configRef().child('adminUids').remove();
+      await configRef().child('adminUid').remove();
+      alert('Admin cleared. Reload on the device you want as admin.');
+      isAdmin = false;
+      sessionStorage.removeItem('tally_admin');
+      document.getElementById('adminPanel').style.display = 'none';
+      document.getElementById('adminBtn').style.display = 'none';
+    } catch (e) {
+      alert('Could not reset — this device is not an approved admin device.');
+    }
+  });
+
+  // ===================== SHARED OCR LOADER =====================
+  let tesseractLoading = null;
+  function loadTesseract() {
+    if (window.Tesseract) return Promise.resolve();
+    if (tesseractLoading) return tesseractLoading;
+    tesseractLoading = new Promise(function (resolve, reject) {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+      s.onload = resolve;
+      s.onerror = function () { reject(new Error('no scanner')); };
+      document.head.appendChild(s);
+    });
+    return tesseractLoading;
+  }
+
+  async function runOcr(file, statusEl) {
+    await loadTesseract();
+    const res = await window.Tesseract.recognize(file, 'eng', {
+      logger: function (m) {
+        if (statusEl && m.status === 'recognizing text') {
+          statusEl.textContent = 'Reading... ' + Math.round((m.progress || 0) * 100) + '%';
+        }
+      }
+    });
+    return (res && res.data && res.data.text) || '';
+  }
+
+  function pickImage(useCamera, onFile) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    if (useCamera) input.setAttribute('capture', 'environment');
+    input.addEventListener('change', function () {
+      const f = input.files && input.files[0];
+      if (f) onFile(f);
+    });
+    input.click();
+  }
+
+  function sourcePicker(title, sub, onPick) {
+    const body = document.getElementById('auditBody');
+    document.getElementById('auditGate').style.display = 'flex';
+    document.getElementById('appRoot').style.display = 'none';
+    body.innerHTML =
+      '<div class="audit-item-name">' + title + '</div>' +
+      '<div class="audit-sub">' + sub + '</div>' +
+      '<div class="scan-choice">' +
+        '<button type="button" class="scan-source" id="srcCam">' +
+          '<span class="scan-icon">&#128247;</span><span>Take a photo</span></button>' +
+        '<button type="button" class="scan-source" id="srcLib">' +
+          '<span class="scan-icon">&#128444;</span><span>Choose from photos</span></button>' +
+      '</div>' +
+      '<div class="join-hint"><button type="button" class="store-action" id="srcCancel">Cancel</button></div>';
+    document.getElementById('srcCancel').addEventListener('click', closeAudit);
+    document.getElementById('srcCam').addEventListener('click', function () { onPick(true); });
+    document.getElementById('srcLib').addEventListener('click', function () { onPick(false); });
+  }
+
+  function ocrFailScreen(msg) {
+    const body = document.getElementById('auditBody');
+    body.innerHTML = '<div class="audit-item-name">Couldn\'t read that</div>' +
+      '<div class="audit-sub">' + msg + '</div>' +
+      '<div class="audit-actions"><button type="button" id="ocrClose">Close</button></div>';
+    document.getElementById('ocrClose').addEventListener('click', closeAudit);
+  }
+
+  // ============ ORDER / PRODUCTION SHEET ============
+  const SHEET_ROW = /\b([FU]\d{5})\b\s+(.+?)\s+\bEA\b\s+(\d+)/i;
+
+  function findByCode(code) {
+    const up = String(code).toUpperCase();
+    return items.findIndex(function (it) {
+      return (it.productCode || '').toUpperCase() === up;
+    });
+  }
+
+  function parseSheet(text) {
+    const out = [], seen = {};
+    text.split('\n').forEach(function (line) {
+      const l = line.trim();
+      if (!l) return;
+      if (/\b(product code|order qty|rcvd|workpulse|manager|subtotal|total)\b/i.test(l)) return;
+      const m = SHEET_ROW.exec(l);
+      if (!m) return;
+      const pcode = m[1].toUpperCase();
+      if (seen[pcode]) return;
+      seen[pcode] = true;
+      const name = m[2].replace(/\s{2,}/g, ' ').trim();
+      const qty = parseInt(m[3], 10);
+      if (!qty || qty < 1 || qty > 9999) return;
+      let idx = findByCode(pcode);
+      if (idx === -1) idx = matchItem(name);
+      out.push({ code: pcode, name: name, qty: qty, idx: idx, include: idx !== -1 });
+    });
+    return out;
+  }
+
+  let sheetResults = [], sheetDir = 1;
+
+  function startSheetScan() {
+    sourcePicker('Scan order sheet',
+      'Lay it flat, good light, straight on. Reads the Product Code and Order Qty columns.',
+      function (cam) {
+        pickImage(cam, async function (file) {
+          const body = document.getElementById('auditBody');
+          body.innerHTML = '<div class="audit-item-name">Reading sheet</div>' +
+            '<div class="audit-sub" id="ocrStatus">Loading scanner...</div>';
+          let text = '';
+          try { text = await runOcr(file, document.getElementById('ocrStatus')); }
+          catch (e) { ocrFailScreen('Scanner could not run. Check your connection and try again.'); return; }
+          sheetResults = parseSheet(text);
+          renderSheetReview(text);
+        });
+      });
+  }
+
+  let identifyRow = null;
+
+  function startIdentify(i) {
+    identifyRow = i;
+    const r = sheetResults[i];
+    const body = document.getElementById('auditBody');
+
+    let picked = {
+      name: r.name,
+      category: guessCategory(r.name) || 'Donuts',
+      base: '',
+      topping: '',
+      filling: 'None',
+      packType: 'case',
+      packSize: 48
+    };
+
+    function chips(list, current, key) {
+      return '<div class="id-chips" data-key="' + key + '">' +
+        list.map(function (v) {
+          return '<button type="button" class="id-chip' + (v === current ? ' on' : '') +
+            '" data-val="' + escapeHtml(v) + '">' + escapeHtml(v) + '</button>';
+        }).join('') + '</div>';
+    }
+
+    function draw() {
+      body.innerHTML =
+        '<div class="audit-item-name">What is this?</div>' +
+        '<div class="audit-sub">' + r.code + ' &mdash; &ldquo;' + escapeHtml(r.name) + '&rdquo; isn\'t in your list yet.</div>' +
+
+        '<div class="role-label">Name</div>' +
+        '<input type="text" id="idName" value="' + escapeHtml(picked.name) + '" maxlength="40">' +
+
+        '<div class="role-label">Category</div>' +
+        chips(categories, picked.category, 'category') +
+
+        '<div class="role-label">Base</div>' +
+        chips(BASES, picked.base, 'base') +
+
+        '<div class="role-label">Topping</div>' +
+        chips(TOPPINGS, picked.topping, 'topping') +
+
+        '<div class="role-label">Filling</div>' +
+        chips(FILLINGS, picked.filling, 'filling') +
+
+        '<div class="role-label">Comes in</div>' +
+        chips(Object.keys(PACK_TYPES).map(function (k) { return PACK_TYPES[k].one; }),
+              PACK_TYPES[picked.packType].one, 'packType') +
+
+        '<div class="role-label">How many per ' + PACK_TYPES[picked.packType].one + '?</div>' +
+        '<input type="number" id="idSize" value="' + picked.packSize + '" min="1">' +
+
+        '<div class="audit-actions">' +
+          '<button type="button" class="audit-skip" id="idSkip">Skip this one</button>' +
+          '<button type="button" id="idSave">Add item</button></div>';
+
+      body.querySelectorAll('.id-chips').forEach(function (grp) {
+        grp.addEventListener('click', function (e) {
+          const b = e.target.closest('button[data-val]');
+          if (!b) return;
+          const key = grp.getAttribute('data-key');
+          const val = b.getAttribute('data-val');
+          if (key === 'packType') {
+            picked.packType = Object.keys(PACK_TYPES).find(function (k) {
+              return PACK_TYPES[k].one === val;
+            }) || 'case';
+          } else {
+            picked[key] = val;
+            // Choosing a base suggests the category
+            if (key === 'base' && typeof baseToCategory === 'function') {
+              picked.category = baseToCategory(val);
+            }
+          }
+          picked.name = document.getElementById('idName').value;
+          const sz = parseInt(document.getElementById('idSize').value, 10);
+          if (sz > 0) picked.packSize = sz;
+          draw();
+        });
+      });
+
+      document.getElementById('idSkip').addEventListener('click', function () {
+        sheetResults[identifyRow].include = false;
+        identifyRow = null;
+        renderSheetReview('');
+      });
+
+      document.getElementById('idSave').addEventListener('click', function () {
+        const nm = document.getElementById('idName').value.trim();
+        const sz = parseInt(document.getElementById('idSize').value, 10);
+        if (!nm) { document.getElementById('idName').style.borderColor = 'var(--red)'; return; }
+        if (!sz || sz < 1) { document.getElementById('idSize').style.borderColor = 'var(--red)'; return; }
+
+        items.push({
+          name: nm,
+          caseSize: sz,
+          packType: picked.packType,
+          units: 0,
+          mode: 'case',
+          category: picked.category || null,
+          recipe: {
+            base: picked.base || null,
+            toppings: picked.topping ? [picked.topping] : [],
+            filling: (picked.filling && picked.filling !== 'None') ? picked.filling : null
+          },
+          productCode: r.code,
+          history: [],
+          touched: Date.now()
+        });
+        minimized.add(items.length - 1);
+
+        const newIdx = items.length - 1;
+        sheetResults[identifyRow].idx = newIdx;
+        sheetResults[identifyRow].include = true;
+        identifyRow = null;
+        saveItems();
+        renderSheetReview('');
+      });
+    }
+
+    draw();
+  }
+
+  function renderSheetReview(rawText) {
+    const body = document.getElementById('auditBody');
+    if (!sheetResults.length) {
+      body.innerHTML = '<div class="audit-item-name">Nothing found</div>' +
+        '<div class="audit-sub">No product-code rows were readable. Codes look like F20013 or U10034 &mdash; if those came out garbled, retake it closer and flatter.</div>' +
+        '<div class="audit-actions">' +
+          '<button type="button" class="audit-skip" id="shRaw">See raw text</button>' +
+          '<button type="button" id="shClose">Close</button></div>';
+      document.getElementById('shClose').addEventListener('click', closeAudit);
+      document.getElementById('shRaw').addEventListener('click', function () {
+        alert(rawText.slice(0, 1800) || '(nothing read)');
+      });
+      return;
+    }
+
+    const matched = sheetResults.filter(function (r) { return r.idx !== -1; }).length;
+    const rows = sheetResults.map(function (r, i) {
+      const known = r.idx !== -1;
+      const label = known ? items[r.idx].name : r.name;
+      return '<div class="audit-result-row">' +
+        '<label style="display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;">' +
+          '<input type="checkbox" data-sh="' + i + '"' + (r.include ? ' checked' : '') + (known ? '' : ' disabled') + '>' +
+          '<span>' + escapeHtml(label) +
+            '<br><span style="font-size:11px;color:' + (known ? 'var(--text-dim)' : 'var(--red)') + ';">' +
+              r.code + (known ? '' : ' &middot; not in your list') + '</span></span></label>' +
+        '<span class="audit-var ' + (known ? 'ok' : 'off') + '">' +
+          (known
+            ? '<input type="number" class="scan-qty" data-shq="' + i + '" value="' + r.qty + '" min="0"> ea'
+            : '<button type="button" class="id-btn" data-identify="' + i + '">What is it?</button>') +
+        '</span>' +
+      '</div>';
+    }).join('');
+
+    body.innerHTML =
+      '<div class="audit-item-name">Review sheet</div>' +
+      '<div class="audit-sub">' + sheetResults.length + ' row(s) &middot; ' + matched + ' matched</div>' +
+      '<div class="mode-toggle" id="sheetDirToggle" style="margin-bottom:12px;">' +
+        '<button type="button" class="active" data-dir="1">Add to freezer</button>' +
+        '<button type="button" data-dir="-1">Take out</button></div>' +
+      rows +
+      '<div class="audit-summary">Quantities are EACH, not cases &mdash; taken from the Order Qty column. Check them before applying; OCR misreads digits. Unmatched codes are skipped &mdash; set an item\'s product code to link it for next time.</div>' +
+      '<div class="audit-actions">' +
+        '<button type="button" class="audit-skip" id="shCancel">Cancel</button>' +
+        '<button type="button" id="shApply">Apply</button></div>';
+
+    sheetDir = 1;
+    document.getElementById('sheetDirToggle').addEventListener('click', function (e) {
+      const b = e.target.closest('button[data-dir]');
+      if (!b) return;
+      sheetDir = parseInt(b.getAttribute('data-dir'), 10);
+      Array.from(this.children).forEach(function (x) { x.classList.toggle('active', x === b); });
+    });
+    document.getElementById('shCancel').addEventListener('click', closeAudit);
+
+    body.addEventListener('click', function (e) {
+      const idb = e.target.closest('button[data-identify]');
+      if (idb) startIdentify(parseInt(idb.getAttribute('data-identify'), 10));
+    });
+
+    body.addEventListener('change', function (e) {
+      const cb = e.target.closest('input[data-sh]');
+      if (cb) sheetResults[parseInt(cb.getAttribute('data-sh'), 10)].include = cb.checked;
+      const q = e.target.closest('input[data-shq]');
+      if (q) {
+        const n = parseInt(q.value, 10);
+        sheetResults[parseInt(q.getAttribute('data-shq'), 10)].qty = isNaN(n) ? 0 : n;
+      }
+    });
+
+    document.getElementById('shApply').addEventListener('click', function () {
+      const use = sheetResults.filter(function (r) { return r.include && r.idx !== -1 && r.qty > 0; });
+      if (!use.length) { alert('Nothing selected to apply.'); return; }
+      snapshotForUndo();
+      use.forEach(function (r) {
+        const item = items[r.idx];
+        if (!item) return;
+        if (!item.productCode) item.productCode = r.code;
+        const delta = sheetDir > 0 ? r.qty : -Math.min(r.qty, item.units);
+        if (delta === 0) return;
+        item.units = Math.max(0, item.units + delta);
+        pushHistory(item, delta);
+      });
+      render();
+      saveItems();
+      closeAudit();
+      showCommandToast((sheetDir > 0 ? 'Added ' : 'Removed ') + use.length + ' item(s) from sheet');
+    });
+  }
+
+  // ============ INVOICE (free-form) ============
+  function parseInvoiceLines(text) {
+    const out = [];
+    text.split('\n').map(function (l) { return l.trim(); }).filter(Boolean).forEach(function (line) {
+      if (/\b(subtotal|total|tax|invoice|date|page|thank you|signature|driver|account|balance)\b/i.test(line)) return;
+      if (line.replace(/[^a-z]/gi, '').length < 3) return;
+      let qty = null, name = null;
+      let m = line.match(/^(\d{1,3})\s*(?:cs|case|cases|ct|ea|bx|box)?\s+(.{3,})$/i);
+      if (m) { qty = parseInt(m[1], 10); name = m[2]; }
+      else {
+        m = line.match(/^(.{3,}?)\s+(\d{1,3})(?:\s*(?:cs|case|cases|ct|ea)?)?$/i);
+        if (m) { name = m[1]; qty = parseInt(m[2], 10); }
+      }
+      if (qty == null || !name || qty < 1 || qty > 999) return;
+      name = name.replace(/\$\s*\d+[.,]?\d*/g, ' ').replace(/\b\d{5,}\b/g, ' ')
+                 .replace(/[|_*#]+/g, ' ').replace(/\s{2,}/g, ' ').trim();
+      if (name.replace(/[^a-z]/gi, '').length < 3) return;
+      const idx = matchItem(name);
+      out.push({ qty: qty, rawName: name, matchIdx: idx, include: idx !== -1 });
+    });
+    return out;
+  }
+
+  let scanResults = [];
+
+  function startScan() {
+    sourcePicker('Scan invoice', 'Flat, bright, straight-on photos read best.', function (cam) {
+      pickImage(cam, async function (file) {
+        const body = document.getElementById('auditBody');
+        body.innerHTML = '<div class="audit-item-name">Reading invoice</div>' +
+          '<div class="audit-sub" id="ocrStatus">Loading scanner...</div>';
+        let text = '';
+        try { text = await runOcr(file, document.getElementById('ocrStatus')); }
+        catch (e) { ocrFailScreen('Scanner could not run. Check your connection.'); return; }
+        scanResults = parseInvoiceLines(text);
+        renderScanReview(text);
+      });
+    });
+  }
+
+  function renderScanReview(rawText) {
+    const body = document.getElementById('auditBody');
+    if (!scanResults.length) {
+      body.innerHTML = '<div class="audit-item-name">Nothing found</div>' +
+        '<div class="audit-sub">Couldn\'t pick out any quantity and item lines. Try a flatter, brighter photo.</div>' +
+        '<div class="audit-actions">' +
+          '<button type="button" class="audit-skip" id="scRaw">See raw text</button>' +
+          '<button type="button" id="scClose">Close</button></div>';
+      document.getElementById('scClose').addEventListener('click', closeAudit);
+      document.getElementById('scRaw').addEventListener('click', function () {
+        alert(rawText.slice(0, 1500) || '(nothing read)');
+      });
+      return;
+    }
+    const matched = scanResults.filter(function (r) { return r.matchIdx !== -1; }).length;
+    const rows = scanResults.map(function (r, i) {
+      const known = r.matchIdx !== -1;
+      const label = known ? items[r.matchIdx].name : r.rawName;
+      return '<div class="audit-result-row">' +
+        '<label style="display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;">' +
+          '<input type="checkbox" data-scan="' + i + '"' + (r.include ? ' checked' : '') + (known ? '' : ' disabled') + '>' +
+          '<span>' + escapeHtml(label) + '<br><span style="font-size:11px;color:' +
+            (known ? 'var(--text-dim)' : 'var(--red)') + ';">' +
+            (known ? 'matches your item' : 'no match &mdash; skipped') + '</span></span></label>' +
+        '<span class="audit-var ' + (known ? 'ok' : 'off') + '">' +
+          '<input type="number" class="scan-qty" data-qty="' + i + '" value="' + r.qty + '" min="0"> cs</span>' +
+      '</div>';
+    }).join('');
+
+    body.innerHTML =
+      '<div class="audit-item-name">Review scan</div>' +
+      '<div class="audit-sub">' + scanResults.length + ' line(s) &middot; ' + matched + ' matched</div>' +
+      rows +
+      '<div class="audit-summary">Check every line before applying. Quantities are added as CASES.</div>' +
+      '<div class="audit-actions">' +
+        '<button type="button" class="audit-skip" id="scCancel">Cancel</button>' +
+        '<button type="button" id="scApply">Add to counts</button></div>';
+
+    document.getElementById('scCancel').addEventListener('click', closeAudit);
+    body.addEventListener('change', function (e) {
+      const cb = e.target.closest('input[data-scan]');
+      if (cb) scanResults[parseInt(cb.getAttribute('data-scan'), 10)].include = cb.checked;
+      const q = e.target.closest('input[data-qty]');
+      if (q) {
+        const n = parseInt(q.value, 10);
+        scanResults[parseInt(q.getAttribute('data-qty'), 10)].qty = isNaN(n) ? 0 : n;
+      }
+    });
+    document.getElementById('scApply').addEventListener('click', function () {
+      const use = scanResults.filter(function (r) { return r.include && r.matchIdx !== -1 && r.qty > 0; });
+      if (!use.length) { alert('Nothing selected to apply.'); return; }
+      snapshotForUndo();
+      use.forEach(function (r) {
+        const item = items[r.matchIdx];
+        if (!item) return;
+        const delta = r.qty * (item.caseSize || 1);
+        item.units += delta;
+        pushHistory(item, delta);
+      });
+      render();
+      saveItems();
+      closeAudit();
+      showCommandToast('Added ' + use.length + ' item(s) from invoice');
+    });
+  }
+
+  // ===================== BARCODES =====================
+  let bcStream = null, bcDetector = null, bcLoop = null, bcMode = 'count', bcLinkIdx = null, bcBusy = false;
+  let batchTally = {};   // { itemIndex: casesScanned } collected in batch mode
+  let batchUnknown = []; // codes scanned that match no item
+  let zxingLoading = null;
+
+  function findByBarcode(code) {
+    return items.findIndex(function (it) {
+      return Array.isArray(it.barcodes) && it.barcodes.indexOf(code) !== -1;
+    });
+  }
+
+  function loadZXing() {
+    if (window.ZXingBrowser) return Promise.resolve();
+    if (zxingLoading) return zxingLoading;
+    zxingLoading = new Promise(function (resolve, reject) {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/zxing-browser.min.js';
+      s.onload = resolve;
+      s.onerror = function () { reject(new Error('no scanner')); };
+      document.head.appendChild(s);
+    });
+    return zxingLoading;
+  }
+
+  function bcSay(msg, ok) {
+    const el = document.getElementById('barcodeMsg');
+    if (!el) return;
+    el.textContent = msg;
+    el.style.color = ok === false ? 'var(--red)' : (ok ? 'var(--teal)' : 'var(--amber)');
+  }
+
+  async function openBarcode(mode, linkIdx) {
+    bcMode = mode || 'count';
+    bcLinkIdx = (linkIdx == null ? null : linkIdx);
+    bcBusy = false;
+    document.getElementById('barcodeTitle').textContent =
+      bcMode === 'link' ? 'Scan the code to link'
+      : bcMode === 'batch' ? 'Scan everything \u2014 nothing saves yet'
+      : 'Point at a barcode';
+    const doneBtn = document.getElementById('batchDoneBtn');
+    if (doneBtn) doneBtn.style.display = (bcMode === 'batch') ? '' : 'none';
+    updateBatchCount();
+    bcSay('');
+    document.getElementById('barcodeGate').style.display = 'flex';
+
+    const video = document.getElementById('barcodeVideo');
+    try {
+      bcStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } });
+      video.srcObject = bcStream;
+      await video.play();
+    } catch (e) {
+      bcSay('Camera unavailable. Check permissions.', false);
+      return;
+    }
+
+    if ('BarcodeDetector' in window) {
+      try {
+        bcDetector = new window.BarcodeDetector({
+          formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'itf']
+        });
+        bcNativeLoop(video);
+        return;
+      } catch (e) {}
+    }
+    try {
+      await loadZXing();
+      const reader = new window.ZXingBrowser.BrowserMultiFormatReader();
+      bcLoop = await reader.decodeFromVideoElement(video, function (result) {
+        if (result) handleBarcode(result.getText());
+      });
+    } catch (e) {
+      bcSay('Scanning not supported on this browser.', false);
+    }
+  }
+
+  async function bcNativeLoop(video) {
+    if (!bcDetector) return;
+    try {
+      const found = await bcDetector.detect(video);
+      if (found && found.length) handleBarcode(found[0].rawValue);
+    } catch (e) {}
+    if (document.getElementById('barcodeGate').style.display !== 'none') {
+      bcLoop = setTimeout(function () { bcNativeLoop(video); }, 220);
+    }
+  }
+
+  function closeBarcode() {
+    const gate = document.getElementById('barcodeGate');
+    if (gate) gate.style.display = 'none';
+    if (bcLoop) {
+      if (typeof bcLoop === 'number') clearTimeout(bcLoop);
+      else if (bcLoop.stop) { try { bcLoop.stop(); } catch (e) {} }
+      bcLoop = null;
+    }
+    bcDetector = null;
+    if (bcStream) {
+      bcStream.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} });
+      bcStream = null;
+    }
+    const v = document.getElementById('barcodeVideo');
+    if (v) v.srcObject = null;
+  }
+
+  function handleBarcode(code) {
+    if (bcBusy || !code) return;
+    code = String(code).trim();
+    if (!code) return;
+    bcBusy = true;
+    buzz(30);
+
+    if (bcMode === 'link') {
+      const item = items[bcLinkIdx];
+      if (!item) { closeBarcode(); return; }
+      const taken = findByBarcode(code);
+      if (taken !== -1 && taken !== bcLinkIdx) {
+        bcSay('Already linked to ' + items[taken].name, false);
+        setTimeout(function () { bcBusy = false; }, 1600);
+        return;
+      }
+      if (!Array.isArray(item.barcodes)) item.barcodes = [];
+      if (item.barcodes.indexOf(code) === -1) item.barcodes.push(code);
+      touchItem(item);
+      render();
+      saveItems();
+      bcSay('Linked to ' + item.name, true);
+      setTimeout(closeBarcode, 900);
+      return;
+    }
+
+    const idx = findByBarcode(code);
+
+    // ---- batch mode: collect, don't touch the counts yet ----
+    if (bcMode === 'batch') {
+      if (idx === -1) {
+        if (batchUnknown.indexOf(code) === -1) batchUnknown.push(code);
+        bcSay('Unknown code \u2014 noted', false);
+      } else {
+        batchTally[idx] = (batchTally[idx] || 0) + 1;
+        const total = Object.keys(batchTally).reduce(function (s, k) { return s + batchTally[k]; }, 0);
+        bcSay(items[idx].name + ' \u00d7' + batchTally[idx] + '  (' + total + ' scanned)', true);
+      }
+      updateBatchCount();
+      setTimeout(function () { bcBusy = false; }, 700);
+      return;
+    }
+
+    if (idx === -1) {
+      bcSay('Unknown code', false);
+      if (!confirm('No item uses this barcode.\n\nCreate a new item for it?')) {
+        setTimeout(function () { bcBusy = false; }, 900);
+        return;
+      }
+      const name = prompt('Item name:');
+      if (!name || !name.trim()) { bcBusy = false; return; }
+      const cs = parseInt(prompt('Units per case:', '24'), 10);
+      if (!cs || cs < 1) { bcBusy = false; return; }
+      snapshotForUndo();
+      items.push({ name: name.trim(), caseSize: cs, units: cs, mode: 'case',
+                   history: [], touched: Date.now(), barcodes: [code],
+                   category: guessCategory(name) || null });
+      minimized.add(items.length - 1);
+      render();
+      saveItems();
+      bcSay('Created ' + name.trim(), true);
+      setTimeout(function () { bcBusy = false; bcSay(''); }, 1200);
+      return;
+    }
+
+    const item = items[idx];
+    const delta = item.caseSize || 1;
+    snapshotForUndo();
+    item.units += delta;
+    pushHistory(item, delta);
+    bumpCount(idx);
+    render();
+    saveItems();
+    const c2 = calc(item.units, item.caseSize);
+    bcSay('+1 case  ' + item.name + '  \u2192 ' + c2.decimalCases + ' cs', true);
+    setTimeout(function () { bcBusy = false; }, 1100);
+  }
+
+  function updateBatchCount() {
+    const el = document.getElementById('batchCount');
+    if (!el) return;
+    const total = Object.keys(batchTally).reduce(function (s, k) { return s + batchTally[k]; }, 0);
+    el.textContent = total;
+  }
+
+  function showBatchReview() {
+    closeBarcode();
+    const body = document.getElementById('auditBody');
+    document.getElementById('auditGate').style.display = 'flex';
+    document.getElementById('appRoot').style.display = 'none';
+
+    const keys = Object.keys(batchTally);
+    if (!keys.length) {
+      body.innerHTML = '<div class="audit-item-name">Nothing scanned</div>' +
+        '<div class="audit-sub">' + (batchUnknown.length
+          ? batchUnknown.length + ' unknown code(s) were scanned but no items matched them.'
+          : 'No barcodes were picked up.') + '</div>' +
+        '<div class="audit-actions"><button type="button" id="bReClose">Close</button></div>';
+      document.getElementById('bReClose').addEventListener('click', closeAudit);
+      return;
+    }
+
+    function draw() {
+      const rows = Object.keys(batchTally).map(function (k) {
+        const idx = parseInt(k, 10);
+        const item = items[idx];
+        if (!item) return '';
+        const cs = batchTally[k];
+        return '<div class="audit-result-row">' +
+          '<span>' + escapeHtml(item.name) +
+            '<br><span style="font-size:11px;color:var(--text-dim);">' +
+            (cs * (item.caseSize || 1)).toLocaleString() + ' units &middot; now ' +
+            calc(item.units, item.caseSize).decimalCases + ' cs</span></span>' +
+          '<span class="staff-actions">' +
+            '<button type="button" class="staff-btn" data-bminus="' + idx + '">&minus;</button>' +
+            '<input type="number" class="scan-qty" data-bqty="' + idx + '" value="' + cs + '" min="0">' +
+            '<button type="button" class="staff-btn" data-bplus="' + idx + '">+</button>' +
+          '</span>' +
+        '</div>';
+      }).join('');
+
+      const totalCases = Object.keys(batchTally).reduce(function (s, k) { return s + batchTally[k]; }, 0);
+
+      body.innerHTML =
+        '<div class="audit-item-name">Review scan</div>' +
+        '<div class="audit-sub">' + Object.keys(batchTally).length + ' item(s) &middot; ' +
+          totalCases + ' case(s) scanned</div>' +
+        rows +
+        (batchUnknown.length
+          ? '<div class="audit-summary">' + batchUnknown.length +
+            ' unknown code(s) were skipped. Link them to items first, then rescan.</div>'
+          : '') +
+        '<div class="mode-toggle" id="batchDirToggle" style="margin:12px 0;">' +
+          '<button type="button" class="active" data-bdir="1">Add to freezer</button>' +
+          '<button type="button" data-bdir="-1">Take out</button></div>' +
+        '<div class="audit-actions">' +
+          '<button type="button" class="audit-skip" id="bReCancel">Discard</button>' +
+          '<button type="button" id="bReApply">Apply</button></div>';
+
+      document.getElementById('bReCancel').addEventListener('click', function () {
+        batchTally = {}; batchUnknown = []; closeAudit();
+      });
+
+      document.getElementById('batchDirToggle').addEventListener('click', function (e) {
+        const b = e.target.closest('button[data-bdir]');
+        if (!b) return;
+        batchDir = parseInt(b.getAttribute('data-bdir'), 10);
+        Array.from(this.children).forEach(function (x) { x.classList.toggle('active', x === b); });
+      });
+
+      document.getElementById('bReApply').addEventListener('click', function () {
+        const keys2 = Object.keys(batchTally);
+        if (!keys2.length) { closeAudit(); return; }
+        snapshotForUndo();
+        let n = 0;
+        keys2.forEach(function (k) {
+          const idx = parseInt(k, 10);
+          const item = items[idx];
+          if (!item || !batchTally[k]) return;
+          const units = batchTally[k] * (item.caseSize || 1);
+          const delta = batchDir > 0 ? units : -Math.min(units, item.units);
+          if (delta === 0) return;
+          item.units = Math.max(0, item.units + delta);
+          pushHistory(item, delta);
+          n++;
+        });
+        batchTally = {}; batchUnknown = [];
+        render(); saveItems(); closeAudit();
+        showCommandToast((batchDir > 0 ? 'Added ' : 'Removed ') + n + ' item(s) from scan');
+      });
+    }
+
+    body.addEventListener('click', function (e) {
+      const minus = e.target.closest('button[data-bminus]');
+      const plus = e.target.closest('button[data-bplus]');
+      if (minus) {
+        const k = minus.getAttribute('data-bminus');
+        batchTally[k] = Math.max(0, (batchTally[k] || 0) - 1);
+        if (!batchTally[k]) delete batchTally[k];
+        draw();
+        return;
+      }
+      if (plus) {
+        const k = plus.getAttribute('data-bplus');
+        batchTally[k] = (batchTally[k] || 0) + 1;
+        draw();
+      }
+    });
+
+    body.addEventListener('change', function (e) {
+      const q = e.target.closest('input[data-bqty]');
+      if (!q) return;
+      const k = q.getAttribute('data-bqty');
+      const n = parseInt(q.value, 10);
+      if (isNaN(n) || n <= 0) delete batchTally[k];
+      else batchTally[k] = n;
+      draw();
+    });
+
+    draw();
+  }
+
+  let batchDir = 1;
+
+  document.getElementById('batchDoneBtn').addEventListener('click', showBatchReview);
+
+  function chooseBarcodeMode() {
+    const body = document.getElementById('auditBody');
+    document.getElementById('auditGate').style.display = 'flex';
+    document.getElementById('appRoot').style.display = 'none';
+    body.innerHTML =
+      '<div class="audit-item-name">Scan barcodes</div>' +
+      '<div class="audit-sub">How do you want to count?</div>' +
+      '<div class="scan-choice">' +
+        '<button type="button" class="scan-source" id="bcOneBtn">' +
+          '<span class="scan-icon">1\u20E3</span>' +
+          '<span><b style="display:block;">One by one</b>' +
+          '<i style="font-style:normal;font-size:11px;color:var(--text-dim);">Each scan adds a case right away</i></span>' +
+        '</button>' +
+        '<button type="button" class="scan-source" id="bcBatchBtn">' +
+          '<span class="scan-icon">&#128230;</span>' +
+          '<span><b style="display:block;">Scan everything first</b>' +
+          '<i style="font-style:normal;font-size:11px;color:var(--text-dim);">Collect the whole lot, then edit before saving</i></span>' +
+        '</button>' +
+      '</div>' +
+      '<div class="join-hint">Batch is better for a full delivery &mdash; nothing changes until you review it.<br><br>' +
+      '<button type="button" class="store-action" id="bcModeCancel">Cancel</button></div>';
+
+    document.getElementById('bcModeCancel').addEventListener('click', closeAudit);
+    document.getElementById('bcOneBtn').addEventListener('click', function () {
+      closeAudit();
+      openBarcode('count');
+    });
+    document.getElementById('bcBatchBtn').addEventListener('click', function () {
+      closeAudit();
+      batchTally = {};
+      openBarcode('batch');
+    });
+  }
+
+  document.getElementById('barcodeBtn').addEventListener('click', chooseBarcodeMode);
+  document.getElementById('barcodeClose').addEventListener('click', closeBarcode);
   document.getElementById('scanBtn').addEventListener('click', startScan);
+  document.getElementById('sheetBtn').addEventListener('click', startSheetScan);
+
+  function showWasteReport() {
+    const body = document.getElementById('auditBody');
+    document.getElementById('auditGate').style.display = 'flex';
+    document.getElementById('appRoot').style.display = 'none';
+
+    const cutoff = Date.now() - 28 * 86400000;
+    const rows = [];
+    let grand = 0;
+
+    items.forEach(function (it) {
+      const w = (it.history || []).filter(function (h) {
+        return h.kind === 'waste' && h.ts >= cutoff;
+      });
+      if (!w.length) return;
+      const units = w.reduce(function (s, h) { return s + Math.abs(h.delta); }, 0);
+      grand += units;
+      rows.push({
+        name: it.name,
+        units: units,
+        cases: Number((units / (it.caseSize || 1)).toFixed(2)),
+        times: w.length,
+        last: Math.max.apply(null, w.map(function (h) { return h.ts; }))
+      });
+    });
+
+    rows.sort(function (a, b) { return b.units - a.units; });
+
+    if (!rows.length) {
+      body.innerHTML = '<div class="audit-item-name">Waste</div>' +
+        '<div class="audit-sub">Nothing logged as waste in the last 4 weeks.</div>' +
+        '<div class="audit-summary">Log waste with the Waste button on any item. Keeping it separate from normal usage means your order forecasts stay based on what actually sells.</div>' +
+        '<div class="audit-actions"><button type="button" id="wClose">Close</button></div>';
+      document.getElementById('wClose').addEventListener('click', closeAudit);
+      return;
+    }
+
+    const html = rows.map(function (r) {
+      return '<div class="audit-result-row">' +
+        '<span>' + escapeHtml(r.name) +
+          '<br><span style="font-size:11px;color:var(--text-dim);">' + r.times +
+          ' time(s) &middot; last ' + formatRelative(r.last) + '</span></span>' +
+        '<span class="audit-var off">' + r.cases + ' cs<br>' +
+          '<span style="font-size:10px;font-weight:400;">' + r.units.toLocaleString() + ' un</span></span>' +
+      '</div>';
+    }).join('');
+
+    body.innerHTML =
+      '<div class="audit-item-name">Waste &mdash; last 4 weeks</div>' +
+      '<div class="audit-sub">' + rows.length + ' item(s) &middot; ' + grand.toLocaleString() + ' units total</div>' +
+      html +
+      '<div class="audit-summary">Waste is tracked separately from normal usage, so it never inflates your burn rate or order quantities.</div>' +
+      '<div class="audit-actions">' +
+        '<button type="button" class="audit-skip" id="wCopy">Copy</button>' +
+        '<button type="button" id="wClose">Close</button></div>';
+
+    document.getElementById('wClose').addEventListener('click', closeAudit);
+    document.getElementById('wCopy').addEventListener('click', function () {
+      const text = 'Waste report \u2014 ' + roomCode + ' \u2014 last 4 weeks\n\n' +
+        rows.map(function (r) {
+          return r.cases + ' cs (' + r.units + ' un)  ' + r.name + '  \u2014 ' + r.times + ' time(s)';
+        }).join('\n') + '\n\nTotal: ' + grand + ' units';
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(function () { alert('Waste report copied.'); });
+      } else { prompt('Copy this:', text); }
+    });
+  }
+
+  function showCategories() {
+    const body = document.getElementById('auditBody');
+    document.getElementById('auditGate').style.display = 'flex';
+    document.getElementById('appRoot').style.display = 'none';
+
+    function draw() {
+      const counts = {};
+      items.forEach(function (it) {
+        const cat = itemCategory(it);
+        if (cat) counts[cat] = (counts[cat] || 0) + 1;
+      });
+
+      const rows = categories.map(function (cat, i) {
+        return '<div class="audit-result-row">' +
+          '<span>' + escapeHtml(cat) +
+            '<br><span style="font-size:11px;color:var(--text-dim);">' +
+              (counts[cat] || 0) + ' item(s)</span></span>' +
+          '<span class="staff-actions">' +
+            '<button type="button" class="staff-btn" data-cup="' + i + '" ' +
+              (i === 0 ? 'disabled' : '') + ' title="Move up">&uarr;</button>' +
+            '<button type="button" class="staff-btn" data-cdown="' + i + '" ' +
+              (i === categories.length - 1 ? 'disabled' : '') + ' title="Move down">&darr;</button>' +
+            '<button type="button" class="staff-btn" data-cren="' + i + '" title="Rename">&#9998;</button>' +
+            '<button type="button" class="staff-btn del" data-cdel="' + i + '" title="Delete">&times;</button>' +
+          '</span>' +
+        '</div>';
+      }).join('');
+
+      body.innerHTML =
+        '<div class="audit-item-name">Categories</div>' +
+        '<div class="audit-sub">' + categories.length + ' categories &middot; order here sets the order of the filter chips</div>' +
+        rows +
+        '<div class="admin-row" style="margin-top:12px;">' +
+          '<input type="text" id="newCatName" placeholder="New category" maxlength="24">' +
+          '<button type="button" class="admin-mini-btn" id="addCatBtn">Add</button>' +
+        '</div>' +
+        '<div class="audit-summary">Renaming a category moves every item in it. Deleting one leaves those items uncategorised &mdash; they still show under All.</div>' +
+        '<div class="audit-actions"><button type="button" id="catClose">Close</button></div>';
+
+      document.getElementById('catClose').addEventListener('click', function () {
+        closeAudit();
+        render();
+      });
+
+      document.getElementById('addCatBtn').addEventListener('click', function () {
+        const el = document.getElementById('newCatName');
+        const val = el.value.trim();
+        if (!val) { el.style.borderColor = 'var(--red)'; return; }
+        if (categories.indexOf(val) === -1) categories.push(val);
+        saveCategories();
+        draw();
+      });
+
+      document.getElementById('newCatName').addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') document.getElementById('addCatBtn').click();
+      });
+    }
+
+    body.addEventListener('click', function (e) {
+      const up = e.target.closest('button[data-cup]');
+      const down = e.target.closest('button[data-cdown]');
+      const ren = e.target.closest('button[data-cren]');
+      const del = e.target.closest('button[data-cdel]');
+
+      if (up) {
+        const i = parseInt(up.getAttribute('data-cup'), 10);
+        const t = categories[i - 1]; categories[i - 1] = categories[i]; categories[i] = t;
+        saveCategories(); draw(); return;
+      }
+      if (down) {
+        const i = parseInt(down.getAttribute('data-cdown'), 10);
+        const t = categories[i + 1]; categories[i + 1] = categories[i]; categories[i] = t;
+        saveCategories(); draw(); return;
+      }
+      if (ren) {
+        const i = parseInt(ren.getAttribute('data-cren'), 10);
+        const oldName = categories[i];
+        const val = prompt('Rename "' + oldName + '" to:', oldName);
+        if (val === null) return;
+        const clean = val.trim();
+        if (!clean) return;
+        categories[i] = clean;
+        items.forEach(function (it) { if (it.category === oldName) it.category = clean; });
+        if (catFilter === oldName) {
+          catFilter = clean;
+          localStorage.setItem('tally_catfilter', catFilter);
+        }
+        saveCategories(); saveItems(); draw(); return;
+      }
+      if (del) {
+        const i = parseInt(del.getAttribute('data-cdel'), 10);
+        const name = categories[i];
+        const n = items.filter(function (it) { return it.category === name; }).length;
+        if (!confirm('Delete category "' + name + '"?' +
+            (n ? '\n\n' + n + ' item(s) will become uncategorised. The items themselves are kept.' : ''))) return;
+        categories.splice(i, 1);
+        items.forEach(function (it) { if (it.category === name) it.category = null; });
+        if (catFilter === name) {
+          catFilter = '';
+          localStorage.setItem('tally_catfilter', '');
+        }
+        saveCategories(); saveItems(); draw(); return;
+      }
+    });
+
+    draw();
+  }
+
+  document.getElementById('wasteBtn').addEventListener('click', showWasteReport);
+  document.getElementById('catBtn').addEventListener('click', showCategories);
 
   document.getElementById('orderBtn').addEventListener('click', showOrderList);
 
@@ -4059,32 +6407,32 @@
   });
 
   // Each scene's animation illustrates its own line
-  const SCENES = [
-    { cls: 'scene-dough',    text: 'Counting the dough.' },
-    { cls: 'scene-ice',      text: 'Glazing the numbers.' },
-    { cls: 'scene-sprinkle', text: 'Sprinkling in the details.' },
-    { cls: 'scene-hole',     text: 'Hole lot of inventory.' },
-    { cls: 'scene-done',     text: 'Fresh counts, daily.' }
+  const TAGLINES = [
+    'Counting the dough.',
+    'Glazing the numbers.',
+    'Sprinkling in the details.',
+    'Hole lot of inventory.',
+    'Fresh counts, daily.',
+    'Donut worry, it saved.',
+    'Rolling the numbers.',
+    'Icing on the count.',
+    'Batch by batch.',
+    'Filling in the blanks.',
+    'Warming up the case.',
+    'One more for the road.'
   ];
 
   (function () {
     const el = document.getElementById('splashTagline');
-    const donut = document.getElementById('splashDonut');
-    if (!el || !donut) return;
+    if (!el) return;
 
-    let i = 0;
+    let i = Math.floor(Math.random() * TAGLINES.length);
 
-    function playScene(n) {
-      const scene = SCENES[n];
-      SCENES.forEach(function (s) { donut.classList.remove(s.cls); });
-      // force reflow so the animation restarts cleanly
-      void donut.offsetWidth;
-      donut.classList.add(scene.cls);
-      el.textContent = scene.text;
+    function show() {
+      el.textContent = TAGLINES[i];
       el.style.opacity = '1';
     }
-
-    playScene(i);
+    show();
 
     const timer = setInterval(function () {
       const splash = document.getElementById('splash');
@@ -4094,10 +6442,10 @@
       }
       el.style.opacity = '0';
       setTimeout(function () {
-        i = (i + 1) % SCENES.length;
-        playScene(i);
-      }, 280);
-    }, 2800);
+        i = (i + 1) % TAGLINES.length;
+        show();
+      }, 350);
+    }, 2600);
   })();
 
   function setSplashStatus(msg) {
@@ -4148,6 +6496,7 @@
     if (!myName) {
       await minShow;
       hideSplash();
+      renderRoleGrid(myRole);
       document.getElementById('profileGate').style.display = 'flex';
       document.getElementById('appRoot').style.display = 'none';
       return;
@@ -4247,9 +6596,12 @@
 
     if (profileId) {
       db.ref('tally/rooms/' + roomCode + '/staff/' + profileId)
-        .update({ name: myName, lastSeen: Date.now(), uid: myUid || null }).catch(function() {});
+        .update({ name: myName, role: myRole || null, lastSeen: Date.now(), uid: myUid || null }).catch(function() {});
     }
+    loadCategories();
+    if (approved) watchPendingStaff();
     initSync();
+    setTimeout(maybeStartTour, 600);
     startPresence();
     watchPresence();
   }
