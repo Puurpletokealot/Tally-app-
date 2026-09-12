@@ -2586,7 +2586,7 @@
     <span class="sync-text" id="syncText"></span>
   </div>
   <div class="admin-panel" id="adminPanel" style="display:none;">
-    <div class="admin-title">Admin <span class="build-tag">build Sep 12 19:57</span></div>
+    <div class="admin-title">Admin <span class="build-tag">build Sep 12 21:40</span></div>
 
     <div class="admin-sec open">
       <button type="button" class="admin-sec-head" data-sec="people">
@@ -2764,31 +2764,19 @@
     <div class="sheet-label">Count</div>
     <button type="button" class="sheet-item" id="barcodeBtn">
       <span class="si-icon">&#128290;</span>
-      <span class="si-text"><b>Scan barcode</b><i>Point at a case to add it</i></span>
+      <span class="si-text"><b>Scan barcode</b><i>One by one, or scan a whole delivery then review</i></span>
     </button>
     <button type="button" class="sheet-item" id="sheetBtn">
       <span class="si-icon">&#128203;</span>
-      <span class="si-text"><b>Scan order sheet</b><i>Reads product codes and quantities</i></span>
-    </button>
-    <button type="button" class="sheet-item" id="scanBtn">
-      <span class="si-icon">&#129534;</span>
-      <span class="si-text"><b>Scan invoice</b><i>Free-form delivery paperwork</i></span>
-    </button>
-    <button type="button" class="sheet-item" id="handCountBtn">
-      <span class="si-icon">&#128400;</span>
-      <span class="si-text"><b>Hand count</b><i>Tap out an exact count for munchkins and loose product</i></span>
+      <span class="si-text"><b>Scan production</b><i>Order sheets and delivery invoices</i></span>
     </button>
     <button type="button" class="sheet-item" id="trayBtn">
       <span class="si-icon">&#129384;</span>
-      <span class="si-text"><b>Count a tray</b><i>Photograph munchkins and count them</i></span>
+      <span class="si-text"><b>Count a tray</b><i>Munchkins and loose product — photo or tap it out</i></span>
     </button>
     <button type="button" class="sheet-item" id="auditBtn">
       <span class="si-icon">&#9989;</span>
       <span class="si-text"><b>Spot audit</b><i>Count a random sample, tap or hands-free</i></span>
-    </button>
-    <button type="button" class="sheet-item" id="tallyBtn">
-      <span class="si-icon">&#128175;</span>
-      <span class="si-text"><b>Hand count</b><i>Tap out an exact count &mdash; built for munchkins</i></span>
     </button>
   </div>
 
@@ -3770,6 +3758,14 @@
     head.parentElement.classList.toggle('open');
   });
 
+  // Bind only if the element exists — a missing id must never break everything
+  // that gets wired up after it.
+  function on(id, evt, fn) {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener(evt, fn);
+    return !!el;
+  }
+
   function openMenu() {
     document.getElementById('menuScrim').style.display = 'block';
     document.getElementById('menuSheet').style.display = 'block';
@@ -4360,7 +4356,6 @@
     });
   }
 
-  document.getElementById('tallyBtn').addEventListener('click', chooseCountItem);
 
   // ===================== HAND COUNTER =====================
   // For loose product (munchkins especially) where the sheet number is a guess.
@@ -7480,8 +7475,30 @@
 
   document.getElementById('barcodeBtn').addEventListener('click', chooseBarcodeMode);
   document.getElementById('barcodeClose').addEventListener('click', closeBarcode);
-  document.getElementById('scanBtn').addEventListener('click', startScan);
-  document.getElementById('sheetBtn').addEventListener('click', startSheetScan);
+  on('sheetBtn', 'click', function () {
+    const body = document.getElementById('auditBody');
+    document.getElementById('auditGate').style.display = 'flex';
+    document.getElementById('appRoot').style.display = 'none';
+    body.innerHTML =
+      '<div class="audit-item-name">Scan production</div>' +
+      '<div class="audit-sub">Which paperwork is it?</div>' +
+      '<div class="scan-choice">' +
+        '<button type="button" class="scan-source" id="prodOrderBtn">' +
+          '<span class="scan-icon">&#128203;</span>' +
+          '<span><b style="display:block;">Order sheet</b>' +
+          '<i style="font-style:normal;font-size:11px;color:var(--text-dim);">Product codes and quantities</i></span>' +
+        '</button>' +
+        '<button type="button" class="scan-source" id="prodInvBtn">' +
+          '<span class="scan-icon">&#129534;</span>' +
+          '<span><b style="display:block;">Delivery invoice</b>' +
+          '<i style="font-style:normal;font-size:11px;color:var(--text-dim);">Free-form supplier paperwork</i></span>' +
+        '</button>' +
+      '</div>' +
+      '<div class="join-hint"><button type="button" class="store-action" id="prodCancel">Cancel</button></div>';
+    on('prodCancel', 'click', closeAudit);
+    on('prodOrderBtn', 'click', startSheetScan);
+    on('prodInvBtn', 'click', startScan);
+  });
 
   function showWasteReport() {
     const body = document.getElementById('auditBody');
@@ -7665,12 +7682,34 @@
 
   document.getElementById('staffBtn').addEventListener('click', showStaff);
   document.getElementById('bugsBtn').addEventListener('click', showBugs);
-  document.getElementById('trayBtn').addEventListener('click', function () { startTrayCount(null); });
+  on('trayBtn', 'click', function () {
+    const body = document.getElementById('auditBody');
+    document.getElementById('auditGate').style.display = 'flex';
+    document.getElementById('appRoot').style.display = 'none';
+    body.innerHTML =
+      '<div class="audit-item-name">Count a tray</div>' +
+      '<div class="audit-sub">How do you want to count it?</div>' +
+      '<div class="scan-choice">' +
+        '<button type="button" class="scan-source" id="trayPhotoBtn">' +
+          '<span class="scan-icon">&#128247;</span>' +
+          '<span><b style="display:block;">Photograph it</b>' +
+          '<i style="font-style:normal;font-size:11px;color:var(--text-dim);">Counts them for you, you fix any it misses</i></span>' +
+        '</button>' +
+        '<button type="button" class="scan-source" id="trayTapBtn">' +
+          '<span class="scan-icon">&#128400;</span>' +
+          '<span><b style="display:block;">Tap it out</b>' +
+          '<i style="font-style:normal;font-size:11px;color:var(--text-dim);">Big tap target, counts as you go</i></span>' +
+        '</button>' +
+      '</div>' +
+      '<div class="join-hint"><button type="button" class="store-action" id="trayPickCancel">Cancel</button></div>';
+    on('trayPickCancel', 'click', closeAudit);
+    on('trayPhotoBtn', 'click', function () { startTrayCount(null); });
+    on('trayTapBtn', 'click', function () { closeAudit(); chooseCountItem(); });
+  });
 
   document.getElementById('sessionLogBtn').addEventListener('click', showSessionLog);
 
   document.getElementById('auditBtn').addEventListener('click', startAudit);
-  document.getElementById('handCountBtn').addEventListener('click', function () { startHandCount(null); });
   document.getElementById('auditHistBtn').addEventListener('click', showAuditHistory);
 
   document.getElementById('shareStoreBtn').addEventListener('click', function() {
