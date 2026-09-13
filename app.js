@@ -606,7 +606,7 @@ function calc(units, caseSize) {
       setOfflineBanner();
       if (isOnline) {
         setSyncStatus('Connected', false);
-        if (!was && hasPending) flushPending();
+        if (hasPending) flushPending();
       } else {
         setSyncStatus('Offline', false);
       }
@@ -680,6 +680,7 @@ function calc(units, caseSize) {
   // this device holds against what's in the database, so silent divergence
   // gets caught before it turns into lost counts.
   let lastVerify = 0;
+  let lastSyncError = null;
   let verifyState = 'unknown';   // 'ok' | 'drift' | 'error' | 'unknown'
 
   function fingerprint(list) {
@@ -772,8 +773,136 @@ function calc(units, caseSize) {
     }
   }
 
+  on('connDot', 'click', showSyncInfo);
+
   setInterval(ensureVisible, 1200);
   document.addEventListener('visibilitychange', ensureVisible);
+
+  // ===================== DIAGNOSTICS =====================
+  // Guessing at sync problems from the outside has been slow. This records
+  // what actually happened on the last write so it can be read off the screen.
+  const diag = {
+    lastSaveAt: 0,
+    lastSaveOk: null,
+    lastError: '',
+    lastErrorCode: '',
+    lastErrorAt: 0,
+    writes: 0,
+    failures: 0
+  };
+
+  function noteSave(ok, err) {
+    diag.writes++;
+    diag.lastSaveAt = Date.now();
+    diag.lastSaveOk = ok;
+    if (!ok) {
+      diag.failures++;
+      diag.lastError = (err && (err.message || String(err))) || 'unknown';
+      diag.lastErrorCode = (err && err.code) || '';
+      diag.lastErrorAt = Date.now();
+    }
+  }
+
+  function showDiagnostics() {
+    const body = document.getElementById('auditBody');
+    document.getElementById('auditGate').style.display = 'flex';
+    document.getElementById('appRoot').style.display = 'none';
+
+    function line(label, value, bad) {
+      return '<div class="audit-result-row"><span>' + label + '</span>' +
+        '<span class="audit-var ' + (bad ? 'off' : 'ok') + '" style="max-width:60%;white-space:normal;text-align:right;">' +
+        escapeHtml(String(value)) + '</span></div>';
+    }
+
+    const ago = function (t2) {
+      return t2 ? Math.round((Date.now() - t2) / 1000) + 's ago' : 'never';
+    };
+
+    body.innerHTML =
+      '<div class="audit-item-name">Diagnostics</div>' +
+      '<div class="audit-sub">What the app is actually seeing.</div>' +
+      line('Store', roomCode || '(none)', !roomCode) +
+      line('Signed in', myUid ? 'yes' : 'no', !myUid) +
+      line('Device id', myUid || '(none)') +
+      line('Connection', isOnline ? 'online' : 'OFFLINE', !isOnline) +
+      line('Unsent changes', hasPending ? 'yes' : 'no', hasPending) +
+      line('Items held', items.length, false) +
+      line('Writes attempted', diag.writes) +
+      line('Writes failed', diag.failures, diag.failures > 0) +
+      line('Last write', diag.lastSaveAt ? (diag.lastSaveOk ? 'OK, ' : 'FAILED, ') + ago(diag.lastSaveAt) : 'none', diag.lastSaveOk === false) +
+      (diag.lastError ? line('Last error', (diag.lastErrorCode ? '[' + diag.lastErrorCode + '] ' : '') + diag.lastError, true) : '') +
+      line('Sync check', verifyState) +
+      '<div class="audit-summary">If "Last error" mentions permission, the database rules are refusing the write \u2014 publish the latest rules in Firebase. If it says offline but your phone has signal, tap Retry.</div>' +
+      '<div class="audit-actions">' +
+        '<button type="button" class="audit-skip" id="diagCopy">Copy</button>' +
+        '<button type="button" id="diagRetry">Retry sync</button></div>' +
+      '<div class="join-hint"><button type="button" class="store-action" id="diagClose">Close</button></div>';
+
+    on('diagClose', 'click', closeAudit);
+    on('diagRetry', 'click', function () {
+      hasPending = true;
+      flushPending();
+      saveItems();
+      setTimeout(showDiagnostics, 900);
+    });
+    on('diagCopy', 'click', function () {
+      const text = 'Tally diagnostics\n' +
+        'store=' + roomCode + '\nuid=' + myUid + '\nonline=' + isOnline +
+        '\npending=' + hasPending + '\nitems=' + items.length +
+        '\nwrites=' + diag.writes + ' failures=' + diag.failures +
+        '\nlastError=' + diag.lastErrorCode + ' ' + diag.lastError;
+      if (navigator.clipboard) navigator.clipboard.writeText(text).then(function () { alert('Copied.'); });
+      else prompt('Copy this:', text);
+    });
+  }
+
+  // Tap the corner dot to see exactly what the sync layer is doing. When
+  // something won't sync, guessing is worse than looking.
+  function showSyncInfo() {
+    const body = document.getElementById('auditBody');
+    document.getElementById('auditGate').style.display = 'flex';
+    document.getElementById('appRoot').style.display = 'none';
+
+    function line(label, value, bad) {
+      return '<div class="audit-result-row"><span>' + label + '</span>' +
+        '<span class="audit-var ' + (bad ? 'off' : 'ok') + '">' + value + '</span></div>';
+    }
+
+    const signedIn = !!myUid;
+    const approved = isAdmin || true;
+
+    body.innerHTML =
+      '<div class="audit-item-name">Sync status</div>' +
+      '<div class="audit-sub">What this phone is actually doing.</div>' +
+      line('Internet', navigator.onLine ? 'yes' : 'no', !navigator.onLine) +
+      line('Database connected', isOnline ? 'yes' : 'no', !isOnline) +
+      line('Signed in', signedIn ? 'yes' : 'no', !signedIn) +
+      line('Device ID', myUid ? myUid.slice(0, 10) + '\u2026' : 'none', !myUid) +
+      line('Store', roomCode || 'none', !roomCode) +
+      line('Items held here', String(items.length), false) +
+      line('Waiting to sync', hasPending ? 'yes' : 'no', hasPending) +
+      line('Last check', verifyState, verifyState === 'drift' || verifyState === 'error') +
+      line('Last error', lastSyncError ? String(lastSyncError) : 'none', !!lastSyncError) +
+      '<div class="audit-summary">' +
+        (lastSyncError && /permission/i.test(String(lastSyncError))
+          ? '<b>The database refused the write.</b> That is the security rules, not your connection. ' +
+            'Publish the latest rules in Firebase (Realtime Database \u2192 Rules), then reload.'
+          : hasPending
+            ? 'There are unsent changes. They are safe on this phone and will go up when the write succeeds.'
+            : 'Everything on this phone has been written to the database.') +
+      '</div>' +
+      '<div class="audit-actions">' +
+        '<button type="button" class="audit-skip" id="syncForce">Force sync now</button>' +
+        '<button type="button" id="syncClose">Close</button></div>';
+
+    on('syncClose', 'click', closeAudit);
+    on('syncForce', 'click', function () {
+      lastSyncError = null;
+      hasPending = true;
+      flushPending();
+      setTimeout(function () { verifySync(true); showSyncInfo(); }, 900);
+    });
+  }
 
   function setConnDot() {
     const d = document.getElementById('connDot');
@@ -822,16 +951,22 @@ function calc(units, caseSize) {
     // Local copy is always kept; the remote write needs a resolved store
     if (!isConfigured || !itemsRef) return;
 
-    if (!isOnline) {
-      hasPending = true;
-      suppressRemote = true;
-      saveLocal();
-      setOfflineBanner();
-      return;
-    }
+    // ALWAYS attempt the write. The Firebase SDK already queues writes made
+    // while offline and replays them on reconnect — skipping the call when our
+    // own isOnline flag is false meant a single missed connection event left
+    // the app queueing forever with nothing to send.
+    hasPending = true;
+    suppressRemote = true;
+    saveLocal();
+    setOfflineBanner();
 
     setSyncStatus('Saving...', true);
-    itemsRef.set({ list: items }).then(function() {
+    // A write that never settles would leave us stuck 'saving' forever
+    const writeGuard = new Promise(function (_, reject) {
+      setTimeout(function () { reject(new Error('timed out waiting for the database')); }, 12000);
+    });
+    Promise.race([itemsRef.set({ list: items }), writeGuard]).then(function() {
+      noteSave(true);
       hasPending = false;
       suppressRemote = false;
       allowEmptySave = false;
@@ -841,6 +976,8 @@ function calc(units, caseSize) {
       maybeAutoSnapshot();
       setTimeout(function () { verifySync(true); }, 1500);
     }).catch(function(err) {
+      noteSave(false, err);
+      lastSyncError = (err && (err.code || err.message)) || 'unknown';
       const denied = err && (err.code === 'PERMISSION_DENIED' ||
                              /permission/i.test(err.message || ''));
       saveLocal();
@@ -885,8 +1022,21 @@ function calc(units, caseSize) {
       setOfflineBanner();
       showCommandToast('Offline changes synced');
       maybeAutoSnapshot();
-    }).catch(function () {
-      // stay pending; we'll try again on the next reconnect
+    }).catch(function (err) {
+      lastSyncError = (err && (err.code || err.message)) || 'unknown';
+      const denied = err && (err.code === 'PERMISSION_DENIED' ||
+                             /permission/i.test(err.message || ''));
+      if (denied) {
+        // Retrying will never succeed. Stop pretending to be offline and say why.
+        hasPending = false;
+        suppressRemote = false;
+        saveLocal();
+        setOfflineBanner();
+        setSyncStatus('Saving blocked by database rules', false);
+        showBlocked();
+        return;
+      }
+      setSyncStatus('Sync failed: ' + lastSyncError, false);
     });
   }
 
@@ -1326,6 +1476,7 @@ function calc(units, caseSize) {
       ['catBtn',    '\uD83C\uDFF7', 'Categories', 'Rename, reorder, add'],
       ['bugMenuBtn','\uD83D\uDC1B', 'Report a problem', 'Goes straight to the manager'],
       ['tourBtn',   '\uD83C\uDF93', 'Show me around', 'Replay the walkthrough'],
+      ['diagBtn',   '\uD83E\uDE7A', 'Sync check', 'Why isn\u2019t it saving?'],
       ['adminBtn',  '\uD83D\uDD12', 'Admin', 'Staff, devices, backups']
     ]}
   };
@@ -1363,6 +1514,7 @@ function calc(units, caseSize) {
       catBtn: showCategories,
       bugMenuBtn: openBugReport,
       tourBtn: replayTour,
+      diagBtn: showDiagnostics,
       adminBtn: toggleAdmin
     };
     Object.keys(map).forEach(function (id) {
@@ -1450,9 +1602,20 @@ function calc(units, caseSize) {
     }).join(', ');
     bar.innerHTML =
       '<span>&#128100; ' + names + ' ' + (waiting.length > 1 ? 'are' : 'is') + ' waiting for approval</span>' +
-      '<button type="button" id="pendingReview">Review</button>';
+      '<button type="button" id="pendingReview">Review</button>' +
+      '<button type="button" id="pendingClear" title="Clear stale requests">&times;</button>';
     bar.style.display = 'flex';
-    document.getElementById('pendingReview').addEventListener('click', showStaff);
+    on('pendingReview', 'click', showStaff);
+    on('pendingClear', 'click', async function () {
+      if (!confirm('Clear ' + waiting.length + ' waiting request(s)?\n\n' +
+                   'Use this for people who have already gone. If they open the app ' +
+                   'again they will simply ask a second time.')) return;
+      for (const p of waiting) {
+        await db.ref('tally/rooms/' + roomCode + '/staff/' + p.id)
+          .update({ pending: null }).catch(function () {});
+      }
+      bar.style.display = 'none';
+    });
   }
 
   function notifyAdmin(person) {
@@ -4798,15 +4961,18 @@ function calc(units, caseSize) {
       if (revoke) {
         const uid = revoke.getAttribute('data-revoke');
         const nm = revoke.getAttribute('data-pname');
-        if (!confirm('Revoke access for "' + nm + '"?\n\nThey will be locked out and put back in the waiting list until you approve them again.')) return;
+        if (!confirm('Revoke access for "' + nm + '"?\n\nThey will be locked out. If they open the app again they will ask to be approved.')) return;
         try {
           await configRef().child('approvedUids').child(uid).remove();
           await configRef().child('adminUids').child(uid).remove();
-          // Put their profile back into the pending state
+          // Deliberately NOT marking them pending. Only the person's own device
+          // does that, when it actually opens the app and lands on the waiting
+          // screen. Setting it here left revoked people showing as "waiting"
+          // forever, including people who had already gone.
           const person = staff.find(function (x) { return x.uid === uid; });
           if (person) {
             await db.ref('tally/rooms/' + roomCode + '/staff/' + person.id)
-              .update({ pending: true }).catch(function () {});
+              .update({ pending: null }).catch(function () {});
           }
           showStaff();
         } catch (err) {
