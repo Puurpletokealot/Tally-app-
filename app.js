@@ -48,31 +48,50 @@ const firebaseConfig = {
   let items = [];
   let expanded = new Set();
   let minimized = new Set();
+  const moreOpen = new Set();
   let searchQuery = '';
   let sortMode = localStorage.getItem('tally_sort') || 'recent';
-  let undoSnapshot = null;
   let speechEnabled = localStorage.getItem('tally_speak') !== '0';
   let handsFree = false;
   let activeRecognition = null;
 
-  function snapshotForUndo() {
-    undoSnapshot = JSON.parse(JSON.stringify(items));
+  // Undo keeps a short stack, not a single step — counting moves fast and one
+  // step back is often not far enough.
+  const UNDO_DEPTH = 8;
+  const undoStack = [];
+
+  function snapshotForUndo(label) {
+    undoStack.push({
+      items: JSON.parse(JSON.stringify(items)),
+      label: label || '',
+      at: Date.now()
+    });
+    while (undoStack.length > UNDO_DEPTH) undoStack.shift();
     updateUndoButton();
   }
 
   function updateUndoButton() {
     const btn = document.getElementById('undoBtn');
-    if (!btn) return;
-    btn.disabled = !undoSnapshot;
+    if (btn) {
+      btn.disabled = !undoStack.length;
+      btn.textContent = undoStack.length > 1
+        ? '\u21A9 Undo (' + undoStack.length + ')'
+        : '\u21A9 Undo';
+    }
+    const bar = document.getElementById('undoBar');
+    if (bar) bar.style.display = undoStack.length ? 'flex' : 'none';
   }
 
   function performUndo() {
-    if (!undoSnapshot) return;
-    items = undoSnapshot;
-    undoSnapshot = null;
+    const prev = undoStack.pop();
+    if (!prev) return;
+    items = prev.items;
+    allowEmptySave = true;   // undoing back to an empty list is deliberate
     render();
     saveItems();
     updateUndoButton();
+    buzz(14);
+    showCommandToast(prev.label ? 'Undid: ' + prev.label : 'Undone');
   }
   let myName = localStorage.getItem(NAME_KEY) || '';
   let profileId = localStorage.getItem('tally_profile_id') || null;
@@ -109,9 +128,31 @@ function calc(units, caseSize) {
   function render() {
     const list = document.getElementById('itemList');
     if (!items.length) {
-      list.innerHTML = '<div class="empty">No items yet. Add one above to start counting.</div>';
+      // A store that HAS had items and is now empty is suspicious, not new.
+      const suspicious = sawItems || localStorage.getItem('tally_had_items') === '1';
+      list.innerHTML = suspicious
+        ? '<div class="empty alarm">' +
+            '<div class="empty-icon">\u26A0\uFE0F</div>' +
+            '<h3>Your list is empty</h3>' +
+            '<p>There were items here before. This can happen after a bad sync.</p>' +
+            '<button type="button" class="empty-btn" id="emptyRestore">Restore from a backup</button>' +
+          '</div>'
+        : '<div class="empty">' +
+            '<div class="empty-icon">\uD83C\uDF69</div>' +
+            '<h3>Nothing here yet</h3>' +
+            '<p>Add what you keep in the freezer, then count it with the buttons, your voice, or the scanner.</p>' +
+            '<button type="button" class="empty-btn" id="emptyAdd">\u2795 Add your first item</button>' +
+            '<button type="button" class="empty-link" id="emptyScan">or scan an order sheet</button>' +
+            '<button type="button" class="empty-link" id="emptyTour">show me around</button>' +
+          '</div>';
+      on('emptyRestore', 'click', showSnapshots);
+      on('emptyAdd', 'click', openAddItem);
+      on('emptyScan', 'click', openProductionPicker);
+      on('emptyTour', 'click', replayTour);
+      renderCatStrip();
       return;
     }
+    if (items.length) localStorage.setItem('tally_had_items', '1');
     const q = searchQuery.trim().toLowerCase();
     let visibleIdx = items.map(function (it, i) { return i; }).filter(function (i) {
       const it = items[i];
@@ -230,11 +271,16 @@ function calc(units, caseSize) {
 
           '<div class="item-footer">' +
             '<button type="button" class="foot-btn hc-open" data-idx="' + idx + '">&#128400; Count</button>' +
-            '<button type="button" class="foot-btn tray-btn" data-idx="' + idx + '">&#129384; Tray</button>' +
             '<button type="button" class="foot-btn waste-btn" data-idx="' + idx + '">&#128465; Waste</button>' +
-            '<button type="button" class="foot-btn" data-action="toggle-history" data-idx="' + idx + '">&#128220; History</button>' +
-            '<button type="button" class="foot-btn edit-item" data-idx="' + idx + '">&#9881; Edit</button>' +
+            '<button type="button" class="foot-btn more" data-action="more" data-idx="' + idx + '">&#8943;</button>' +
           '</div>' +
+          (moreOpen.has(idx)
+            ? '<div class="item-more">' +
+                '<button type="button" class="foot-btn tray-btn" data-idx="' + idx + '">&#129384; Tray</button>' +
+                '<button type="button" class="foot-btn" data-action="toggle-history" data-idx="' + idx + '">&#128220; History</button>' +
+                '<button type="button" class="foot-btn edit-item" data-idx="' + idx + '">&#9881; Edit</button>' +
+              '</div>'
+            : '') +
           (expanded.has(idx) ? buildHistoryPanel(item, idx) : '') +
         '</div>'
       );
@@ -387,6 +433,7 @@ function calc(units, caseSize) {
       const verb = h.kind === 'waste' ? 'wasted'
         : h.kind === 'count' ? 'hand counted'
         : (h.delta > 0 ? 'added' : 'removed');
+      const vtag = h.variant ? ' <span class="role-tag">' + escapeHtml(h.variant) + '</span>' : '';
       return '<div class="history-entry"><span>' + verb + ' ' + Math.abs(h.delta).toLocaleString() + ' units' + vtag + '</span>' +
         '<span class="who">' + escapeHtml(h.actor || 'someone') +
         (h.role ? ' (' + escapeHtml(h.role) + ')' : '') +
@@ -628,6 +675,74 @@ function calc(units, caseSize) {
     } catch (e) { return null; }
   }
 
+  // ===================== SYNC VERIFICATION =====================
+  // The connection dot only says a socket is open. This actually compares what
+  // this device holds against what's in the database, so silent divergence
+  // gets caught before it turns into lost counts.
+  let lastVerify = 0;
+  let verifyState = 'unknown';   // 'ok' | 'drift' | 'error' | 'unknown'
+
+  function fingerprint(list) {
+    if (!Array.isArray(list)) return '0:';
+    // name + units is enough to spot divergence without hashing everything
+    return list.length + ':' + list.map(function (it) {
+      return (it.name || '') + '=' + (it.units || 0);
+    }).sort().join('|');
+  }
+
+  async function verifySync(force) {
+    if (!isConfigured || !itemsRef || !isOnline) return;
+    if (hasPending) return;                       // nothing to compare against yet
+    if (!force && Date.now() - lastVerify < 90000) return;
+    lastVerify = Date.now();
+    try {
+      const snap = await itemsRef.get();
+      const val = snap.val();
+      const remote = (val && val.list) || [];
+      const same = fingerprint(remote) === fingerprint(items);
+      verifyState = same ? 'ok' : 'drift';
+      if (!same) {
+        console.warn('Tally: local and server copies differ');
+        showDrift(remote);
+      }
+      setConnDot();
+    } catch (e) {
+      verifyState = 'error';
+      setConnDot();
+    }
+  }
+
+  function showDrift(remote) {
+    const bar = document.getElementById('driftBar');
+    if (!bar) return;
+    bar.innerHTML =
+      '<span>\u26A0\uFE0F This phone and the server disagree about the counts.</span>' +
+      '<button type="button" id="driftUse">Use server</button>' +
+      '<button type="button" id="driftPush">Use mine</button>';
+    bar.style.display = 'flex';
+
+    on('driftUse', 'click', function () {
+      items = remote;
+      minimized.clear(); expanded.clear();
+      items.forEach(function (it, i) { minimized.add(i); });
+      saveLocal();
+      render();
+      bar.style.display = 'none';
+      verifyState = 'ok';
+      setConnDot();
+      showCommandToast('Loaded the server copy');
+    });
+
+    on('driftPush', 'click', function () {
+      snapshotForUndo('overwrite server');
+      saveItems();
+      bar.style.display = 'none';
+      verifyState = 'ok';
+      setConnDot();
+      showCommandToast('Pushed this phone\'s copy');
+    });
+  }
+
   function setConnDot() {
     const d = document.getElementById('connDot');
     const t = document.getElementById('connTxt');
@@ -636,6 +751,7 @@ function calc(units, caseSize) {
     if (!isOnline && hasPending) { d.classList.add('offline'); t.textContent = 'saved here'; }
     else if (!isOnline)          { d.classList.add('offline'); t.textContent = 'offline'; }
     else if (hasPending)         { d.classList.add('pending', 'syncing'); t.textContent = 'syncing'; }
+    else if (verifyState === 'drift') { d.classList.add('pending'); t.textContent = 'check'; }
     else                         { t.textContent = ''; }
   }
 
@@ -671,7 +787,8 @@ function calc(units, caseSize) {
     }
     if (items.length) sawItems = true;
     saveLocal();
-    if (!isConfigured) return;
+    // Local copy is always kept; the remote write needs a resolved store
+    if (!isConfigured || !itemsRef) return;
 
     if (!isOnline) {
       hasPending = true;
@@ -690,6 +807,7 @@ function calc(units, caseSize) {
       setOfflineBanner();
       setSyncStatus('Connected', false);
       maybeAutoSnapshot();
+      setTimeout(function () { verifySync(true); }, 1500);
     }).catch(function(err) {
       // Treat any failed write as pending rather than losing it
       hasPending = true;
@@ -701,7 +819,7 @@ function calc(units, caseSize) {
   }
 
   function flushPending() {
-    if (!hasPending || !isOnline || !isConfigured) return;
+    if (!hasPending || !isOnline || !isConfigured || !itemsRef) return;
     setOfflineBanner();
     itemsRef.set({ list: items }).then(function () {
       hasPending = false;
@@ -3036,7 +3154,7 @@ function calc(units, caseSize) {
     }
     nameInput.style.borderColor = '';
     caseInput.style.borderColor = '';
-    snapshotForUndo();
+    snapshotForUndo('add item');
     items.push({ name: name, caseSize: caseSize, units: caseSize, mode: 'case', touched: Date.now(), category: guessCategory(name) || null });
     minimized.add(items.length - 1);
     nameInput.value = '';
@@ -3137,7 +3255,7 @@ function calc(units, caseSize) {
 
     if (btn.classList.contains('remove-btn')) {
       if (!confirm('Delete "' + items[idx].name + '" and its history? You can undo this right after.')) return;
-      snapshotForUndo();
+      snapshotForUndo('delete ' + items[idx].name);
       allowEmptySave = true;
       items.splice(idx, 1);
       expanded.delete(idx);
@@ -3236,7 +3354,7 @@ function calc(units, caseSize) {
       const units = /\b(cs|case|cases|box|boxes)\b/.test(txt) ? Math.round(num * cs) : Math.round(num);
       const delta = -Math.min(units, item.units);
       if (delta === 0) { alert('Nothing on hand to waste.'); return; }
-      snapshotForUndo();
+      snapshotForUndo('waste ' + item.name);
       item.units = Math.max(0, item.units + delta);
       pushHistory(item, delta, 'waste');
       buzz(20);
@@ -3278,6 +3396,12 @@ function calc(units, caseSize) {
       return;
     }
 
+    if (action === 'more') {
+      if (moreOpen.has(idx)) moreOpen.delete(idx); else moreOpen.add(idx);
+      render();
+      return;
+    }
+
     if (action === 'toggle-mini') {
       if (minimized.has(idx)) minimized.delete(idx);
       else minimized.add(idx);
@@ -3314,7 +3438,7 @@ function calc(units, caseSize) {
     else if (action === 'half+1') delta = halfCase;
     else if (action === 'half-1') delta = -Math.min(halfCase, item.units);
     if (delta !== 0) {
-      snapshotForUndo();
+      snapshotForUndo((delta > 0 ? '+' : '\u2212') + Math.abs(delta) + ' ' + item.name);
       item.units = Math.max(0, item.units + delta);
       pushHistory(item, delta);
       noteComponentUse(item, delta);
@@ -3588,7 +3712,7 @@ function calc(units, caseSize) {
       }
 
       if (result.type === 'undo') {
-        if (undoSnapshot) {
+        if (undoStack.length) {
           performUndo();
           messages.push('Undid the last change');
         } else {
@@ -4795,7 +4919,11 @@ function calc(units, caseSize) {
             productCode: it.productCode || null,
             lowStockValue: it.lowStockValue != null ? it.lowStockValue : null,
             lowStockMode: it.lowStockMode || null,
-            barcodes: Array.isArray(it.barcodes) ? it.barcodes : null
+            barcodes: Array.isArray(it.barcodes) ? it.barcodes : null,
+            packType: it.packType || null,
+            recipe: it.recipe || null,
+            variable: !!it.variable,
+            lastVariant: it.lastVariant || null
           };
         })
       });
@@ -4897,6 +5025,8 @@ function calc(units, caseSize) {
           note: it.note || null, category: it.category || null, productCode: it.productCode || null,
           lowStockValue: it.lowStockValue, lowStockMode: it.lowStockMode,
           barcodes: Array.isArray(it.barcodes) ? it.barcodes : [],
+          packType: it.packType || null, recipe: it.recipe || null,
+          variable: !!it.variable, lastVariant: it.lastVariant || null,
           history: [], touched: Date.now()
         };
       });
@@ -5513,7 +5643,7 @@ function calc(units, caseSize) {
       if (!name || !name.trim()) { bcBusy = false; return; }
       const cs = parseInt(prompt('Units per case:', '24'), 10);
       if (!cs || cs < 1) { bcBusy = false; return; }
-      snapshotForUndo();
+      snapshotForUndo('add item');
       items.push({ name: name.trim(), caseSize: cs, units: cs, mode: 'case',
                    history: [], touched: Date.now(), barcodes: [code],
                    category: guessCategory(name) || null });
@@ -6154,6 +6284,7 @@ function calc(units, caseSize) {
     }
     loadCategories();
     loadRecipes();
+    setInterval(function () { verifySync(false); }, 120000);
     loadComponents();
     flushBugQueue();
     watchMyAccess();
