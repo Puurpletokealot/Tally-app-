@@ -464,6 +464,68 @@
     border-radius: 0 !important;
   }
 
+  /* Buttons that live inside a modal card but are NOT the primary action.
+     The blanket ".join-card button" rule above would otherwise paint them all
+     solid amber, which loses every selected/unselected distinction. */
+  .join-card .id-chip,
+  .join-card .admin-mini-btn,
+  .join-card .staff-btn,
+  .join-card .hc-cat,
+  .join-card .hc-item,
+  .join-card .set-row,
+  .join-card .scan-source,
+  .join-card .audit-skip,
+  .join-card .mode-toggle button {
+    width: auto;
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--line);
+    font-weight: 600;
+  }
+
+  /* selected state */
+  .join-card .id-chip.on,
+  .join-card .mode-toggle button.active {
+    background: var(--amber);
+    color: #241a08;
+    border-color: var(--amber);
+    font-weight: 700;
+  }
+
+  .join-card .id-chip {
+    border-radius: 16px;
+    padding: 7px 11px;
+    font-size: 11.5px;
+    color: var(--text-dim);
+  }
+
+  .join-card .id-chip.on { color: #241a08; }
+
+  .join-card .staff-btn { width: 28px; padding: 0; }
+  .join-card .audit-skip { color: var(--text-dim); }
+
+  /* input + button rows must line up */
+  .join-card .admin-row {
+    display: flex;
+    gap: 6px;
+    align-items: stretch;
+    margin-top: 10px;
+  }
+
+  .join-card .admin-row input {
+    flex: 1;
+    min-width: 0;
+    font-size: 14px;
+    padding: 10px 12px;
+  }
+
+  .join-card .admin-row .admin-mini-btn {
+    flex: 0 0 auto;
+    padding: 0 16px;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+
   .join-hint {
     font-size: 11px;
     color: var(--text-dim);
@@ -2938,6 +3000,30 @@
   </div>
 </div>
 
+<div class="join-gate" id="addItemGate" style="display:none;">
+  <div class="join-card">
+    <h2>&#10133; New item</h2>
+    <p>What are you adding, and how many come in a case?</p>
+    <input type="text" id="newName" placeholder="Item name" autocapitalize="words">
+    <input type="number" id="newCaseSize" placeholder="Units per case" min="1" style="margin-top:-4px;">
+    <button type="button" id="addBtn">Add item</button>
+    <div class="join-hint">It starts at 1 full case. You can set a low-stock level and link a barcode once it is on the list.<br><br>
+    <button type="button" class="store-action" id="addItemCancel">Cancel</button></div>
+  </div>
+</div>
+<div class="join-gate" id="bugGate" style="display:none;">
+  <div class="join-card">
+    <h2>&#128027; Something wrong?</h2>
+    <p>Tell us what happened. It goes straight to the manager — no need to catch anyone in person.</p>
+    <textarea id="bugText" rows="5" placeholder="What were you doing, and what went wrong?"></textarea>
+    <div class="role-label">How bad is it?</div>
+    <div class="role-grid" id="bugSeverity"></div>
+    <button type="button" id="bugSend">Send report</button>
+    <div class="join-hint">Your name and what screen you were on get attached automatically.<br><br>
+    <button type="button" class="store-action" id="bugCancel">Cancel</button></div>
+  </div>
+</div>
+
 <div class="join-gate" id="auditGate" style="display:none;">
   <div class="join-card audit-card" id="auditBody"></div>
 </div>
@@ -2962,7 +3048,7 @@
   <div class="admin-panel" id="adminPanel" style="display:none;">
     <div class="admin-head">
       <span class="admin-title">Admin</span>
-      <span class="build-tag">build Sep 13 08:31</span>
+      <span class="build-tag">build Sep 13 08:49</span>
       <button type="button" class="admin-lock" id="adminLogoutBtn">Lock</button>
     </div>
 
@@ -3010,17 +3096,7 @@
   </div>
 </div>
 
-<div class="join-gate" id="addItemGate" style="display:none;">
-  <div class="join-card">
-    <h2>&#10133; New item</h2>
-    <p>What are you adding, and how many come in a case?</p>
-    <input type="text" id="newName" placeholder="Item name" autocapitalize="words">
-    <input type="number" id="newCaseSize" placeholder="Units per case" min="1" style="margin-top:-4px;">
-    <button type="button" id="addBtn">Add item</button>
-    <div class="join-hint">It starts at 1 full case. You can set a low-stock level and link a barcode once it is on the list.<br><br>
-    <button type="button" class="store-action" id="addItemCancel">Cancel</button></div>
-  </div>
-</div>
+
 
 <div class="sticky-bar">
 <div class="search-bar" id="searchBar">
@@ -3084,18 +3160,7 @@
 <div class="conn" id="connDot" title="Connection"><span class="conn-led"></span><span class="conn-txt" id="connTxt"></span></div>
 
 
-<div class="join-gate" id="bugGate" style="display:none;">
-  <div class="join-card">
-    <h2>&#128027; Something wrong?</h2>
-    <p>Tell us what happened. It goes straight to the manager — no need to catch anyone in person.</p>
-    <textarea id="bugText" rows="5" placeholder="What were you doing, and what went wrong?"></textarea>
-    <div class="role-label">How bad is it?</div>
-    <div class="role-grid" id="bugSeverity"></div>
-    <button type="button" id="bugSend">Send report</button>
-    <div class="join-hint">Your name and what screen you were on get attached automatically.<br><br>
-    <button type="button" class="store-action" id="bugCancel">Cancel</button></div>
-  </div>
-</div>
+
 
 <div class="sheet-scrim" id="menuScrim" style="display:none;"></div>
 <div class="sheet" id="menuSheet" style="display:none;">
@@ -3643,7 +3708,9 @@
     // Show whatever we last had on this device straight away, so the app is
     // usable in the freezer before (or without) any connection.
     const cached = loadLocal();
-    if (cached) {
+    // An EMPTY cache is never authoritative. Adopting it would blank the list
+    // and then push that blank list over the real inventory on the next tap.
+    if (cached && Array.isArray(cached.items) && cached.items.length) {
       items = cached.items;
       hasPending = !!cached.pending;
       suppressRemote = hasPending;
@@ -3652,6 +3719,9 @@
       items.forEach(function (it, i) { minimized.add(i); });
       render();
       setOfflineBanner();
+    } else {
+      hasPending = false;
+      suppressRemote = false;
     }
 
     db.ref('.info/connected').on('value', function(snap) {
@@ -3758,7 +3828,19 @@
     }
   }
 
+  let sawItems = false;   // this session has seen a non-empty list
+  let allowEmptySave = false;
+
   function saveItems() {
+    // Refuse to push an empty list over a list we know had items, unless the
+    // user actually emptied it themselves. Silent wipes are unrecoverable
+    // without a backup, so this is worth being paranoid about.
+    if (!items.length && sawItems && !allowEmptySave) {
+      setSyncStatus('Blocked an empty save \u2014 reload to restore', false);
+      console.warn('Tally: refused to save an empty item list');
+      return;
+    }
+    if (items.length) sawItems = true;
     saveLocal();
     if (!isConfigured) return;
 
@@ -3774,6 +3856,7 @@
     itemsRef.set({ list: items }).then(function() {
       hasPending = false;
       suppressRemote = false;
+      allowEmptySave = false;
       saveLocal();
       setOfflineBanner();
       setSyncStatus('Connected', false);
@@ -6226,6 +6309,7 @@
     if (btn.classList.contains('remove-btn')) {
       if (!confirm('Delete "' + items[idx].name + '" and its history? You can undo this right after.')) return;
       snapshotForUndo();
+      allowEmptySave = true;
       items.splice(idx, 1);
       expanded.delete(idx);
       minimized.delete(idx);
