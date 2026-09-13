@@ -721,6 +721,24 @@
     line-height: 1.5;
   }
 
+  .variant-line {
+    font-size: 11px;
+    color: var(--amber);
+    margin-top: 4px;
+    font-weight: 600;
+  }
+
+  .variant-line button {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-family: inherit;
+    font-size: 11px;
+    text-decoration: underline;
+    cursor: pointer;
+    padding: 0;
+  }
+
   .recipe-line {
     font-size: 11px;
     color: var(--text-dim);
@@ -734,6 +752,156 @@
     margin-top: 5px;
     font-weight: 600;
   }
+
+  .item-head { flex: 1; min-width: 0; }
+
+  .item-sub {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    margin-top: 4px;
+    font-size: 10.5px;
+    color: var(--text-dim);
+  }
+
+  .display.big { padding: 16px 8px; }
+
+  .display.big .total {
+    font-size: 40px;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+  }
+
+  .total-unit {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-dim);
+    font-family: 'Quicksand', system-ui, sans-serif;
+    margin-top: 2px;
+  }
+
+  .controls .ctrl-buttons button {
+    font-size: 17px;
+    padding: 14px 0;
+  }
+
+  .controls .ctrl-buttons button.half {
+    font-size: 13px;
+    padding: 9px 0;
+  }
+
+  .mode-toggle.small { margin: 10px 0 0; }
+  .mode-toggle.small button { font-size: 11px; padding: 6px 0; }
+
+  .item-footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 10px;
+  }
+
+  .foot-btn {
+    flex: 1;
+    min-width: 68px;
+    background: none;
+    border: 1px solid var(--line);
+    color: var(--text-dim);
+    border-radius: 8px;
+    padding: 8px 4px;
+    font-family: inherit;
+    font-size: 10.5px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .foot-btn:active { border-color: var(--amber); color: var(--amber); }
+
+  .var-block {
+    background: var(--panel-2);
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 10px;
+  }
+
+  .var-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 3px;
+  }
+
+  .var-note { font-size: 11px; color: var(--text-dim); margin-bottom: 8px; }
+
+  .var-rows { display: flex; flex-direction: column; }
+
+  .var-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 8px;
+    font-size: 11.5px;
+    padding: 4px 0;
+    border-bottom: 1px solid var(--line);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .var-row:last-child { border-bottom: none; }
+
+  .var-hd {
+    font-size: 9.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    font-weight: 700;
+  }
+
+  .var-row span:last-child { text-align: right; font-weight: 700; }
+  .var-ok { color: var(--teal); }
+  .var-off { color: var(--red); }
+
+  .set-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 10px;
+  }
+
+  .set-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 13px 12px;
+    font-family: inherit;
+    color: var(--text);
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .set-row:active { border-color: var(--amber); }
+  .set-row.danger { color: var(--red); border-color: var(--line); }
+
+  .set-label { font-size: 13px; font-weight: 600; }
+
+  .set-value {
+    font-size: 12px;
+    color: var(--text-dim);
+    text-align: right;
+    max-width: 55%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .set-value i { font-style: italic; opacity: 0.7; }
 
   .item-note {
     background: var(--panel-2);
@@ -1820,6 +1988,75 @@
     white-space: nowrap;
   }
 
+  .conn {
+    position: fixed;
+    top: calc(8px + env(safe-area-inset-top));
+    right: 10px;
+    z-index: 250;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(0,0,0,0.35);
+    border-radius: 12px;
+    padding: 4px 8px;
+    pointer-events: none;
+  }
+
+  body.light .conn { background: rgba(255,255,255,0.5); }
+
+  .conn-led {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--teal);
+    box-shadow: 0 0 6px var(--teal);
+  }
+
+  .conn.offline .conn-led { background: var(--red); box-shadow: 0 0 6px var(--red); }
+  .conn.pending .conn-led { background: var(--amber); box-shadow: 0 0 6px var(--amber); }
+  .conn.syncing .conn-led { animation: connPulse 1s infinite; }
+
+  @keyframes connPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.25; } }
+
+  .conn-txt {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  .bnav {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 220;
+    display: flex;
+    background: var(--panel);
+    border-top: 1px solid var(--line);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .bnav-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-family: inherit;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 9px 2px 7px;
+    cursor: pointer;
+  }
+
+  .bnav-btn .bn-i { font-size: 18px; line-height: 1; }
+  .bnav-btn.active { color: var(--amber); }
+
+  body { padding-bottom: 72px; }
+
   .fab {
     position: fixed;
     right: 16px;
@@ -2104,6 +2341,144 @@
   }
 
   .hc-tools .admin-mini-btn { flex: 1; text-align: center; }
+
+  .admin-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .admin-head .admin-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--amber);
+    flex: 1;
+  }
+
+  .admin-live {
+    background: var(--panel-2);
+    border-radius: 10px;
+    padding: 10px;
+    margin-bottom: 12px;
+  }
+
+  .admin-live-top {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+
+  .admin-live-label {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    font-weight: 700;
+  }
+
+  .admin-live-count { font-size: 11px; color: var(--teal); font-weight: 700; }
+
+  .admin-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+  }
+
+  .admin-tile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 10px 4px;
+    font-family: inherit;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-dim);
+    cursor: pointer;
+  }
+
+  .admin-tile:active { border-color: var(--amber); color: var(--amber); }
+
+  .at-icon { font-size: 17px; }
+
+  .admin-lock {
+    width: auto;
+    margin: 0;
+    padding: 6px 12px;
+    font-size: 11px;
+  }
+
+  .hc-cats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 14px;
+  }
+
+  .hc-cat {
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    color: var(--text);
+    border-radius: 12px;
+    padding: 18px 10px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: center;
+  }
+
+  .hc-cat span { font-size: 11px; font-weight: 600; color: var(--text-dim); }
+  .hc-cat:active { border-color: var(--amber); }
+
+  .hc-items {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .hc-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 16px 14px;
+    font-family: inherit;
+    color: var(--text);
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .hc-item:active { border-color: var(--amber); }
+
+  .hc-name { font-size: 15px; font-weight: 700; }
+
+  .hc-now {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--amber);
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .hc-now i {
+    display: block;
+    font-style: normal;
+    font-size: 10px;
+    color: var(--text-dim);
+  }
 
   .head-row {
     display: flex;
@@ -2573,7 +2948,6 @@
 <div class="header">
   <div class="head-row">
     <h1>&#127849; Tally</h1>
-    <button type="button" class="menu-btn" id="menuBtn" aria-label="Menu">&#9776;</button>
   </div>
   <div class="meta-row">
     <span class="store-chip" id="storeChip">Store: —</span>
@@ -2586,83 +2960,38 @@
     <span class="sync-text" id="syncText"></span>
   </div>
   <div class="admin-panel" id="adminPanel" style="display:none;">
-    <div class="admin-title">Admin <span class="build-tag">build Sep 12 21:40</span></div>
-
-    <div class="admin-sec open">
-      <button type="button" class="admin-sec-head" data-sec="people">
-        <span>People &amp; devices</span><span class="chev">&#9662;</span>
-      </button>
-      <div class="admin-sec-body" data-body="people">
-        <div class="admin-label">Currently open <span id="activeCount" style="color:var(--teal);"></span></div>
-        <div id="activeList" class="store-list"></div>
-        <div class="admin-btn-grid">
-          <button type="button" class="admin-mini-btn" id="staffBtn">Staff profiles</button>
-          <button type="button" class="admin-mini-btn" id="sessionLogBtn">Sign-in log</button>
-        </div>
-        <div class="admin-label">Approved admin devices</div>
-        <div id="deviceList" class="store-list"></div>
-        <div class="admin-btn-grid">
-          <button type="button" class="admin-mini-btn" id="deviceIdBtn">Copy device ID</button>
-          <button type="button" class="admin-mini-btn" id="addDeviceBtn">Add by ID</button>
-        </div>
-      </div>
+    <div class="admin-head">
+      <span class="admin-title">Admin</span>
+      <span class="build-tag">build Sep 13 08:31</span>
+      <button type="button" class="admin-lock" id="adminLogoutBtn">Lock</button>
     </div>
 
-    <div class="admin-sec">
-      <button type="button" class="admin-sec-head" data-sec="stores">
-        <span>Stores</span><span class="chev">&#9662;</span>
-      </button>
-      <div class="admin-sec-body" data-body="stores">
-        <div id="storeList" class="store-list"></div>
-        <div class="admin-row">
-          <input type="text" id="newStoreCode" placeholder="New store code" maxlength="12" autocapitalize="characters">
-          <button type="button" class="admin-mini-btn" id="createStoreBtn">Create</button>
-        </div>
-        <div class="admin-btn-grid">
-          <button type="button" class="admin-mini-btn" id="shareStoreBtn">Share store link</button>
-        </div>
+    <div class="admin-live">
+      <div class="admin-live-top">
+        <span class="admin-live-label">On now</span>
+        <span id="activeCount" class="admin-live-count"></span>
       </div>
+      <div id="activeList" class="store-list"></div>
     </div>
 
-    <div class="admin-sec">
-      <button type="button" class="admin-sec-head" data-sec="reports">
-        <span>Reports <span class="bugs-badge" id="bugsBadge" style="display:none;"></span></span><span class="chev">&#9662;</span>
-      </button>
-      <div class="admin-sec-body" data-body="reports">
-        <div class="admin-btn-grid">
-          <button type="button" class="admin-mini-btn" id="bugsBtn">Open reports</button>
-        </div>
-        <div class="admin-note">Staff send these with the bug button in the corner of the app.</div>
-      </div>
+    <div class="admin-grid">
+      <button type="button" class="admin-tile" id="staffBtn">
+        <span class="at-icon">&#128101;</span><span>Staff</span></button>
+      <button type="button" class="admin-tile" id="bugsBtn">
+        <span class="at-icon">&#128027;</span><span>Reports <span class="bugs-badge" id="bugsBadge" style="display:none;"></span></span></button>
+      <button type="button" class="admin-tile" id="sessionLogBtn">
+        <span class="at-icon">&#128340;</span><span>Sign-ins</span></button>
+      <button type="button" class="admin-tile" id="snapshotsBtn">
+        <span class="at-icon">&#128190;</span><span>Backups</span></button>
+      <button type="button" class="admin-tile" id="storesBtn">
+        <span class="at-icon">&#127978;</span><span>Stores</span></button>
+      <button type="button" class="admin-tile" id="devicesBtn">
+        <span class="at-icon">&#128241;</span><span>Devices</span></button>
+      <button type="button" class="admin-tile" id="migrateBtn">
+        <span class="at-icon">&#128229;</span><span>Import</span></button>
+      <button type="button" class="admin-tile" id="securityBtn">
+        <span class="at-icon">&#128273;</span><span>Security</span></button>
     </div>
-
-    <div class="admin-sec">
-      <button type="button" class="admin-sec-head" data-sec="data">
-        <span>Data</span><span class="chev">&#9662;</span>
-      </button>
-      <div class="admin-sec-body" data-body="data">
-        <div class="admin-btn-grid">
-          <button type="button" class="admin-mini-btn" id="snapshotsBtn">Backups</button>
-          <button type="button" class="admin-mini-btn" id="migrateBtn">Import old inventory</button>
-        </div>
-        <div class="admin-note">Backups save automatically every time your changes sync. Open Backups to roll back to an earlier point or download a copy.</div>
-      </div>
-    </div>
-
-    <div class="admin-sec">
-      <button type="button" class="admin-sec-head" data-sec="security">
-        <span>Security</span><span class="chev">&#9662;</span>
-      </button>
-      <div class="admin-sec-body" data-body="security">
-        <div class="admin-btn-grid">
-          <button type="button" class="admin-mini-btn" id="changePassBtn">Change password</button>
-          <button type="button" class="admin-mini-btn danger" id="resetAdminBtn">Reset admin</button>
-        </div>
-        <div class="admin-note">Reset admin clears every approved device. The next device to open Tally claims admin.</div>
-      </div>
-    </div>
-
-    <button type="button" class="admin-lock" id="adminLogoutBtn">Lock admin</button>
   </div>
 </div>
 
@@ -2741,7 +3070,19 @@
   </div>
 </div>
 
-<button type="button" class="fab" id="bugFab" aria-label="Report a problem">&#128027;</button>
+<nav class="bnav" id="bnav">
+  <button type="button" class="bnav-btn active" data-nav="count">
+    <span class="bn-i">&#128290;</span><span>Count</span></button>
+  <button type="button" class="bnav-btn" data-nav="order">
+    <span class="bn-i">&#128722;</span><span>Order</span></button>
+  <button type="button" class="bnav-btn" data-nav="review">
+    <span class="bn-i">&#128202;</span><span>Review</span></button>
+  <button type="button" class="bnav-btn" data-nav="more">
+    <span class="bn-i">&#9881;</span><span>More</span></button>
+</nav>
+
+<div class="conn" id="connDot" title="Connection"><span class="conn-led"></span><span class="conn-txt" id="connTxt"></span></div>
+
 
 <div class="join-gate" id="bugGate" style="display:none;">
   <div class="join-card">
@@ -2759,55 +3100,7 @@
 <div class="sheet-scrim" id="menuScrim" style="display:none;"></div>
 <div class="sheet" id="menuSheet" style="display:none;">
   <div class="sheet-handle"></div>
-
-  <div class="sheet-group">
-    <div class="sheet-label">Count</div>
-    <button type="button" class="sheet-item" id="barcodeBtn">
-      <span class="si-icon">&#128290;</span>
-      <span class="si-text"><b>Scan barcode</b><i>One by one, or scan a whole delivery then review</i></span>
-    </button>
-    <button type="button" class="sheet-item" id="sheetBtn">
-      <span class="si-icon">&#128203;</span>
-      <span class="si-text"><b>Scan production</b><i>Order sheets and delivery invoices</i></span>
-    </button>
-    <button type="button" class="sheet-item" id="trayBtn">
-      <span class="si-icon">&#129384;</span>
-      <span class="si-text"><b>Count a tray</b><i>Munchkins and loose product — photo or tap it out</i></span>
-    </button>
-    <button type="button" class="sheet-item" id="auditBtn">
-      <span class="si-icon">&#9989;</span>
-      <span class="si-text"><b>Spot audit</b><i>Count a random sample, tap or hands-free</i></span>
-    </button>
-  </div>
-
-  <div class="sheet-group">
-    <div class="sheet-label">Review</div>
-    <button type="button" class="sheet-item" id="orderBtn">
-      <span class="si-icon">&#128722;</span>
-      <span class="si-text"><b>Order list</b><i>What to order, from your real usage</i></span>
-    </button>
-    <button type="button" class="sheet-item" id="wasteBtn">
-      <span class="si-icon">&#128465;</span>
-      <span class="si-text"><b>Waste</b><i>Last 4 weeks, worst first</i></span>
-    </button>
-    <button type="button" class="sheet-item" id="auditHistBtn">
-      <span class="si-icon">&#128220;</span>
-      <span class="si-text"><b>Audit log</b><i>Past counts and discrepancies</i></span>
-    </button>
-  </div>
-
-  <div class="sheet-group">
-    <div class="sheet-label">Set up</div>
-    <button type="button" class="sheet-item" id="catBtn">
-      <span class="si-icon">&#127991;</span>
-      <span class="si-text"><b>Categories</b><i>Rename, reorder, add</i></span>
-    </button>
-    <button type="button" class="sheet-item" id="adminBtn">
-      <span class="si-icon">&#128274;</span>
-      <span class="si-text"><b>Admin</b><i>Staff, devices, backups</i></span>
-    </button>
-  </div>
-
+  <div id="sheetBody"></div>
   <button type="button" class="sheet-close" id="menuClose">Close</button>
 </div>
 
@@ -3004,20 +3297,16 @@
       return (
         '<div class="item-card' + (lowStock ? ' low-stock' : '') + '" data-idx="' + idx + '">' +
           '<div class="item-top">' +
-            '<div>' +
-              '<div class="item-name">' + buildRing(item) + ' ' + escapeHtml(item.name) + (lowStock ? '<span class="low-donut" title="Low stock">&#129384;</span>' : '') + '</div>' +
-              '<div class="item-case-size">' + item.caseSize + ' per ' + packOf(item).one + ' &middot; <button class="edit-case" data-idx="' + idx + '">change</button>' +
-                ' &middot; <button class="edit-lowstock" data-idx="' + idx + '">low stock' + (lowThresholdLabel(item) ? ' (' + lowThresholdLabel(item) + ')' : '') + '</button>' +
-                ' &middot; <button class="edit-cat" data-idx="' + idx + '">' +
-                  (itemCategory(item) ? escapeHtml(itemCategory(item)) : 'set category') + '</button>' +
-                ' &middot; <button class="edit-note" data-idx="' + idx + '">' + (item.note ? 'edit note' : 'add note') + '</button>' +
-                ' &middot; <button class="edit-barcode" data-idx="' + idx + '">' +
-                  (Array.isArray(item.barcodes) && item.barcodes.length
-                    ? '&#9646;&#9474;&#9646; ' + item.barcodes.length
-                    : 'link barcode') + '</button></div>' +
-              (recipeLine(item) ? '<div class="recipe-line">' + escapeHtml(recipeLine(item)) + '</div>' : '') +
-              (burnLabel(item) ? '<div class="burn-line">&#128200; ' + burnLabel(item) + '</div>' : '') +
-              (item.note ? '<div class="item-note">' + escapeHtml(item.note) + '</div>' : '') +
+            '<div class="item-head">' +
+              '<div class="item-name">' + buildRing(item) + ' ' + escapeHtml(item.name) +
+                (lowStock ? '<span class="low-donut" title="Low stock">&#129384;</span>' : '') + '</div>' +
+              '<div class="item-sub">' +
+                (itemCategory(item) ? '<span class="cat-tag">' + escapeHtml(itemCategory(item)) + '</span>' : '') +
+                '<span>' + item.caseSize + ' per ' + packOf(item).one + '</span>' +
+                (item.note ? '<span title="' + escapeHtml(item.note) + '">&#128221;</span>' : '') +
+                (Array.isArray(item.barcodes) && item.barcodes.length ? '<span>&#9646;&#9474;&#9646;</span>' : '') +
+                (isVariantItem(item) && item.lastVariant ? '<span>' + escapeHtml(item.lastVariant) + '</span>' : '') +
+              '</div>' +
             '</div>' +
             '<div class="top-actions">' +
               (sortMode === 'manual'
@@ -3027,25 +3316,30 @@
               '<button class="reorder-btn" data-action="toggle-mini" data-idx="' + idx + '" aria-label="Collapse">&#9650;</button>' +
             '</div>' +
           '</div>' +
-          '<div class="mode-toggle" data-idx="' + idx + '">' +
-            '<button type="button" class="mode-btn ' + (isCase ? 'active' : '') + '" data-idx="' + idx + '" data-mode="case">By ' + packLabel(item, 2) + '</button>' +
-            '<button type="button" class="mode-btn ' + (!isCase ? 'active' : '') + '" data-idx="' + idx + '" data-mode="unit">By ' + unitLabel(item, 2) + '</button>' +
-          '</div>' +
-          '<div class="display">' +
-            '<div class="total" data-count="' + idx + '">' + primaryValue.toLocaleString() + ' <span style="font-size:14px; color: var(--text-dim);">' + primaryUnit + '</span></div>' +
+
+          '<div class="display big">' +
+            '<div class="total" data-count="' + idx + '">' + primaryValue.toLocaleString() +
+              '<span class="total-unit">' + primaryUnit + '</span></div>' +
             '<div class="breakdown">' + secondaryText + '</div>' +
           '</div>' +
+
           '<div class="controls">' +
             (isCase ? caseButtons + unitButtons : unitButtons + caseButtons) +
           '</div>' +
+
+          '<div class="mode-toggle small" data-idx="' + idx + '">' +
+            '<button type="button" class="mode-btn ' + (isCase ? 'active' : '') + '" data-idx="' + idx + '" data-mode="case">By ' + packLabel(item, 2) + '</button>' +
+            '<button type="button" class="mode-btn ' + (!isCase ? 'active' : '') + '" data-idx="' + idx + '" data-mode="unit">By ' + unitLabel(item, 2) + '</button>' +
+          '</div>' +
+
+          (burnLabel(item) ? '<div class="burn-line">&#128200; ' + burnLabel(item) + '</div>' : '') +
+
           '<div class="item-footer">' +
-            '<button type="button" class="history-toggle" data-action="toggle-history" data-idx="' + idx + '">' +
-              (expanded.has(idx) ? 'Hide history' : 'Show history') +
-            '</button>' +
-            '<button type="button" class="waste-btn hc-open" data-idx="' + idx + '">&#128400; Count</button>' +
-            '<button type="button" class="tray-btn" data-idx="' + idx + '">&#129384; Tray</button>' +
-            '<button type="button" class="waste-btn" data-idx="' + idx + '">&#128465; Waste</button>' +
-            '<button type="button" class="remove-btn" data-idx="' + idx + '">Delete item</button>' +
+            '<button type="button" class="foot-btn hc-open" data-idx="' + idx + '">&#128400; Count</button>' +
+            '<button type="button" class="foot-btn tray-btn" data-idx="' + idx + '">&#129384; Tray</button>' +
+            '<button type="button" class="foot-btn waste-btn" data-idx="' + idx + '">&#128465; Waste</button>' +
+            '<button type="button" class="foot-btn" data-action="toggle-history" data-idx="' + idx + '">&#128220; History</button>' +
+            '<button type="button" class="foot-btn edit-item" data-idx="' + idx + '">&#9881; Edit</button>' +
           '</div>' +
           (expanded.has(idx) ? buildHistoryPanel(item, idx) : '') +
         '</div>'
@@ -3199,7 +3493,7 @@
       const verb = h.kind === 'waste' ? 'wasted'
         : h.kind === 'count' ? 'hand counted'
         : (h.delta > 0 ? 'added' : 'removed');
-      return '<div class="history-entry"><span>' + verb + ' ' + Math.abs(h.delta).toLocaleString() + ' units</span>' +
+      return '<div class="history-entry"><span>' + verb + ' ' + Math.abs(h.delta).toLocaleString() + ' units' + vtag + '</span>' +
         '<span class="who">' + escapeHtml(h.actor || 'someone') +
         (h.role ? ' (' + escapeHtml(h.role) + ')' : '') +
         ' &middot; ' + formatRelative(h.ts) + '</span></div>';
@@ -3261,6 +3555,19 @@
 
   let presenceRef = null;
 
+  // Records anyone with a profile opening the app, approved or not
+  function logSignIn(kind) {
+    if (!isConfigured || !roomCode || !myName) return;
+    db.ref('tally/rooms/' + roomCode + '/sessions').push({
+      name: myName,
+      role: myRole || null,
+      profileId: profileId || null,
+      status: kind || 'opened',
+      at: Date.now(),
+      session: SESSION_ID
+    }).catch(function () {});
+  }
+
   function startPresence() {
     if (!isConfigured || !roomCode) return;
     presenceRef = db.ref('tally/rooms/' + roomCode + '/presence/' + SESSION_ID);
@@ -3277,11 +3584,7 @@
       });
       if (!logged) {
         logged = true;
-        db.ref('tally/rooms/' + roomCode + '/sessions').push({
-          name: myName || 'Unnamed',
-          at: Date.now(),
-          session: SESSION_ID
-        }).catch(function() {});
+        logSignIn('opened');
       }
     });
 
@@ -3426,7 +3729,19 @@
     } catch (e) { return null; }
   }
 
+  function setConnDot() {
+    const d = document.getElementById('connDot');
+    const t = document.getElementById('connTxt');
+    if (!d || !t) return;
+    d.classList.remove('offline', 'pending', 'syncing');
+    if (!isOnline && hasPending) { d.classList.add('offline'); t.textContent = 'saved here'; }
+    else if (!isOnline)          { d.classList.add('offline'); t.textContent = 'offline'; }
+    else if (hasPending)         { d.classList.add('pending', 'syncing'); t.textContent = 'syncing'; }
+    else                         { t.textContent = ''; }
+  }
+
   function setOfflineBanner() {
+    setConnDot();
     const el = document.getElementById('offlineBar');
     if (!el) return;
     if (!isOnline && hasPending) {
@@ -3560,6 +3875,7 @@
     if (!item.history) item.history = [];
     const entry = { ts: Date.now(), delta: delta, actor: myName || 'someone' };
     if (myRole) entry.role = myRole;
+    if (item && item.lastVariant) entry.variant = item.lastVariant;
     if (kind) entry.kind = kind;
     item.history.push(entry);
     if (item.history.length > 300) item.history = item.history.slice(-300);
@@ -3766,6 +4082,212 @@
     return !!el;
   }
 
+  // ---- admin sub-screens (moved out of the old accordion) ----
+  function adminScreen(title, sub, html, onReady) {
+    const body = document.getElementById('auditBody');
+    document.getElementById('auditGate').style.display = 'flex';
+    document.getElementById('appRoot').style.display = 'none';
+    body.innerHTML =
+      '<div class="audit-item-name">' + title + '</div>' +
+      (sub ? '<div class="audit-sub">' + sub + '</div>' : '') +
+      html +
+      '<div class="audit-actions"><button type="button" id="adminScrClose">Close</button></div>';
+    on('adminScrClose', 'click', closeAudit);
+    if (onReady) onReady();
+  }
+
+  function showStores() {
+    adminScreen('Stores', 'Each store keeps its own inventory.',
+      '<div id="storeList" class="store-list"></div>' +
+      '<div class="admin-row" style="margin-top:10px;">' +
+        '<input type="text" id="newStoreCode" placeholder="New store code" maxlength="12" autocapitalize="characters">' +
+        '<button type="button" class="admin-mini-btn" id="createStoreBtn">Create</button>' +
+      '</div>' +
+      '<div class="admin-row">' +
+        '<button type="button" class="admin-mini-btn" id="shareStoreBtn">Share this store\'s link</button>' +
+      '</div>',
+      function () {
+        refreshStoreList();
+        on('createStoreBtn', 'click', async function () {
+          const code = normalizeRoom(document.getElementById('newStoreCode').value);
+          if (!code) { document.getElementById('newStoreCode').style.borderColor = 'var(--red)'; return; }
+          try {
+            const stores = await addStore(code);
+            document.getElementById('newStoreCode').value = '';
+            renderStoreList(stores);
+          } catch (e) {
+            alert('Could not create store \u2014 this device is not an approved admin device.');
+          }
+        });
+        on('shareStoreBtn', 'click', function () {
+          const url = window.location.origin + window.location.pathname + '?store=' + roomCode;
+          if (navigator.share) navigator.share({ title: 'Tally \u2014 ' + roomCode, url: url }).catch(function () {});
+          else if (navigator.clipboard) navigator.clipboard.writeText(url).then(function () { alert('Link copied.'); });
+          else prompt('Copy this link:', url);
+        });
+        on('storeList', 'click', function (e) {
+          const b = e.target.closest('button[data-store]');
+          if (b) goToStore(b.getAttribute('data-store'));
+        });
+      });
+  }
+
+  function showDevices() {
+    adminScreen('Admin devices', 'Devices that can change settings.',
+      '<div id="deviceList" class="store-list"></div>' +
+      '<div class="admin-row" style="margin-top:10px;">' +
+        '<button type="button" class="admin-mini-btn" id="deviceIdBtn">Copy this device ID</button>' +
+        '<button type="button" class="admin-mini-btn" id="addDeviceBtn">Add by ID</button>' +
+      '</div>' +
+      '<div class="audit-summary">A device ID changes if someone clears their browser data or switches phones. Easiest way to grant admin is the star in Staff.</div>',
+      function () {
+        loadConfig().then(function (cfg) { renderApprovedDevices(cfg); }).catch(function () {});
+        on('deviceIdBtn', 'click', function () {
+          if (!myUid) { alert('Not signed in yet.'); return; }
+          if (navigator.clipboard) navigator.clipboard.writeText(myUid).then(function () { alert('Device ID copied:\n\n' + myUid); });
+          else prompt('Device ID:', myUid);
+        });
+        on('addDeviceBtn', 'click', async function () {
+          const uid = prompt('Paste the device ID to approve:');
+          if (uid === null || !uid.trim()) return;
+          const label = (prompt('Name this device:', 'Device') || 'Device').trim().slice(0, 30);
+          try {
+            const update = {};
+            update['adminUids/' + uid.trim()] = { label: label, addedAt: Date.now() };
+            await configRef().update(update);
+            renderApprovedDevices(await loadConfig());
+            alert('Device approved.');
+          } catch (e) {
+            alert('Could not approve \u2014 this device is not an approved admin device.');
+          }
+        });
+        on('deviceList', 'click', async function (e) {
+          const b = e.target.closest('button[data-revoke]');
+          if (!b) return;
+          if (!confirm('Revoke admin access for this device?')) return;
+          try {
+            await configRef().child('adminUids').child(b.getAttribute('data-revoke')).remove();
+            renderApprovedDevices(await loadConfig());
+          } catch (err) {
+            alert('Could not revoke.');
+          }
+        });
+      });
+  }
+
+  function showSecurity() {
+    adminScreen('Security', null,
+      '<div class="admin-row">' +
+        '<button type="button" class="admin-mini-btn" id="changePassBtn">Change admin password</button>' +
+      '</div>' +
+      '<div class="admin-row">' +
+        '<button type="button" class="admin-mini-btn danger" id="resetAdminBtn">Reset admin</button>' +
+      '</div>' +
+      '<div class="audit-summary">Reset admin clears every approved admin device. The next device that opens Tally claims it \u2014 do that only when you are about to open it yourself.</div>',
+      function () {
+        on('changePassBtn', 'click', async function () {
+          const p = prompt('New admin password (at least 4 characters):');
+          if (p === null) return;
+          if (p.length < 4) { alert('Too short.'); return; }
+          try {
+            await configRef().update({ adminHash: await hashPass(p) });
+            alert('Password updated.');
+          } catch (e) {
+            alert('Could not update password \u2014 this device is not an approved admin device.');
+          }
+        });
+        on('resetAdminBtn', 'click', async function () {
+          if (!confirm('Clear ALL approved admin devices?\n\nThe next device that opens Tally becomes the admin.')) return;
+          try {
+            await configRef().child('adminUids').remove();
+            await configRef().child('adminUid').remove();
+            alert('Admin cleared. Reload on the device you want as admin.');
+            isAdmin = false;
+            sessionStorage.removeItem('tally_admin');
+            closeAudit();
+            document.getElementById('adminPanel').style.display = 'none';
+            document.getElementById('adminBtn').style.display = 'none';
+          } catch (e) {
+            alert('Could not reset \u2014 this device is not an approved admin device.');
+          }
+        });
+      });
+  }
+
+  on('storesBtn', 'click', showStores);
+  on('devicesBtn', 'click', showDevices);
+  on('securityBtn', 'click', showSecurity);
+
+  const NAV_TABS = {
+    count: { label: 'Count', items: [
+      ['barcodeBtn', '\uD83D\uDD22', 'Scan barcode', 'One by one, or a whole delivery then review'],
+      ['sheetBtn',   '\uD83D\uDCCB', 'Scan production', 'Order sheets and delivery invoices'],
+      ['trayBtn',    '\uD83E\uDD6F', 'Count a tray', 'Munchkins and loose product \u2014 photo or tap it out'],
+      ['auditBtn',   '\u2705', 'Spot audit', 'Count a random sample, tap or hands-free']
+    ]},
+    order: { label: 'Ordering', items: [
+      ['orderBtn',   '\uD83D\uDED2', 'Order list', 'What to order, from your real usage'],
+      ['usageBtn',   '\uD83E\uDDEA', 'Usage breakdown', 'Icing and filling used, worked out from recipes'],
+      ['varianceBtn','\uD83D\uDCC9', 'Variance history', 'Estimated vs actual, tracked over time']
+    ]},
+    review: { label: 'Review', items: [
+      ['wasteBtn',    '\uD83D\uDDD1', 'Waste', 'Last 4 weeks, worst first'],
+      ['auditHistBtn','\uD83D\uDCDC', 'Audit log', 'Past counts and discrepancies'],
+      ['recipesBtn',  '\uD83D\uDCD6', 'Recipes', 'Base, filling and toppings for every donut']
+    ]},
+    more: { label: 'More', items: [
+      ['catBtn',    '\uD83C\uDFF7', 'Categories', 'Rename, reorder, add'],
+      ['bugMenuBtn','\uD83D\uDC1B', 'Report a problem', 'Goes straight to the manager'],
+      ['tourBtn',   '\uD83C\uDF93', 'Show me around', 'Replay the walkthrough'],
+      ['adminBtn',  '\uD83D\uDD12', 'Admin', 'Staff, devices, backups']
+    ]}
+  };
+
+  let navTab = 'count';
+
+  function renderSheet() {
+    const tab = NAV_TABS[navTab];
+    if (!tab) return;
+    document.getElementById('sheetBody').innerHTML =
+      '<div class="sheet-group">' +
+        '<div class="sheet-label">' + tab.label + '</div>' +
+        tab.items.map(function (r) {
+          return '<button type="button" class="sheet-item" id="' + r[0] + '">' +
+            '<span class="si-icon">' + r[1] + '</span>' +
+            '<span class="si-text"><b>' + r[2] + '</b><i>' + r[3] + '</i></span>' +
+          '</button>';
+        }).join('') +
+      '</div>';
+    wireSheetActions();
+  }
+
+  function wireSheetActions() {
+    const map = {
+      barcodeBtn: chooseBarcodeMode,
+      sheetBtn: openProductionPicker,
+      trayBtn: openTrayPicker,
+      auditBtn: startAudit,
+      orderBtn: showOrderList,
+      usageBtn: showUsage,
+      varianceBtn: showVariance,
+      wasteBtn: showWasteReport,
+      auditHistBtn: showAuditHistory,
+      recipesBtn: showRecipes,
+      catBtn: showCategories,
+      bugMenuBtn: openBugReport,
+      tourBtn: replayTour,
+      adminBtn: toggleAdmin
+    };
+    Object.keys(map).forEach(function (id) {
+      on(id, 'click', function () { closeMenu(); map[id](); });
+    });
+  }
+
+  function replayTour() {
+    localStorage.removeItem('tally_tour_done');
+    maybeStartTour();
+  }
+
   function openMenu() {
     document.getElementById('menuScrim').style.display = 'block';
     document.getElementById('menuSheet').style.display = 'block';
@@ -3774,9 +4296,22 @@
   function closeMenu() {
     document.getElementById('menuScrim').style.display = 'none';
     document.getElementById('menuSheet').style.display = 'none';
+    const nav = document.getElementById('bnav');
+    if (nav) Array.from(nav.children).forEach(function (x, i) {
+      x.classList.toggle('active', i === 0);
+    });
+    navTab = 'count';
   }
 
-  document.getElementById('menuBtn').addEventListener('click', openMenu);
+  document.getElementById('bnav').addEventListener('click', function (e) {
+    const b = e.target.closest('button[data-nav]');
+    if (!b) return;
+    const tab = b.getAttribute('data-nav');
+    Array.from(this.children).forEach(function (x) { x.classList.toggle('active', x === b); });
+    navTab = tab;
+    renderSheet();
+    openMenu();
+  });
   document.getElementById('menuClose').addEventListener('click', closeMenu);
   document.getElementById('menuScrim').addEventListener('click', closeMenu);
 
@@ -3861,22 +4396,50 @@
   // Spotlight tour: dims the screen, cuts a hole around the real control,
   // and explains it. Falls back to a centred card when there's nothing to point at.
   const TOUR = [
-    { target: null, title: 'Welcome to Tally', icon: '\uD83C\uDF69',
-      text: 'This is how we keep track of what\u2019s in the freezer. Quick look around \u2014 about 30 seconds.' },
-    { target: '#itemList .item-card', title: 'Your items', place: 'below',
-      text: 'Each row is one product. The ring shows how much is left, and the number is how many cases you have. Tap a row to open it.' },
-    { target: '#itemList .item-card', title: 'Counting', place: 'below',
-      text: 'Inside an item you get + and \u2212 for whole cases, half cases, and singles. On a closed row you can also swipe right to add a case, left to remove one.' },
-    { target: '.cmd-main', title: 'Or just talk', place: 'below',
-      text: 'Tap the mic and say \u201cadd 3 cases of croissants\u201d or \u201cremove 5 bagels.\u201d Hands-free keeps listening so you can count with gloves on.' },
-    { target: '.cat-strip', title: 'Filter by category', place: 'below',
-      text: 'Jump straight to Donuts, Bagels, Munchkins and the rest. \u201cAll\u201d brings everything back.' },
-    { target: '#menuBtn', title: 'The menu', place: 'below',
-      text: 'Everything else lives here: scanning barcodes and delivery sheets, the order list, waste, and audits.' },
-    { target: null, title: 'Waste is separate', icon: '\uD83D\uDDD1',
-      text: 'If you throw something out, use the Waste button on that item instead of just subtracting. It keeps waste out of the sales numbers we order from.' },
-    { target: null, title: 'The freezer works', icon: '\u2744',
-      text: 'No signal in the freezer is fine. Keep counting \u2014 it all saves on the phone and syncs the moment you walk back out.' }
+    { target: null, icon: '\uD83C\uDF69', title: 'Welcome to Tally',
+      text: 'This is how we track what\u2019s in the freezer, so nobody has to guess what to order. Two minutes and you\u2019ll know the whole thing.' },
+
+    { target: '#itemList .item-card', place: 'below', title: 'Every product is a row',
+      text: 'The little ring on the left fills up as stock goes up, and turns red when you\u2019re running low. The big number is how many cases you have.' },
+
+    { target: '#itemList .item-card', place: 'below', title: 'Open one to count it',
+      text: 'Tap any row to open it. You\u2019ll get big + and \u2212 buttons for whole cases, half cases, and single pieces.' },
+
+    { target: '#itemList .item-card', place: 'below', title: 'Faster: swipe',
+      text: 'On a closed row, swipe right to add a case and left to take one off. Handy when you\u2019re moving down a shelf.' },
+
+    { target: '.cmd-main', place: 'below', title: 'Or talk to it',
+      text: 'Tap the mic and say it plainly: \u201cadd 3 cases of croissants\u201d, \u201cremove 5 bagels\u201d, \u201chalf a case of hash browns\u201d. It understands numbers spoken as words too.' },
+
+    { target: '.cmd-tools', place: 'below', title: 'Hands-free in the freezer',
+      text: 'Hands-free keeps the mic listening so you can count with gloves on. The speaker button makes it read results back to you.' },
+
+    { target: '.cat-strip', place: 'below', title: 'Jump to what you need',
+      text: 'Filter to Donuts, Bagels, Munchkins and the rest. Tap All to see everything again.' },
+
+    { target: '.bnav', place: 'above', title: 'Everything else is down here',
+      text: 'Count is scanning and audits. Order is what to buy. Review is waste, history and recipes. More is settings and reporting a problem.' },
+
+    { target: '.bnav-btn:nth-child(1)', place: 'above', title: 'Count',
+      text: 'Scan a barcode on a case, photograph the order sheet, or count a tray of munchkins by camera. There\u2019s a spot audit in here too.' },
+
+    { target: '.bnav-btn:nth-child(2)', place: 'above', title: 'Order',
+      text: 'The order list works out what to buy from how fast things actually move here \u2014 not a fixed number someone guessed once.' },
+
+    { target: null, icon: '\uD83D\uDDD1', title: 'Waste goes in Waste',
+      text: 'If you throw something out, open the item and use the Waste button rather than just subtracting. Waste is kept separate so it never inflates what we order next week.' },
+
+    { target: null, icon: '\uD83E\uDD6F', title: 'Munchkins and loose product',
+      text: 'For trays, use Count a tray. Photograph it and the app counts them, then you tap to fix any it got wrong. Or tap it out by hand with big buttons.' },
+
+    { target: null, icon: '\u2744', title: 'The freezer has no signal \u2014 that\u2019s fine',
+      text: 'Keep counting. Everything saves on the phone and syncs the second you walk back out. The dot in the corner tells you where things stand: green is synced, red is offline.' },
+
+    { target: null, icon: '\uD83D\uDC1B', title: 'If something\u2019s wrong, say so',
+      text: 'More \u2192 Report a problem sends it straight to the manager, even from the freezer. If a count looks wrong or a button does nothing, that\u2019s worth reporting.' },
+
+    { target: null, icon: '\u2705', title: 'That\u2019s it',
+      text: 'You can replay this any time from More \u2192 Show me around. Go count something.' }
   ];
 
   let tourStep = 0;
@@ -3934,7 +4497,9 @@
     // Put the card clear of whatever is highlighted
     card.style.top = '';
     card.style.bottom = '';
-    if (rect && rect.top < window.innerHeight * 0.5) {
+    if (rect && s.place === 'above') {
+      card.style.bottom = Math.min(window.innerHeight - rect.top + 18, window.innerHeight - 220) + 'px';
+    } else if (rect && rect.top < window.innerHeight * 0.5) {
       card.style.top = Math.min(rect.bottom + 18, window.innerHeight - 240) + 'px';
     } else if (rect) {
       card.style.bottom = Math.min(window.innerHeight - rect.top + 18, window.innerHeight - 240) + 'px';
@@ -3989,6 +4554,597 @@
     return 'Donuts';
   }
 
+  // ============ RECIPE BOOK ============
+  // Seeded exactly from the store's finishing chart. Editable in the app;
+  // once saved it lives in Firebase with everything else.
+  const RECIPE_SEED = [
+    ['Apple N\' Spice',              'Yeast Shell',           'Apple',                 ['Cinnamon Sugar']],
+    ['Bavarian Kreme',               'Yeast Shell',           'Bavarian Cream',        ['Powdered Sugar']],
+    ['Blueberry Cake',               'Blueberry Cake Ring',   null,                    ['Glaze']],
+    ['Boston Kreme',                 'Yeast Shell',           'Bavarian Cream',        ['Chocolate Icing']],
+    ['Chocolate Frosted',            'Yeast Ring',            null,                    ['Chocolate Icing']],
+    ['Chocolate Frosted Sprinkles',  'Yeast Ring',            null,                    ['Chocolate Icing', 'Sprinkles']],
+    ['Chocolate Frosted Cake',       'Plain Cake Ring',       null,                    ['Chocolate Icing']],
+    ['Chocolate Glazed',             'Chocolate Cake Ring',   null,                    ['Glaze']],
+    ['Chocolate Kreme',              'Yeast Shell',           'Chocolate Kreme',       ['Powdered Sugar']],
+    ['Cinnamon Cake',                'Plain Cake Ring',       null,                    ['Cinnamon Sugar']],
+    ['Double Chocolate',             'Chocolate Cake Ring',   null,                    ['Chocolate Icing']],
+    ['French Cruller',               'French Cruller',        null,                    ['Glaze']],
+    ['Glazed',                       'Yeast Ring',            null,                    ['Glaze']],
+    ['Jelly',                        'Yeast Shell',           'Apple Raspberry Jelly', ['Baker\'s Special Sugar']],
+    ['Kreme Delight',                'Yeast Shell',           'Vanilla Kreme',         ['Chocolate Icing']],
+    ['Lemon',                        'Yeast Shell',           'Lemon',                 ['Powdered Sugar']],
+    ['Maple Frosted',                'Yeast Ring',            null,                    ['Maple Icing']],
+    ['Marble Frosted',               'Yeast Ring',            null,                    ['Choc & Van Icing']],
+    ['Old Fashioned',                'Plain Cake Ring',       null,                    []],
+    ['Powdered Cake',                'Plain Cake Ring',       null,                    ['Powdered Sugar']],
+    ['Sour Kreme',                   'Sour Kreme Cake Ring',  null,                    ['Glaze']],
+    ['Stick - Glazed',               'Stick',                 null,                    ['Glaze']],
+    ['Stick - Jelly',                'Stick',                 'Apple Raspberry Jelly', ['Baker\'s Special Sugar']],
+    ['Stick - Plain',                'Stick',                 null,                    []],
+    ['Strawberry Frosted',           'Yeast Ring',            null,                    ['Strawberry Icing']],
+    ['Strawberry Frosted Sprinkles', 'Yeast Ring',            null,                    ['Strawberry Icing', 'Sprinkles']],
+    ['Sugar Raised',                 'Yeast Ring',            null,                    ['Baker\'s Special Sugar']],
+    ['Toasted Coconut',              'Plain Cake Ring',       null,                    ['Glaze', 'Toasted Coconut']],
+    ['Vanilla Frosted',              'Yeast Ring',            null,                    ['Vanilla Icing']],
+    ['Vanilla Frosted Sprinkles',    'Yeast Ring',            null,                    ['Vanilla Icing', 'Sprinkles']],
+    ['Vanilla Kreme',                'Yeast Shell',           'Vanilla Kreme',         ['Powdered Sugar']],
+    ['Apple Fritter',                'Apple Fritter',         'Apple',                 ['Glaze']],
+    ['Coffee Roll',                  'Coffee Roll',           null,                    ['Glaze']],
+    ['Blueberry Muffin',             'Muffin',                null,                    ['Sanding Sugar']],
+    ['Chocolate Chip Muffin',        'Muffin',                null,                    ['Sanding Sugar']],
+    ['Coffee Cake Muffin',           'Muffin',                null,                    ['Coffee Cake Streusel']],
+    ['Corn Muffin',                  'Muffin',                null,                    []]
+  ];
+
+  let recipes = [];
+
+  function recipesRef() { return db.ref('tally/rooms/' + roomCode + '/recipes'); }
+
+  function seedRecipes() {
+    return RECIPE_SEED.map(function (r) {
+      return { name: r[0], base: r[1], filling: r[2], toppings: r[3] };
+    });
+  }
+
+  async function loadRecipes() {
+    if (!isConfigured || !roomCode) return;
+    try {
+      const snap = await recipesRef().get();
+      const val = snap.val();
+      if (Array.isArray(val) && val.length) recipes = val;
+      else {
+        recipes = seedRecipes();
+        await recipesRef().set(recipes).catch(function () {});
+      }
+    } catch (e) { recipes = seedRecipes(); }
+  }
+
+  async function saveRecipes() {
+    if (!isConfigured || !roomCode) return;
+    try { await recipesRef().set(recipes); } catch (e) {}
+  }
+
+  function recipeFor(itemName) {
+    const n = String(itemName || '').toLowerCase();
+    // Exact first, then loose contains both ways
+    let r = recipes.find(function (x) { return x.name.toLowerCase() === n; });
+    if (r) return r;
+    r = recipes.find(function (x) {
+      const rn = x.name.toLowerCase();
+      return n.indexOf(rn) !== -1 || rn.indexOf(n) !== -1;
+    });
+    return r || null;
+  }
+
+  // ============ COMPONENT USAGE ============
+  // Links a recipe component ("Chocolate Icing") to a real inventory item
+  // (a bucket) and how many donuts one full bucket finishes. From that we can
+  // work out how much icing/filling went out with the donuts that were used.
+  let components = {};   // { 'Chocolate Icing': { itemIdx|null, perPack: 400 } }
+
+  function componentsRef() { return db.ref('tally/rooms/' + roomCode + '/components'); }
+
+  async function loadComponents() {
+    if (!isConfigured || !roomCode) return;
+    try {
+      const snap = await componentsRef().get();
+      components = snap.val() || {};
+    } catch (e) { components = {}; }
+  }
+
+  async function saveComponents() {
+    if (!isConfigured || !roomCode) return;
+    try { await componentsRef().set(components); } catch (e) {}
+  }
+
+  // Every component named anywhere in the recipe book
+  function allComponents() {
+    const set = {};
+    recipes.forEach(function (r) {
+      if (r.filling) set[r.filling] = 'filling';
+      (r.toppings || []).forEach(function (t) { if (t) set[t] = set[t] || 'topping'; });
+    });
+    return Object.keys(set).sort().map(function (n) { return { name: n, kind: set[n] }; });
+  }
+
+  function componentItem(name) {
+    const cfg = components[name];
+    if (!cfg || cfg.itemName == null) return null;
+    const idx = items.findIndex(function (it) { return it.name === cfg.itemName; });
+    return idx === -1 ? null : { idx: idx, item: items[idx], perPack: cfg.perPack || 0 };
+  }
+
+  // How many donuts were finished in a window, per recipe component
+  function componentUsage(days) {
+    const since = Date.now() - (days || 28) * 86400000;
+    const used = {};   // component -> donuts finished
+
+    items.forEach(function (it) {
+      const r = recipeFor(it.name);
+      if (!r) return;
+      const donuts = (it.history || [])
+        .filter(function (h) { return h.ts >= since && h.delta < 0 && h.kind !== 'waste'; })
+        .reduce(function (s, h) { return s + Math.abs(h.delta); }, 0);
+      if (!donuts) return;
+      if (r.filling) used[r.filling] = (used[r.filling] || 0) + donuts;
+      (r.toppings || []).forEach(function (t) {
+        used[t] = (used[t] || 0) + donuts;
+      });
+    });
+
+    return Object.keys(used).map(function (name) {
+      const donuts = used[name];
+      const link = componentItem(name);
+      const perPack = link ? link.perPack : 0;
+      const est = perPack > 0 ? donuts / perPack : null;   // packs used
+      let actual = null;
+      if (link) {
+        actual = (link.item.history || [])
+          .filter(function (h) { return h.ts >= since && h.delta < 0; })
+          .reduce(function (s, h) { return s + Math.abs(h.delta); }, 0) / (link.item.caseSize || 1);
+      }
+      return { name: name, donuts: donuts, link: link, estPacks: est, actualPacks: actual };
+    }).sort(function (a, b) { return b.donuts - a.donuts; });
+  }
+
+  function showRecipes() {
+    const body = document.getElementById('auditBody');
+    document.getElementById('auditGate').style.display = 'flex';
+    document.getElementById('appRoot').style.display = 'none';
+
+    function draw() {
+      const rows = recipes.map(function (r, i) {
+        const bits = [];
+        if (r.base) bits.push(r.base);
+        if (r.filling) bits.push('filled: ' + r.filling);
+        if ((r.toppings || []).length) bits.push((r.toppings || []).join(' + '));
+        return '<div class="audit-result-row">' +
+          '<span>' + escapeHtml(r.name) +
+            '<br><span style="font-size:11px;color:var(--text-dim);">' +
+            escapeHtml(bits.join(' \u00b7 ') || 'nothing set') + '</span></span>' +
+          '<span class="staff-actions">' +
+            '<button type="button" class="staff-btn" data-recedit="' + i + '" title="Edit">&#9998;</button>' +
+            '<button type="button" class="staff-btn del" data-recdel="' + i + '" title="Delete">&times;</button>' +
+          '</span>' +
+        '</div>';
+      }).join('');
+
+      body.innerHTML =
+        '<div class="audit-item-name">Recipes</div>' +
+        '<div class="audit-sub">' + recipes.length + ' recipes \u00b7 base, filling and toppings for each</div>' +
+        rows +
+        '<div class="admin-row" style="margin-top:12px;">' +
+          '<input type="text" id="newRecName" placeholder="New donut name" maxlength="40">' +
+          '<button type="button" class="admin-mini-btn" id="addRecBtn">Add</button>' +
+        '</div>' +
+        '<div class="audit-summary">These drive the usage breakdown: when a donut goes out, its filling and toppings are counted as used too.</div>' +
+        '<div class="audit-actions"><button type="button" id="recClose">Close</button></div>';
+
+      on('recClose', 'click', closeAudit);
+      on('addRecBtn', 'click', function () {
+        const el = document.getElementById('newRecName');
+        const nm = el.value.trim();
+        if (!nm) { el.style.borderColor = 'var(--red)'; return; }
+        recipes.push({ name: nm, base: null, filling: null, toppings: [] });
+        saveRecipes();
+        editRecipe(recipes.length - 1, draw);
+      });
+    }
+
+    body.addEventListener('click', function (e) {
+      const ed = e.target.closest('button[data-recedit]');
+      const dl = e.target.closest('button[data-recdel]');
+      if (ed) { editRecipe(parseInt(ed.getAttribute('data-recedit'), 10), draw); return; }
+      if (dl) {
+        const i = parseInt(dl.getAttribute('data-recdel'), 10);
+        if (!confirm('Delete the recipe for "' + recipes[i].name + '"?')) return;
+        recipes.splice(i, 1);
+        saveRecipes();
+        draw();
+      }
+    });
+
+    draw();
+  }
+
+  function editRecipe(i, back) {
+    const r = recipes[i];
+    if (!r) return;
+    const body = document.getElementById('auditBody');
+    let tops = (r.toppings || []).slice();
+
+    function chips(list, isOn, key) {
+      return '<div class="id-chips" data-key="' + key + '">' +
+        list.map(function (v) {
+          return '<button type="button" class="id-chip' + (isOn(v) ? ' on' : '') +
+            '" data-val="' + escapeHtml(v) + '">' + escapeHtml(v) + '</button>';
+        }).join('') + '</div>';
+    }
+
+    function draw() {
+      body.innerHTML =
+        '<div class="audit-item-name">' + escapeHtml(r.name) + '</div>' +
+        '<div class="audit-sub">Tap to set. Toppings can be more than one.</div>' +
+        '<div class="role-label">Base</div>' +
+        chips(BASES, function (v) { return r.base === v; }, 'base') +
+        '<div class="role-label">Filling</div>' +
+        chips(FILLINGS, function (v) { return (r.filling || 'None') === v; }, 'filling') +
+        '<div class="role-label">Toppings</div>' +
+        chips(TOPPINGS, function (v) { return tops.indexOf(v) !== -1; }, 'topping') +
+        '<div class="audit-actions">' +
+          '<button type="button" class="audit-skip" id="recBack">Back</button>' +
+          '<button type="button" id="recSave">Save</button></div>';
+
+      body.querySelectorAll('.id-chips').forEach(function (grp) {
+        grp.addEventListener('click', function (e) {
+          const b = e.target.closest('button[data-val]');
+          if (!b) return;
+          const key = grp.getAttribute('data-key');
+          const val = b.getAttribute('data-val');
+          if (key === 'base') r.base = (r.base === val ? null : val);
+          else if (key === 'filling') r.filling = (val === 'None' ? null : val);
+          else {
+            if (val === 'None') tops = [];
+            else {
+              const k = tops.indexOf(val);
+              if (k === -1) tops.push(val); else tops.splice(k, 1);
+            }
+          }
+          draw();
+        });
+      });
+
+      on('recBack', 'click', function () { back(); });
+      on('recSave', 'click', function () {
+        r.toppings = tops;
+        saveRecipes();
+        back();
+      });
+    }
+    draw();
+  }
+
+  function showUsage() {
+    const body = document.getElementById('auditBody');
+    document.getElementById('auditGate').style.display = 'flex';
+    document.getElementById('appRoot').style.display = 'none';
+
+    function draw() {
+      const rows = componentUsage(28);
+      const comps = allComponents();
+
+      const html = rows.map(function (r) {
+        let right, note;
+        if (r.estPacks == null) {
+          right = '<span class="audit-var">\u2014</span>';
+          note = 'not linked to stock yet';
+        } else {
+          const diff = (r.actualPacks != null) ? (r.actualPacks - r.estPacks) : null;
+          const cls = (diff != null && Math.abs(diff) > Math.max(0.5, r.estPacks * 0.25)) ? 'off' : 'ok';
+          right = '<span class="audit-var ' + cls + '">' + r.estPacks.toFixed(2) +
+            (r.actualPacks != null ? ' / ' + r.actualPacks.toFixed(2) : '') + '</span>';
+          note = r.donuts.toLocaleString() + ' donuts \u00b7 est / actual packs' +
+            (diff != null && Math.abs(diff) > 0.01
+              ? ' \u00b7 ' + (diff > 0 ? 'using ' + diff.toFixed(2) + ' more than expected'
+                                       : 'using ' + Math.abs(diff).toFixed(2) + ' less than expected')
+              : '');
+        }
+        return '<div class="audit-result-row">' +
+          '<span>' + escapeHtml(r.name) +
+            '<br><span style="font-size:11px;color:var(--text-dim);">' + note + '</span></span>' +
+          right +
+        '</div>';
+      }).join('');
+
+      body.innerHTML =
+        '<div class="audit-item-name">Usage breakdown</div>' +
+        '<div class="audit-sub">Last 4 weeks \u00b7 icing and filling worked out from donuts finished</div>' +
+        (html || '<div class="no-history">Nothing to work from yet \u2014 count some donuts out first.</div>') +
+        '<div class="audit-summary">Estimated packs come from your recipes and how many donuts each pack finishes. Actual comes from you marking a bucket empty. A big gap usually means over-icing, waste, or the per-pack number needs tuning.</div>' +
+        '<div class="audit-actions">' +
+          '<button type="button" class="audit-skip" id="usageLink">Link components</button>' +
+          '<button type="button" id="usageClose">Close</button></div>';
+
+      on('usageClose', 'click', closeAudit);
+      on('usageLink', 'click', function () { linkComponents(draw); });
+    }
+    draw();
+  }
+
+  function linkComponents(back) {
+    const body = document.getElementById('auditBody');
+
+    function draw() {
+      const comps = allComponents();
+      const rows = comps.map(function (c2, i) {
+        const cfg = components[c2.name] || {};
+        const linked = cfg.itemName || null;
+        return '<div class="audit-result-row">' +
+          '<span>' + escapeHtml(c2.name) +
+            '<br><span style="font-size:11px;color:' + (linked ? 'var(--text-dim)' : 'var(--red)') + ';">' +
+              (linked ? escapeHtml(linked) + ' \u00b7 ' + (cfg.perPack || 0) + ' donuts per pack'
+                      : 'not linked') + '</span></span>' +
+          '<button type="button" class="staff-btn" data-linkc="' + i + '" title="Set">&#9998;</button>' +
+        '</div>';
+      }).join('');
+
+      body.innerHTML =
+        '<div class="audit-item-name">Link components</div>' +
+        '<div class="audit-sub">Point each icing or filling at the bucket you count, and say how many donuts one pack finishes.</div>' +
+        rows +
+        '<div class="audit-actions">' +
+          '<button type="button" class="audit-skip" id="linkBack">Back</button>' +
+          '<button type="button" id="linkDone">Done</button></div>';
+
+      on('linkBack', 'click', function () { back(); });
+      on('linkDone', 'click', function () { saveComponents(); back(); });
+
+      body.querySelectorAll('button[data-linkc]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          const c2 = comps[parseInt(b.getAttribute('data-linkc'), 10)];
+          const list = items.map(function (it, k) { return (k + 1) + '. ' + it.name; }).join('\n');
+          const pick = prompt('Which item is "' + c2.name + '"?\n\n' + list +
+            '\n\nType a number, or leave blank to unlink.',
+            (components[c2.name] && components[c2.name].itemName) || '');
+          if (pick === null) return;
+          const v = pick.trim();
+          if (!v) { delete components[c2.name]; saveComponents(); draw(); return; }
+          const k = parseInt(v, 10);
+          const item = items[k - 1];
+          if (!item) { alert('No item with that number.'); return; }
+          const per = parseInt(prompt('How many donuts does one ' + packOf(item).one +
+            ' of ' + item.name + ' finish?', (components[c2.name] && components[c2.name].perPack) || '400'), 10);
+          if (!per || per < 1) return;
+          components[c2.name] = { itemName: item.name, perPack: per };
+          saveComponents();
+          draw();
+        });
+      });
+    }
+    draw();
+  }
+
+  function editItem(idx) {
+    const item = items[idx];
+    if (!item) return;
+    const body = document.getElementById('auditBody');
+    document.getElementById('auditGate').style.display = 'flex';
+    document.getElementById('appRoot').style.display = 'none';
+
+    function row(label, value, action, danger) {
+      return '<button type="button" class="set-row' + (danger ? ' danger' : '') + '" data-set="' + action + '">' +
+        '<span class="set-label">' + label + '</span>' +
+        '<span class="set-value">' + value + '</span>' +
+      '</button>';
+    }
+
+    function draw() {
+      const codes = Array.isArray(item.barcodes) ? item.barcodes.length : 0;
+      body.innerHTML =
+        '<div class="audit-item-name">' + escapeHtml(item.name) + '</div>' +
+        '<div class="audit-sub">Settings for this item.</div>' +
+        '<div class="set-list">' +
+          row('Name', escapeHtml(item.name), 'name') +
+          row('Category', itemCategory(item) ? escapeHtml(itemCategory(item)) : '<i>none</i>', 'cat') +
+          row('Per ' + packOf(item).one, item.caseSize, 'case') +
+          row('Comes in', packOf(item).one, 'pack') +
+          row('Low stock at', lowThresholdLabel(item) || '<i>off</i>', 'low') +
+          row('Note', item.note ? escapeHtml(item.note) : '<i>none</i>', 'note') +
+          row('Barcodes', codes ? codes + ' linked' : '<i>none</i>', 'barcode') +
+          row('Product code', item.productCode ? escapeHtml(item.productCode) : '<i>none</i>', 'code') +
+          (isVariantItem(item)
+            ? row('Varies \u2014 last was', item.lastVariant ? escapeHtml(item.lastVariant) : '<i>not set</i>', 'variant')
+            : row('Varies day to day', item.variable ? 'yes' : 'no', 'variable')) +
+          (recipeLine(item) ? row('Recipe', escapeHtml(recipeLine(item)), 'recipe') : '') +
+          row('Delete item', '', 'delete', true) +
+        '</div>' +
+        '<div class="audit-actions"><button type="button" id="setDone">Done</button></div>';
+
+      on('setDone', 'click', function () { closeAudit(); render(); });
+    }
+
+    body.addEventListener('click', function (e) {
+      const b = e.target.closest('button[data-set]');
+      if (!b) return;
+      const what = b.getAttribute('data-set');
+
+      if (what === 'name') {
+        const v = prompt('Item name:', item.name);
+        if (v && v.trim()) { item.name = v.trim(); touchItem(item); saveItems(); draw(); }
+        return;
+      }
+      if (what === 'case') {
+        const v = parseInt(prompt('How many per ' + packOf(item).one + '?', item.caseSize), 10);
+        if (v > 0) { item.caseSize = v; touchItem(item); saveItems(); draw(); }
+        return;
+      }
+      if (what === 'pack') {
+        const keys = Object.keys(PACK_TYPES);
+        const menu = keys.map(function (k, i) { return (i + 1) + '. ' + PACK_TYPES[k].one; }).join('\n');
+        const v = parseInt(prompt('What does it come in?\n\n' + menu, ''), 10);
+        if (keys[v - 1]) { item.packType = keys[v - 1]; touchItem(item); saveItems(); draw(); }
+        return;
+      }
+      if (what === 'cat') {
+        const menu = categories.map(function (c2, i) { return (i + 1) + '. ' + c2; }).join('\n');
+        const v = prompt('Category:\n\n' + menu + '\n\nNumber, new name, or blank to clear.', itemCategory(item));
+        if (v === null) return;
+        const t2 = v.trim();
+        if (!t2) item.category = null;
+        else if (/^\d+$/.test(t2) && categories[parseInt(t2, 10) - 1]) item.category = categories[parseInt(t2, 10) - 1];
+        else { item.category = t2; if (categories.indexOf(t2) === -1) { categories.push(t2); saveCategories(); } }
+        touchItem(item); saveItems(); draw();
+        return;
+      }
+      if (what === 'low') { closeAudit(); openLowStockModal(idx); return; }
+      if (what === 'note') {
+        const v = prompt('Note (supplier, shelf, item number). Blank to clear:', item.note || '');
+        if (v === null) return;
+        item.note = v.trim() || null;
+        touchItem(item); saveItems(); draw();
+        return;
+      }
+      if (what === 'barcode') { closeAudit(); openBarcode('link', idx); return; }
+      if (what === 'code') {
+        const v = prompt('Product code from the order sheet (e.g. F20016):', item.productCode || '');
+        if (v === null) return;
+        item.productCode = v.trim().toUpperCase() || null;
+        touchItem(item); saveItems(); draw();
+        return;
+      }
+      if (what === 'variant') { askVariant(item, function () { editItem(idx); }); return; }
+      if (what === 'variable') {
+        item.variable = !item.variable;
+        touchItem(item); saveItems(); draw();
+        return;
+      }
+      if (what === 'recipe') { closeAudit(); showRecipes(); return; }
+      if (what === 'delete') {
+        if (!confirm('Delete "' + item.name + '" and its history?')) return;
+        snapshotForUndo();
+        items.splice(idx, 1);
+        expanded.delete(idx); minimized.delete(idx);
+        closeAudit(); render(); saveItems();
+        return;
+      }
+    });
+
+    draw();
+  }
+
+  // ============ VARIANCE TRACKING ============
+  // Each time a bucket is marked empty we record how it compared to what the
+  // recipes predicted, so over-icing shows up as a trend rather than one number.
+  function varianceRef() { return db.ref('tally/rooms/' + roomCode + '/variance'); }
+
+  async function recordVariance(componentName, packsUsed) {
+    if (!isConfigured || !roomCode) return;
+    const rows = componentUsage(28);
+    const row = rows.find(function (r) { return r.name === componentName; });
+    if (!row || row.estPacks == null) return;
+    try {
+      await varianceRef().push({
+        at: Date.now(),
+        component: componentName,
+        estPacks: Number(row.estPacks.toFixed(3)),
+        actualPacks: Number((row.actualPacks || 0).toFixed(3)),
+        donuts: row.donuts,
+        by: myName || 'someone'
+      });
+    } catch (e) {}
+  }
+
+  // Called whenever a component item goes down — that's a pack being used up
+  function noteComponentUse(item, delta) {
+    if (delta >= 0) return;
+    const name = Object.keys(components).find(function (k) {
+      return components[k] && components[k].itemName === item.name;
+    });
+    if (name) recordVariance(name, Math.abs(delta) / (item.caseSize || 1));
+  }
+
+  async function showVariance() {
+    const body = document.getElementById('auditBody');
+    document.getElementById('auditGate').style.display = 'flex';
+    document.getElementById('appRoot').style.display = 'none';
+    body.innerHTML = '<div class="audit-item-name">Variance history</div><div class="audit-sub">Loading\u2026</div>';
+
+    let rows = [];
+    try {
+      const snap = await varianceRef().orderByChild('at').limitToLast(120).get();
+      const val = snap.val() || {};
+      rows = Object.keys(val).map(function (k) { return val[k]; })
+        .sort(function (a, b) { return b.at - a.at; });
+    } catch (e) {}
+
+    if (!rows.length) {
+      body.innerHTML = '<div class="audit-item-name">Variance history</div>' +
+        '<div class="audit-sub">Nothing recorded yet.</div>' +
+        '<div class="audit-summary">Link a component to its bucket in Usage breakdown, then mark buckets empty as you go. Each one gets compared to what the recipes predicted and logged here.</div>' +
+        '<div class="audit-actions"><button type="button" id="varClose">Close</button></div>';
+      on('varClose', 'click', closeAudit);
+      return;
+    }
+
+    // Group by component so trends are readable
+    const byComp = {};
+    rows.forEach(function (r) {
+      if (!byComp[r.component]) byComp[r.component] = [];
+      byComp[r.component].push(r);
+    });
+
+    const html = Object.keys(byComp).sort().map(function (name) {
+      const list = byComp[name];
+      const diffs = list.map(function (r) { return r.actualPacks - r.estPacks; });
+      const avg = diffs.reduce(function (s, d) { return s + d; }, 0) / diffs.length;
+      const trend = avg > 0.15 ? 'using more than the recipes expect'
+                  : avg < -0.15 ? 'using less than the recipes expect'
+                  : 'tracking close to expected';
+      const cls = Math.abs(avg) > 0.15 ? 'off' : 'ok';
+
+      const recent = list.slice(0, 6).map(function (r) {
+        const d = new Date(r.at);
+        const when = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        const diff = r.actualPacks - r.estPacks;
+        return '<div class="var-row">' +
+          '<span>' + when + '</span>' +
+          '<span>' + r.donuts.toLocaleString() + ' donuts</span>' +
+          '<span class="' + (Math.abs(diff) > 0.2 ? 'var-off' : 'var-ok') + '">' +
+            (diff > 0 ? '+' : '') + diff.toFixed(2) + '</span>' +
+        '</div>';
+      }).join('');
+
+      return '<div class="var-block">' +
+        '<div class="var-head">' + escapeHtml(name) +
+          '<span class="audit-var ' + cls + '">' + (avg > 0 ? '+' : '') + avg.toFixed(2) + ' avg</span></div>' +
+        '<div class="var-note">' + list.length + ' record(s) \u00b7 ' + trend + '</div>' +
+        '<div class="var-rows"><div class="var-row var-hd"><span>When</span><span>Donuts</span><span>Diff</span></div>' +
+          recent + '</div>' +
+      '</div>';
+    }).join('');
+
+    body.innerHTML =
+      '<div class="audit-item-name">Variance history</div>' +
+      '<div class="audit-sub">Actual packs minus what the recipes predicted</div>' +
+      html +
+      '<div class="audit-summary">A positive number means more product went out than the recipes account for \u2014 usually heavy-handed icing, spillage, or a per-pack figure set too high. Consistently negative means the opposite. One-offs are noise; a steady lean is worth acting on.</div>' +
+      '<div class="audit-actions">' +
+        '<button type="button" class="audit-skip" id="varCopy">Copy</button>' +
+        '<button type="button" id="varClose">Close</button></div>';
+
+    on('varClose', 'click', closeAudit);
+    on('varCopy', 'click', function () {
+      const text = 'Variance \u2014 ' + roomCode + '\n\n' + rows.map(function (r) {
+        return new Date(r.at).toLocaleDateString() + '  ' + r.component +
+          '  est ' + r.estPacks.toFixed(2) + '  actual ' + r.actualPacks.toFixed(2) +
+          '  (' + r.donuts + ' donuts)';
+      }).join('\n');
+      if (navigator.clipboard) navigator.clipboard.writeText(text).then(function () { alert('Copied.'); });
+      else prompt('Copy this:', text);
+    });
+  }
+
   function recipeLine(item) {
     const r = item && item.recipe;
     if (!r) return '';
@@ -4035,7 +5191,6 @@
     document.getElementById('appRoot').style.display = '';
   }
 
-  document.getElementById('bugFab').addEventListener('click', openBugReport);
   document.getElementById('bugCancel').addEventListener('click', closeBugReport);
 
   document.getElementById('bugSend').addEventListener('click', async function () {
@@ -4312,6 +5467,49 @@
   });
 
   // Pick what to hand count — munchkins first, since that's the usual case
+  // Some products aren't one thing — Baker's Choice might be yeast one day and
+  // chocolate cake the next. Those items ask what they are before counting.
+  const VARIANT_BASES = ['Yeast Ring', 'Yeast Shell', 'Chocolate Cake', 'Blueberry Cake', 'Other'];
+
+  function isVariantItem(item) {
+    if (!item) return false;
+    if (item.variable) return true;
+    return /baker.?s\s*choice/i.test(item.name || '');
+  }
+
+  function askVariant(item, then) {
+    const body = document.getElementById('auditBody');
+    document.getElementById('auditGate').style.display = 'flex';
+    document.getElementById('appRoot').style.display = 'none';
+
+    body.innerHTML =
+      '<div class="audit-item-name">' + escapeHtml(item.name) + '</div>' +
+      '<div class="audit-sub">This one varies. What is it today?</div>' +
+      '<div class="hc-cats">' +
+        VARIANT_BASES.map(function (b) {
+          return '<button type="button" class="hc-cat" data-variant="' + escapeHtml(b) + '">' +
+            escapeHtml(b) + '</button>';
+        }).join('') +
+      '</div>' +
+      '<div class="join-hint">Recorded with the count, so the history shows which kind it was.<br><br>' +
+      '<button type="button" class="store-action" id="varCancel">Cancel</button></div>';
+
+    on('varCancel', 'click', closeAudit);
+
+    body.querySelectorAll('button[data-variant]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        const v = b.getAttribute('data-variant');
+        item.lastVariant = v;
+        if (!Array.isArray(item.variantLog)) item.variantLog = [];
+        item.variantLog.push({ at: Date.now(), variant: v, by: myName || 'someone' });
+        if (item.variantLog.length > 60) item.variantLog = item.variantLog.slice(-60);
+        touchItem(item);
+        saveItems();
+        then(v);
+      });
+    });
+  }
+
   function chooseCountItem() {
     const body = document.getElementById('auditBody');
     document.getElementById('auditGate').style.display = 'flex';
@@ -4321,40 +5519,82 @@
       body.innerHTML = '<div class="audit-item-name">Hand count</div>' +
         '<div class="audit-sub">No items yet.</div>' +
         '<div class="audit-actions"><button type="button" id="hcClose">Close</button></div>';
-      document.getElementById('hcClose').addEventListener('click', closeAudit);
+      on('hcClose', 'click', closeAudit);
       return;
     }
 
-    const order = items.map(function (it, i) { return { it: it, i: i }; })
-      .sort(function (a, b) {
-        const am = /munchkin/i.test(a.it.name) || a.it.category === 'Munchkins';
-        const bm = /munchkin/i.test(b.it.name) || b.it.category === 'Munchkins';
-        if (am !== bm) return am ? -1 : 1;
-        return a.it.name.localeCompare(b.it.name);
-      });
+    // Step 1: pick a category, so the list of big buttons stays short
+    const counts = {};
+    let uncat = 0;
+    items.forEach(function (it) {
+      const cat = itemCategory(it);
+      if (cat) counts[cat] = (counts[cat] || 0) + 1;
+      else uncat++;
+    });
+    const used = categories.filter(function (cat) { return counts[cat]; });
 
     body.innerHTML =
       '<div class="audit-item-name">Hand count</div>' +
-      '<div class="audit-sub">Count piece by piece and set the real number. Munchkins first.</div>' +
-      order.map(function (o) {
-        const c2 = calc(o.it.units, o.it.caseSize);
-        return '<div class="audit-result-row">' +
-          '<span>' + escapeHtml(o.it.name) +
-            '<br><span style="font-size:11px;color:var(--text-dim);">system says ' +
-            o.it.units.toLocaleString() + ' (' + c2.decimalCases + ' ' + packLabel(o.it, c2.decimalCases) + ')</span></span>' +
-          '<button type="button" class="id-btn" data-count="' + o.i + '">Count</button>' +
-        '</div>';
-      }).join('') +
-      '<div class="audit-actions"><button type="button" id="hcClose">Close</button></div>';
+      '<div class="audit-sub">What are you counting?</div>' +
+      '<div class="hc-cats">' +
+        used.map(function (cat) {
+          return '<button type="button" class="hc-cat" data-hccat="' + escapeHtml(cat) + '">' +
+            escapeHtml(cat) + '<span>' + counts[cat] + '</span></button>';
+        }).join('') +
+        (uncat ? '<button type="button" class="hc-cat" data-hccat="__none">Uncategorised<span>' + uncat + '</span></button>' : '') +
+        '<button type="button" class="hc-cat" data-hccat="__all">Everything<span>' + items.length + '</span></button>' +
+      '</div>' +
+      '<div class="join-hint"><button type="button" class="store-action" id="hcPickCancel">Cancel</button></div>';
 
-    document.getElementById('hcClose').addEventListener('click', closeAudit);
-    body.addEventListener('click', function (e) {
-      const b = e.target.closest('button[data-count]');
-      if (!b) return;
-      closeAudit();
-      openCounter(parseInt(b.getAttribute('data-count'), 10));
+    on('hcPickCancel', 'click', closeAudit);
+
+    body.querySelectorAll('button[data-hccat]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        showCountItemsIn(b.getAttribute('data-hccat'));
+      });
     });
   }
+
+  // Step 2: big tap targets for the items in that category
+  function showCountItemsIn(cat) {
+    const body = document.getElementById('auditBody');
+    const list = items.map(function (it, i) { return { it: it, i: i }; })
+      .filter(function (r) {
+        if (cat === '__all') return true;
+        if (cat === '__none') return !itemCategory(r.it);
+        return itemCategory(r.it) === cat;
+      })
+      .sort(function (a, b) { return a.it.name.localeCompare(b.it.name); });
+
+    const label = cat === '__all' ? 'Everything' : (cat === '__none' ? 'Uncategorised' : cat);
+
+    body.innerHTML =
+      '<div class="audit-item-name">' + escapeHtml(label) + '</div>' +
+      '<div class="audit-sub">Pick what you\u2019re counting.</div>' +
+      '<div class="hc-items">' +
+        list.map(function (r) {
+          const c2 = calc(r.it.units, r.it.caseSize);
+          return '<button type="button" class="hc-item" data-hcitem="' + r.i + '">' +
+            '<span class="hc-name">' + escapeHtml(r.it.name) + '</span>' +
+            '<span class="hc-now">' + r.it.units.toLocaleString() + ' ' + unitLabel(r.it, r.it.units) +
+              '<i>' + c2.decimalCases + ' ' + packLabel(r.it, c2.decimalCases) + '</i></span>' +
+          '</button>';
+        }).join('') +
+      '</div>' +
+      '<div class="join-hint"><button type="button" class="store-action" id="hcBack">Back</button></div>';
+
+    on('hcBack', 'click', chooseCountItem);
+
+    body.querySelectorAll('button[data-hcitem]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        const idx = parseInt(b.getAttribute('data-hcitem'), 10);
+        const item = items[idx];
+        if (isVariantItem(item)) askVariant(item, function () { openCounter(idx); });
+        else openCounter(idx);
+      });
+    });
+  }
+
 
 
   // ===================== HAND COUNTER =====================
@@ -4501,10 +5741,14 @@
   let trayImg = null;
   let trayItemIdx = null;
 
-  function otsuThreshold(gray) {
+  // ---- round-product detection ----
+  // Munchkins are brown; the rack is bare metal. Brightness alone locks onto
+  // the shiny wire, so we separate on COLOUR SATURATION instead, then use a
+  // distance transform to pull apart pieces that touch.
+  function otsu(values) {
     const hist = new Array(256).fill(0);
-    for (let i = 0; i < gray.length; i++) hist[gray[i]]++;
-    const total = gray.length;
+    for (let i = 0; i < values.length; i++) hist[values[i]]++;
+    const total = values.length;
     let sum = 0;
     for (let i = 0; i < 256; i++) sum += i * hist[i];
     let sumB = 0, wB = 0, best = 0, thr = 0;
@@ -4521,77 +5765,122 @@
     return thr;
   }
 
-  function findBlobs(gray, W, H, invert) {
-    const thr = otsuThreshold(gray);
-    const bin = new Uint8Array(W * H);
-    for (let i = 0; i < gray.length; i++) {
-      bin[i] = invert ? (gray[i] < thr ? 1 : 0) : (gray[i] > thr ? 1 : 0);
+  function buildMask(data, W, H) {
+    const n = W * H;
+    const sat = new Uint8Array(n);
+    const val = new Uint8Array(n);
+    for (let i = 0, p = 0; p < n; i += 4, p++) {
+      const r = data[i], g = data[i + 1], b = data[i + 2];
+      const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+      sat[p] = mx === 0 ? 0 : Math.round(((mx - mn) / mx) * 255);
+      val[p] = mx;
     }
 
-    const labels = new Int32Array(W * H);
-    const stack = new Int32Array(W * H);
-    const blobs = [];
-    let cur = 0;
-
-    for (let i = 0; i < W * H; i++) {
-      if (!bin[i] || labels[i]) continue;
-      cur++;
-      let sp = 0;
-      stack[sp++] = i;
-      labels[i] = cur;
-      let area = 0, sx = 0, sy = 0, minx = W, maxx = 0, miny = H, maxy = 0;
-      while (sp) {
-        const p = stack[--sp];
-        const x = p % W, y = (p / W) | 0;
-        area++; sx += x; sy += y;
-        if (x < minx) minx = x;
-        if (x > maxx) maxx = x;
-        if (y < miny) miny = y;
-        if (y > maxy) maxy = y;
-        const nb = [p - 1, p + 1, p - W, p + W];
-        for (let k = 0; k < 4; k++) {
-          const q = nb[k];
-          if (q < 0 || q >= W * H || labels[q] || !bin[q]) continue;
-          if ((k === 0 && x === 0) || (k === 1 && x === W - 1)) continue;
-          labels[q] = cur;
-          stack[sp++] = q;
-        }
+    function maskFrom(src, invert) {
+      const t = otsu(src);
+      const m = new Uint8Array(n);
+      let on = 0;
+      for (let p = 0; p < n; p++) {
+        const hit = invert ? src[p] < t : src[p] > t;
+        m[p] = hit ? 1 : 0;
+        if (hit) on++;
       }
-      if (area > 40) blobs.push({ area: area, cx: sx / area, cy: sy / area,
-                                  w: maxx - minx + 1, h: maxy - miny + 1 });
+      return { m: m, frac: on / n };
     }
-    return blobs;
+
+    // Prefer the saturation mask. The lower bound is deliberately small so a
+    // nearly-empty tray still works; only reject it if it found almost nothing
+    // or swallowed the whole frame.
+    const bySat = maskFrom(sat, false);
+    if (bySat.frac > 0.004 && bySat.frac < 0.85) return bySat.m;
+
+    const byVal = maskFrom(val, false);
+    const byValInv = maskFrom(val, true);
+    const pick = (byVal.frac > 0.004 && byVal.frac < 0.85) ? byVal : byValInv;
+    return pick.m;
   }
 
-  function blobsToMarkers(blobs) {
-    if (!blobs.length) return [];
-    // A single piece's area comes from blob geometry, not a median area:
-    // when several touch they merge, and the short side still spans one piece.
-    const est = blobs.map(function (b) {
-      const d = Math.min(b.w, b.h);
-      return Math.PI * (d / 2) * (d / 2);
-    }).sort(function (a, b) { return a - b; });
-    const unit = est[Math.floor(est.length * 0.25)] || est[0];
-    if (!unit) return [];
-
-    const markers = [];
-    blobs.filter(function (b) { return b.area > unit * 0.35; }).forEach(function (b) {
-      const n = Math.max(1, Math.round(b.area / unit));
-      if (n === 1) {
-        markers.push({ x: b.cx, y: b.cy });
-      } else {
-        // Spread markers along the cluster's long axis so they sit on the pieces
-        const horiz = b.w >= b.h;
-        for (let i = 0; i < n; i++) {
-          const t = (i + 0.5) / n - 0.5;
-          markers.push({
-            x: b.cx + (horiz ? t * b.w : 0),
-            y: b.cy + (horiz ? 0 : t * b.h)
-          });
-        }
+  function erodeMask(m, W, H) {
+    const out = new Uint8Array(W * H);
+    for (let y = 1; y < H - 1; y++) {
+      for (let x = 1; x < W - 1; x++) {
+        const p = y * W + x;
+        if (m[p] && m[p - W] && m[p + W] && m[p - 1] && m[p + 1]) out[p] = 1;
       }
-    });
-    return markers;
+    }
+    return out;
+  }
+
+  // Chamfer 5/7 distance transform
+  function distanceTransform(m, W, H) {
+    const INF = 1e9;
+    const d = new Float32Array(W * H);
+    for (let p = 0; p < d.length; p++) d[p] = m[p] ? INF : 0;
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const p = y * W + x;
+        if (!d[p]) continue;
+        let b = d[p];
+        if (y > 0) b = Math.min(b, d[p - W] + 5);
+        if (x > 0) b = Math.min(b, d[p - 1] + 5);
+        if (y > 0 && x > 0) b = Math.min(b, d[p - W - 1] + 7);
+        if (y > 0 && x < W - 1) b = Math.min(b, d[p - W + 1] + 7);
+        d[p] = b;
+      }
+    }
+    for (let y = H - 1; y >= 0; y--) {
+      for (let x = W - 1; x >= 0; x--) {
+        const p = y * W + x;
+        if (!d[p]) continue;
+        let b = d[p];
+        if (y < H - 1) b = Math.min(b, d[p + W] + 5);
+        if (x < W - 1) b = Math.min(b, d[p + 1] + 5);
+        if (y < H - 1 && x < W - 1) b = Math.min(b, d[p + W + 1] + 7);
+        if (y < H - 1 && x > 0) b = Math.min(b, d[p + W - 1] + 7);
+        d[p] = b;
+      }
+    }
+    return d;
+  }
+
+  // Each piece shows up as a local maximum in the distance map
+  function findCenters(d, W, H) {
+    let mx = 0;
+    for (let p = 0; p < d.length; p++) if (d[p] < 1e8 && d[p] > mx) mx = d[p];
+    if (!mx) return [];
+
+    const floor = mx * 0.35;
+    const cands = [];
+    for (let y = 1; y < H - 1; y++) {
+      for (let x = 1; x < W - 1; x++) {
+        const p = y * W + x;
+        const v = d[p];
+        if (v < floor) continue;
+        if (d[p - 1] > v || d[p + 1] > v || d[p - W] > v || d[p + W] > v ||
+            d[p - W - 1] > v || d[p - W + 1] > v || d[p + W - 1] > v || d[p + W + 1] > v) continue;
+        cands.push({ v: v, x: x, y: y });
+      }
+    }
+    if (!cands.length) return [];
+    cands.sort(function (a, b) { return b.v - a.v; });
+
+    // Typical piece size from the median peak, not the largest
+    const sorted = cands.map(function (c2) { return c2.v; }).sort(function (a, b) { return a - b; });
+    const med = sorted[Math.floor(sorted.length / 2)] || mx;
+    const R = (med / 5) * 1.40;
+    const R2 = R * R;
+
+    const out = [];
+    for (let i = 0; i < cands.length; i++) {
+      const c2 = cands[i];
+      let clash = false;
+      for (let k = 0; k < out.length; k++) {
+        const dx = c2.x - out[k].x, dy = c2.y - out[k].y;
+        if (dx * dx + dy * dy < R2) { clash = true; break; }
+      }
+      if (!clash) out.push({ x: c2.x, y: c2.y });
+    }
+    return out;
   }
 
   function startTrayCount(idx) {
@@ -4621,15 +5910,10 @@
     ctx.drawImage(img, 0, 0, W, H);
 
     const data = ctx.getImageData(0, 0, W, H).data;
-    const gray = new Uint8Array(W * H);
-    for (let i = 0, p = 0; i < data.length; i += 4, p++) {
-      gray[p] = (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114) | 0;
-    }
-
-    // Try both polarities; keep whichever finds a more plausible spread
-    const a = blobsToMarkers(findBlobs(gray, W, H, false));
-    const b = blobsToMarkers(findBlobs(gray, W, H, true));
-    trayMarkers = (a.length >= b.length ? a : b);
+    const mask = buildMask(data, W, H);
+    const eroded = erodeMask(mask, W, H);
+    const dist = distanceTransform(eroded, W, H);
+    trayMarkers = findCenters(dist, W, H);
 
     trayImg = cv.toDataURL('image/jpeg', 0.75);
     renderTray(W, H);
@@ -5012,6 +6296,16 @@
       return;
     }
 
+    if (btn.classList.contains('edit-variant')) {
+      askVariant(items[idx], function () { closeAudit(); render(); });
+      return;
+    }
+
+    if (btn.classList.contains('edit-item')) {
+      editItem(idx);
+      return;
+    }
+
     if (btn.classList.contains('tray-btn')) {
       startTrayCount(idx);
       return;
@@ -5110,6 +6404,7 @@
       snapshotForUndo();
       item.units = Math.max(0, item.units + delta);
       pushHistory(item, delta);
+      noteComponentUse(item, delta);
       buzz(Math.abs(delta) >= item.caseSize ? 22 : 12);
       bumpCount(idx);
     }
@@ -5163,16 +6458,57 @@
     });
   }
 
+  // Matching has to survive how people actually talk: "croissants" for
+  // "Croissant, Plain", "munchkins" for "Munchkin, Yeast Glazed", partial names,
+  // and words in a different order.
+  function normWords(s) {
+    return String(s || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .split(/\s+/)
+      .filter(Boolean)
+      .map(function (w) {
+        // crude singularisation: boxes->box, cases->case, croissants->croissant
+        if (w.length > 3 && /(ches|shes|sses|xes)$/.test(w)) return w.slice(0, -2);
+        if (w.length > 3 && w.endsWith('ies')) return w.slice(0, -3) + 'y';
+        if (w.length > 3 && w.endsWith('s') && !w.endsWith('ss')) return w.slice(0, -1);
+        return w;
+      });
+  }
+
+  const MATCH_STOP = { the: 1, a: 1, an: 1, of: 1, and: 1, with: 1, plain: 0.3 };
+
   function matchItem(nameGuess) {
-    if (!nameGuess) return -1;
-    const lower = nameGuess.toLowerCase().trim();
-    if (!lower) return -1;
-    let idx = items.findIndex(function(it) { return it.name.toLowerCase() === lower; });
-    if (idx !== -1) return idx;
-    idx = items.findIndex(function(it) {
-      return it.name.toLowerCase().includes(lower) || lower.includes(it.name.toLowerCase());
+    const q = normWords(nameGuess);
+    if (!q.length) return -1;
+
+    let bestIdx = -1, bestScore = 0;
+
+    items.forEach(function (it, i) {
+      const w = normWords(it.name);
+      if (!w.length) return;
+
+      let hits = 0, weight = 0;
+      q.forEach(function (token) {
+        const val = MATCH_STOP[token] != null ? MATCH_STOP[token] : 1;
+        if (!val) return;
+        // exact token, or a token that starts with it (choc -> chocolate)
+        const found = w.some(function (x) {
+          return x === token || (token.length >= 4 && x.indexOf(token) === 0) ||
+                 (x.length >= 4 && token.indexOf(x) === 0);
+        });
+        if (found) { hits++; weight += val; }
+      });
+
+      if (!hits) return;
+      // Favour matching most of what was said, then most of the item's name
+      const coverage = weight / q.length;
+      const specificity = hits / w.length;
+      const score = coverage * 2 + specificity;
+      if (coverage >= 0.5 && score > bestScore) { bestScore = score; bestIdx = i; }
     });
-    return idx;
+
+    return bestIdx;
   }
 
   function splitClauses(text) {
@@ -5658,7 +6994,7 @@
     }).join('');
   }
 
-  document.getElementById('adminBtn').addEventListener('click', function() {
+  function toggleAdmin() {
     if (isAdmin) {
       const panel = document.getElementById('adminPanel');
       const showing = panel.style.display !== 'none';
@@ -5668,7 +7004,8 @@
     }
     document.getElementById('adminGate').style.display = 'flex';
     document.getElementById('appRoot').style.display = 'none';
-  });
+  }
+
 
   document.getElementById('adminCancelBtn').addEventListener('click', function() {
     document.getElementById('adminGate').style.display = 'none';
@@ -5695,37 +7032,8 @@
     applyAdminDeviceState();
   });
 
-  document.getElementById('createStoreBtn').addEventListener('click', async function() {
-    const code = normalizeRoom(document.getElementById('newStoreCode').value);
-    if (!code) {
-      document.getElementById('newStoreCode').style.borderColor = 'var(--red)';
-      return;
-    }
-    try {
-      const stores = await addStore(code);
-      document.getElementById('newStoreCode').value = '';
-      renderStoreList(stores);
-    } catch (e) {
-      alert('Could not create store — this device is not the admin device.');
-    }
-  });
 
-  document.getElementById('storeList').addEventListener('click', function(e) {
-    const btn = e.target.closest('button[data-store]');
-    if (btn) goToStore(btn.getAttribute('data-store'));
-  });
 
-  document.getElementById('changePassBtn').addEventListener('click', async function() {
-    const p = prompt('New admin password (at least 4 characters):');
-    if (p === null) return;
-    if (p.length < 4) { alert('Too short.'); return; }
-    try {
-      await configRef().update({ adminHash: await hashPass(p) });
-      alert('Password updated.');
-    } catch (e) {
-      alert('Could not update password — this device is not the admin device.');
-    }
-  });
 
   document.getElementById('adminLogoutBtn').addEventListener('click', function() {
     isAdmin = false;
@@ -6274,7 +7582,11 @@
       const when = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' +
         d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
       return '<div class="audit-result-row">' +
-        '<span>' + escapeHtml(r.name || 'Unnamed') + '</span>' +
+        '<span>' + escapeHtml(r.name || 'Unnamed') +
+          (r.role ? '<span class="role-tag">' + escapeHtml(r.role) + '</span>' : '') +
+          (r.status && r.status !== 'opened'
+            ? '<br><span style="font-size:10.5px;color:var(--red);">' + escapeHtml(r.status) + '</span>'
+            : '') + '</span>' +
         '<span style="font-size:11px;color:var(--text-dim);">' + when + '</span>' +
       '</div>';
     }).join('');
@@ -6350,7 +7662,11 @@
                 ? '<button type="button" class="staff-btn" data-demote="' + p.uid + '" title="Remove admin">&#9733;</button>'
                 : '<button type="button" class="staff-btn" data-promote="' + p.uid + '" data-pname="' + escapeHtml(p.name || 'Unnamed') + '" title="Make admin">&#9734;</button>')
             : '') +
-          (isMe ? '' : '<button type="button" class="staff-btn del" data-staff="' + p.id + '" title="Remove">&times;</button>') +
+          (p.uid && isOk && !isMe
+            ? '<button type="button" class="staff-btn del" data-revoke="' + p.uid + '" data-pname="' +
+              escapeHtml(p.name || 'Unnamed') + '" title="Revoke access">&#128683;</button>'
+            : '') +
+          (isMe ? '' : '<button type="button" class="staff-btn del" data-staff="' + p.id + '" title="Delete profile">&times;</button>') +
         '</span>' +
       '</div>';
     }).join('');
@@ -6377,6 +7693,27 @@
           showStaff();
         } catch (err) {
           alert('Could not approve — this device is not an approved admin device.');
+        }
+        return;
+      }
+
+      const revoke = e.target.closest('button[data-revoke]');
+      if (revoke) {
+        const uid = revoke.getAttribute('data-revoke');
+        const nm = revoke.getAttribute('data-pname');
+        if (!confirm('Revoke access for "' + nm + '"?\n\nThey will be locked out and put back in the waiting list until you approve them again.')) return;
+        try {
+          await configRef().child('approvedUids').child(uid).remove();
+          await configRef().child('adminUids').child(uid).remove();
+          // Put their profile back into the pending state
+          const person = staff.find(function (x) { return x.uid === uid; });
+          if (person) {
+            await db.ref('tally/rooms/' + roomCode + '/staff/' + person.id)
+              .update({ pending: true }).catch(function () {});
+          }
+          showStaff();
+        } catch (err) {
+          alert('Could not revoke \u2014 this device is not an approved admin device.');
         }
         return;
       }
@@ -6415,7 +7752,11 @@
       if (!btn) return;
       const id = btn.getAttribute('data-staff');
       const person = staff.find(function(p) { return p.id === id; });
-      if (!confirm('Remove profile "' + (person ? person.name : id) + '"?')) return;
+      if (!confirm('Delete profile "' + (person ? person.name : id) + '"?\n\nTheir access is revoked too, so the device has to be approved again.')) return;
+      if (person && person.uid) {
+        await configRef().child('approvedUids').child(person.uid).remove().catch(function () {});
+        await configRef().child('adminUids').child(person.uid).remove().catch(function () {});
+      }
       await db.ref('tally/rooms/' + roomCode + '/staff/' + id).remove().catch(function() {});
       showStaff();
     });
@@ -6655,46 +7996,8 @@
 
   document.getElementById('snapshotsBtn').addEventListener('click', showSnapshots);
 
-  document.getElementById('deviceIdBtn').addEventListener('click', function () {
-    if (!myUid) { alert('Not signed in yet. Reload and try again.'); return; }
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(myUid).then(function () {
-        alert('Device ID copied:\n\n' + myUid);
-      }).catch(function () { prompt('Device ID:', myUid); });
-    } else { prompt('Device ID:', myUid); }
-  });
 
-  document.getElementById('addDeviceBtn').addEventListener('click', async function () {
-    const uid = prompt('Paste the device ID to approve:');
-    if (uid === null) return;
-    const clean = uid.trim();
-    if (!clean) return;
-    const label = (prompt('Name this device:', 'Device') || 'Device').trim().slice(0, 30);
-    try {
-      const update = {};
-      update['adminUids/' + clean] = { label: label, addedAt: Date.now() };
-      await configRef().update(update);
-      renderApprovedDevices(await loadConfig());
-      alert('Device approved.');
-    } catch (e) {
-      alert('Could not approve — this device is not an approved admin device.');
-    }
-  });
 
-  document.getElementById('resetAdminBtn').addEventListener('click', async function () {
-    if (!confirm('Clear ALL approved admin devices?\n\nThe next device that opens Tally becomes the admin. Do this only when you are about to open it yourself.')) return;
-    try {
-      await configRef().child('adminUids').remove();
-      await configRef().child('adminUid').remove();
-      alert('Admin cleared. Reload on the device you want as admin.');
-      isAdmin = false;
-      sessionStorage.removeItem('tally_admin');
-      document.getElementById('adminPanel').style.display = 'none';
-      document.getElementById('adminBtn').style.display = 'none';
-    } catch (e) {
-      alert('Could not reset — this device is not an approved admin device.');
-    }
-  });
 
   // ===================== SHARED OCR LOADER =====================
   let tesseractLoading = null;
@@ -6763,7 +8066,17 @@
   }
 
   // ============ ORDER / PRODUCTION SHEET ============
-  const SHEET_ROW = /\b([FU]\d{5})\b\s+(.+?)\s+\bEA\b\s+(\d+)/i;
+  // OCR confuses O/0, I/l/1 and S/5 inside product codes, and some printouts
+  // put pipes between columns. Normalise a line before matching.
+  const SHEET_ROW = /([FU])[\s|]*([O0-9IlS][O0-9IlS]{4})\b[\s|]*(.+?)[\s|]+E\s?A\b[\s|]+(\d+)/i;
+
+  function fixCode(letter, digits) {
+    const d = String(digits)
+      .replace(/[Oo]/g, '0')
+      .replace(/[IlL]/g, '1')
+      .replace(/[Ss]/g, '5');
+    return (letter + d).toUpperCase();
+  }
 
   function findByCode(code) {
     const up = String(code).toUpperCase();
@@ -6780,11 +8093,12 @@
       if (/\b(product code|order qty|rcvd|workpulse|manager|subtotal|total)\b/i.test(l)) return;
       const m = SHEET_ROW.exec(l);
       if (!m) return;
-      const pcode = m[1].toUpperCase();
+      const pcode = fixCode(m[1], m[2]);
+      if (!/^[FU]\d{5}$/.test(pcode)) return;
       if (seen[pcode]) return;
       seen[pcode] = true;
-      const name = m[2].replace(/\s{2,}/g, ' ').trim();
-      const qty = parseInt(m[3], 10);
+      const name = m[3].replace(/[|]+/g, ' ').replace(/\s{2,}/g, ' ').trim();
+      const qty = parseInt(m[4], 10);
       if (!qty || qty < 1 || qty > 9999) return;
       let idx = findByCode(pcode);
       if (idx === -1) idx = matchItem(name);
@@ -7473,9 +8787,8 @@
     });
   }
 
-  document.getElementById('barcodeBtn').addEventListener('click', chooseBarcodeMode);
   document.getElementById('barcodeClose').addEventListener('click', closeBarcode);
-  on('sheetBtn', 'click', function () {
+  function openProductionPicker() {
     const body = document.getElementById('auditBody');
     document.getElementById('auditGate').style.display = 'flex';
     document.getElementById('appRoot').style.display = 'none';
@@ -7498,7 +8811,8 @@
     on('prodCancel', 'click', closeAudit);
     on('prodOrderBtn', 'click', startSheetScan);
     on('prodInvBtn', 'click', startScan);
-  });
+  }
+
 
   function showWasteReport() {
     const body = document.getElementById('auditBody');
@@ -7675,14 +8989,11 @@
     draw();
   }
 
-  document.getElementById('wasteBtn').addEventListener('click', showWasteReport);
-  document.getElementById('catBtn').addEventListener('click', showCategories);
 
-  document.getElementById('orderBtn').addEventListener('click', showOrderList);
 
   document.getElementById('staffBtn').addEventListener('click', showStaff);
   document.getElementById('bugsBtn').addEventListener('click', showBugs);
-  on('trayBtn', 'click', function () {
+  function openTrayPicker() {
     const body = document.getElementById('auditBody');
     document.getElementById('auditGate').style.display = 'flex';
     document.getElementById('appRoot').style.display = 'none';
@@ -7705,25 +9016,12 @@
     on('trayPickCancel', 'click', closeAudit);
     on('trayPhotoBtn', 'click', function () { startTrayCount(null); });
     on('trayTapBtn', 'click', function () { closeAudit(); chooseCountItem(); });
-  });
+  }
+
 
   document.getElementById('sessionLogBtn').addEventListener('click', showSessionLog);
 
-  document.getElementById('auditBtn').addEventListener('click', startAudit);
-  document.getElementById('auditHistBtn').addEventListener('click', showAuditHistory);
 
-  document.getElementById('shareStoreBtn').addEventListener('click', function() {
-    const url = window.location.origin + window.location.pathname + '?store=' + roomCode;
-    if (navigator.share) {
-      navigator.share({ title: 'Tally — ' + roomCode, url: url }).catch(function() {});
-    } else if (navigator.clipboard) {
-      navigator.clipboard.writeText(url).then(function() {
-        showCommandToast('Link copied for store ' + roomCode);
-      });
-    } else {
-      prompt('Copy this link:', url);
-    }
-  });
 
   // Each scene's animation illustrates its own line
   const TAGLINES = [
@@ -7826,6 +9124,29 @@
     hideSplash();
   }
 
+  // If an admin revokes this device while it's open, lock it out right away
+  // instead of waiting for the next launch.
+  let accessWatch = null;
+  function watchMyAccess() {
+    if (!isConfigured || accessWatch) return;
+    accessWatch = configRef();
+    accessWatch.on('value', function (snap) {
+      const cfg = snap.val();
+      if (!cfg) return;
+      if (isDeviceApproved(cfg)) return;
+      accessWatch.off();
+      accessWatch = null;
+      isAdmin = false;
+      sessionStorage.removeItem('tally_admin');
+      const ab = document.getElementById('adminBtn');
+      if (ab) ab.style.display = 'none';
+      const ap = document.getElementById('adminPanel');
+      if (ap) ap.style.display = 'none';
+      alert('Your access was removed by an admin.');
+      showPendingScreen();
+    });
+  }
+
   function isDeviceApproved(cfg) {
     if (!myUid || !cfg) return false;
     if (cfg.adminUids && cfg.adminUids[myUid]) return true;
@@ -7835,6 +9156,7 @@
   }
 
   function showPendingScreen() {
+    logSignIn('waiting for approval');
     document.getElementById('pendingName').textContent = myName || 'this device';
     document.getElementById('pendingGate').style.display = 'flex';
     document.getElementById('appRoot').style.display = 'none';
@@ -7918,7 +9240,10 @@
         .update({ name: myName, role: myRole || null, lastSeen: Date.now(), uid: myUid || null }).catch(function() {});
     }
     loadCategories();
+    loadRecipes();
+    loadComponents();
     flushBugQueue();
+    watchMyAccess();
     if (approved) { watchPendingStaff(); watchBugs(); }
     initSync();
     setTimeout(maybeStartTour, 600);
