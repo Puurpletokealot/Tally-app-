@@ -743,6 +743,38 @@ function calc(units, caseSize) {
     });
   }
 
+  // ===================== BLANK-SCREEN GUARD =====================
+  // Lots of screens hide the main view and rely on their own close handler to
+  // bring it back. Miss one and you get a black page with no way out. This
+  // watches for that state and recovers instead of stranding you.
+  const OVERLAY_IDS = ['auditGate', 'addItemGate', 'bugGate', 'lowStockGate', 'profileGate',
+                       'barcodeGate', 'pendingGate', 'setupGate', 'adminGate', 'tourLayer',
+                       'menuSheet', 'menuScrim', 'splash'];
+
+  function anyOverlayVisible() {
+    for (let i = 0; i < OVERLAY_IDS.length; i++) {
+      const el = document.getElementById(OVERLAY_IDS[i]);
+      if (!el) continue;
+      const style = el.style || {};
+      const shown = style.display && style.display !== 'none';
+      const hiddenByClass = el.classList && el.classList.contains('hide');
+      if (shown && !hiddenByClass) return true;
+    }
+    return false;
+  }
+
+  function ensureVisible() {
+    const root = document.getElementById('appRoot');
+    if (!root) return;
+    if (root.style.display === 'none' && !anyOverlayVisible()) {
+      root.style.display = '';
+      console.warn('Tally: recovered a hidden main view');
+    }
+  }
+
+  setInterval(ensureVisible, 1200);
+  document.addEventListener('visibilitychange', ensureVisible);
+
   function setConnDot() {
     const d = document.getElementById('connDot');
     const t = document.getElementById('connTxt');
@@ -809,12 +841,37 @@ function calc(units, caseSize) {
       maybeAutoSnapshot();
       setTimeout(function () { verifySync(true); }, 1500);
     }).catch(function(err) {
-      // Treat any failed write as pending rather than losing it
+      const denied = err && (err.code === 'PERMISSION_DENIED' ||
+                             /permission/i.test(err.message || ''));
+      saveLocal();
+      if (denied) {
+        // Queuing won't help — the database is refusing the write. Say so
+        // plainly instead of pretending we're offline and retrying forever.
+        hasPending = false;
+        suppressRemote = false;
+        setOfflineBanner();
+        setSyncStatus('Saving blocked by database rules', false);
+        showBlocked();
+        return;
+      }
       hasPending = true;
       suppressRemote = true;
-      saveLocal();
       setOfflineBanner();
       setSyncStatus('Save failed: ' + err.message, false);
+    });
+  }
+
+  function showBlocked() {
+    const bar = document.getElementById('driftBar');
+    if (!bar) return;
+    bar.innerHTML =
+      '<span>\u26D4 The database is refusing to save. This is almost always the ' +
+      'security rules \u2014 publish the latest rules in Firebase, then reload.</span>' +
+      '<button type="button" id="blockedRetry">Try again</button>';
+    bar.style.display = 'flex';
+    on('blockedRetry', 'click', function () {
+      bar.style.display = 'none';
+      saveItems();
     });
   }
 
@@ -1353,6 +1410,7 @@ function calc(units, caseSize) {
   // ============ PENDING-APPROVAL ALERTS FOR ADMINS ============
   let pendingWatch = null;
   let knownPending = {};
+  let pendingPrimed = false;
 
   function watchPendingStaff() {
     if (!isConfigured || !roomCode || pendingWatch) return;
@@ -1363,13 +1421,15 @@ function calc(units, caseSize) {
         .map(function (k) { return Object.assign({ id: k }, val[k]); })
         .filter(function (p) { return p.pending && p.uid; });
 
-      // Ring only for people we haven't already been told about
+      // The first snapshot is the existing backlog — show it in the bar but
+      // don't sound an alert for people you already knew about.
       waiting.forEach(function (p) {
         if (!knownPending[p.id]) {
           knownPending[p.id] = true;
-          notifyAdmin(p);
+          if (pendingPrimed) notifyAdmin(p);
         }
       });
+      pendingPrimed = true;
       Object.keys(knownPending).forEach(function (id) {
         if (!waiting.some(function (p) { return p.id === id; })) delete knownPending[id];
       });
@@ -6285,6 +6345,8 @@ function calc(units, caseSize) {
     loadCategories();
     loadRecipes();
     setInterval(function () { verifySync(false); }, 120000);
+    // Queued work retries on its own, not only when the socket flaps
+    setInterval(function () { if (hasPending && isOnline) flushPending(); }, 20000);
     loadComponents();
     flushBugQueue();
     watchMyAccess();
