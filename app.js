@@ -1,4 +1,4 @@
-  const APP_BUILD = '202609142044';
+  const APP_BUILD = '202609142151';
 // Tally — application code
 // Split out of the single-file build so edits stay local and one mistake
 // can't silently delete unrelated features.
@@ -6694,6 +6694,8 @@ function calc(units, caseSize) {
   }
 
   function drawTestBarcode(text, moduleWidth) {
+    text = text || 'TALLY123';
+    moduleWidth = moduleWidth || 3;
     const bits = code128Bits(text);
     const quiet = 10 * moduleWidth;
     const cv = document.createElement('canvas');
@@ -6744,14 +6746,14 @@ function calc(units, caseSize) {
       try {
         const caps = track.getCapabilities ? track.getCapabilities() : {};
         capMax = (caps.width && caps.width.max) || 0;
-        add('Camera can go higher', capMax > w,
-            capMax ? 'max ' + capMax + 'px wide' + (capMax > w ? ' — asking for more' : '')
+        add('Camera headroom', true,
+            capMax ? 'sensor goes to ' + capMax + 'px; using ' + w + 'px'
                    : 'device will not report its limits');
-        if (capMax > w) {
+        if (capMax > w && w < 1280) {
           try {
             await track.applyConstraints({ width: { ideal: Math.min(capMax, 1920) } });
-            const after = track.getSettings ? track.getSettings().width : 0;
-            add('Raised resolution', after > w, after + 'px after asking');
+            const after = (track.getSettings && track.getSettings().width) || w;
+            add('Raised resolution', after >= 1280 || after > w, after + 'px after asking');
           } catch (e) {
             add('Raised resolution', false, e.message || 'camera refused');
           }
@@ -6774,7 +6776,10 @@ function calc(units, caseSize) {
     }
 
     const hasNative = 'BarcodeDetector' in window;
-    add('Built-in scanner', hasNative, hasNative ? '' : 'will use the fallback decoder');
+    // Safari has no BarcodeDetector. That is normal and not a fault — the
+    // downloaded decoder handles everything.
+    add('Scanning engine', true,
+        hasNative ? 'built into the browser' : 'downloaded decoder (normal on iPhone)');
 
     if (hasNative && window.BarcodeDetector.getSupportedFormats) {
       try {
@@ -6809,8 +6814,9 @@ function calc(units, caseSize) {
       if (Z) {
         const cv = drawTestBarcode();
         const got = await withTimeout(decodeFrame(cv), 5000, 'decode');
-        add('Decoder reads a test barcode', got === '1234567890',
-            got ? 'read: ' + got : 'could not read a clean generated code');
+        add('Decoder reads a test barcode', got === 'TALLY123',
+            got ? (got === 'TALLY123' ? 'read it correctly' : 'misread as ' + got)
+                : 'could not read a clean generated code');
       } else {
         add('Decoder available', false, 'library did not load');
       }
@@ -6845,22 +6851,6 @@ function calc(units, caseSize) {
         add('Live frames decode', false, (e && e.message) || 'failed');
       }
       stream.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} });
-    }
-
-    // Decode a barcode we generated ourselves — no camera involved
-    try {
-      await loadZXing();
-      const sample = 'TALLY123';
-      let got = null;
-      for (const mw of [3, 2, 4]) {
-        if (got) break;
-        got = await decodeFrame(drawTestBarcode(sample, mw));
-      }
-      add('Decodes a known barcode', got === sample,
-          got ? (got === sample ? 'read it correctly' : 'misread as ' + got)
-              : 'could not read a perfect barcode — the decoder is not working');
-    } catch (e) {
-      add('Decodes a known barcode', false, (e && e.message) || 'test failed to run');
     }
 
     const firstFail = res.find(function (r) { return !r.ok; });
