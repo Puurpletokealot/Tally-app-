@@ -6089,19 +6089,34 @@ function calc(units, caseSize) {
       }
 
       const track = bcStream.getVideoTracks()[0];
-      // Focus and zoom are applied to the live track, not requested up front
       if (track && track.applyConstraints) {
         const caps = track.getCapabilities ? track.getCapabilities() : {};
+        const now = track.getSettings ? track.getSettings() : {};
+
+        // Some cameras hand back VGA regardless of what you ask for up front,
+        // but will raise resolution once the track is live.
+        if (caps.width && caps.width.max && caps.width.max > (now.width || 0)) {
+          try { await track.applyConstraints({ width: { ideal: Math.min(caps.width.max, 1920) } }); }
+          catch (e) {}
+        }
+
+        // Focus and zoom belong on the live track, not in getUserMedia
         const advanced = [];
         if (caps.focusMode && caps.focusMode.indexOf('continuous') !== -1) advanced.push({ focusMode: 'continuous' });
+        if (caps.zoom && caps.zoom.min !== undefined) advanced.push({ zoom: Math.max(caps.zoom.min, 1) });
         if (advanced.length) { try { await track.applyConstraints({ advanced: advanced }); } catch (e) {} }
       }
 
       const got = track && track.getSettings ? track.getSettings() : {};
       bcResolution = (got.width || 0) + '\u00d7' + (got.height || 0);
       if ((got.width || 0) < 1000) {
-        bcSay('Camera is only ' + bcResolution + ' \u2014 wide case labels may not read. ' +
-              'Use \u201cphotograph the label\u201d if it struggles.', false);
+        bcSay('Camera only gives ' + bcResolution + '. Wide case labels need more \u2014 ' +
+              'tap below to photograph it instead.', false);
+        const msg = document.getElementById('barcodeMsg');
+        if (msg) {
+          msg.innerHTML += '<br><button type="button" class="store-action" id="bcLowRes">photograph the label</button>';
+          on('bcLowRes', 'click', function () { closeBarcode(); scanBarcodeFromPhoto(); });
+        }
       }
 
       video.srcObject = bcStream;
@@ -6499,9 +6514,32 @@ function calc(units, caseSize) {
       const s = track && track.getSettings ? track.getSettings() : {};
       const w = s.width || 0;
       add('Camera opened', true, w + '\u00d7' + (s.height || 0));
-      add('Resolution good enough for case labels', w >= 1000,
-          w >= 1000 ? '' : w + 'px wide \u2014 a GS1 case label needs about 1280 or more. ' +
-          'Use \u201cphotograph the label\u201d instead, which uses the full camera.');
+
+      // What is this camera actually capable of, versus what it handed us?
+      let capMax = 0;
+      try {
+        const caps = track.getCapabilities ? track.getCapabilities() : {};
+        capMax = (caps.width && caps.width.max) || 0;
+        add('Camera can go higher', capMax > w,
+            capMax ? 'max ' + capMax + 'px wide' + (capMax > w ? ' — asking for more' : '')
+                   : 'device will not report its limits');
+        if (capMax > w) {
+          try {
+            await track.applyConstraints({ width: { ideal: Math.min(capMax, 1920) } });
+            const after = track.getSettings ? track.getSettings().width : 0;
+            add('Raised resolution', after > w, after + 'px after asking');
+          } catch (e) {
+            add('Raised resolution', false, e.message || 'camera refused');
+          }
+        }
+      } catch (e) {
+        add('Camera can go higher', false, e.message || 'could not read capabilities');
+      }
+
+      const finalW = (track.getSettings && track.getSettings().width) || w;
+      add('Resolution good enough for live scanning', finalW >= 1000,
+          finalW >= 1000 ? '' : finalW + 'px wide — a GS1 case label needs roughly 1280. ' +
+          'Photographing the label uses the full sensor and will work.');
     } catch (e) {
       const n = e && e.name;
       add('Camera opened', false, n +
@@ -6539,7 +6577,38 @@ function calc(units, caseSize) {
       }
     }
 
-    if (stream) stream.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} });
+    // Run the actual decode loop for a few seconds against the live camera.
+    if (stream) {
+      try {
+        await loadZXing();
+        const Z = zxingReady();
+        if (Z) {
+          const vid = document.createElement('video');
+          vid.setAttribute('playsinline', '');
+          vid.muted = true;
+          vid.srcObject = stream;
+          await vid.play().catch(function () {});
+          const reader = zxingReader(Z);
+          let frames = 0, hit = null, firstErr = null;
+          const controls = await reader.decodeFromVideoElement(vid, function (result, err) {
+            frames++;
+            if (result) hit = result.getText();
+            else if (err && !firstErr && err.name && err.name !== 'NotFoundException') {
+              firstErr = err.name + ': ' + (err.message || '');
+            }
+          });
+          await new Promise(function (r) { setTimeout(r, 4000); });
+          try { if (controls && controls.stop) controls.stop(); else if (reader.reset) reader.reset(); } catch (e) {}
+          add('Live decode loop runs', frames > 0,
+              frames > 0
+                ? frames + ' frames checked in 4s' + (hit ? ' — READ: ' + hit.slice(0, 24) : ' — no code in view')
+                : 'the loop never ran' + (firstErr ? ' — ' + firstErr : ''));
+        }
+      } catch (e) {
+        add('Live decode loop runs', false, (e && e.message) || 'failed to start');
+      }
+      stream.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} });
+    }
 
     const firstFail = res.find(function (r) { return !r.ok; });
     body.innerHTML =
