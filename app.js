@@ -892,15 +892,117 @@ function calc(units, caseSize) {
             : 'Everything on this phone has been written to the database.') +
       '</div>' +
       '<div class="audit-actions">' +
-        '<button type="button" class="audit-skip" id="syncForce">Force sync now</button>' +
-        '<button type="button" id="syncClose">Close</button></div>';
+        '<button type="button" class="audit-skip" id="syncTest">Connection test</button>' +
+        '<button type="button" id="syncForce">Force sync now</button></div>' +
+      '<div class="join-hint"><button type="button" class="store-action" id="syncClose">Close</button></div>';
 
     on('syncClose', 'click', closeAudit);
+    on('syncTest', 'click', showConnectionTest);
     on('syncForce', 'click', function () {
       lastSyncError = null;
       hasPending = true;
       flushPending();
       setTimeout(function () { verifySync(true); showSyncInfo(); }, 900);
+    });
+  }
+
+  // Runs the actual operations and reports what the database says back,
+  // rather than inferring from a flag.
+  async function runConnectionTest() {
+    const out = [];
+    function add(label, ok, detail) {
+      out.push({ label: label, ok: ok, detail: detail || '' });
+    }
+
+    add('Browser online', navigator.onLine, navigator.onLine ? '' : 'no network');
+    add('Database URL', !!firebaseConfig.databaseURL, firebaseConfig.databaseURL || 'missing');
+
+    // 1. Auth
+    try {
+      const user = firebase.auth().currentUser;
+      if (user) add('Signed in', true, user.uid);
+      else {
+        const cred = await firebase.auth().signInAnonymously();
+        add('Signed in', true, (cred && cred.user && cred.user.uid) || 'ok');
+      }
+    } catch (e) {
+      add('Signed in', false, (e.code || e.message) +
+        (String(e.code).indexOf('operation-not-allowed') !== -1
+          ? ' — turn on Anonymous sign-in in Firebase Authentication'
+          : String(e.code).indexOf('api-key') !== -1 || /referer|blocked/i.test(e.message || '')
+            ? ' — the API key restriction is blocking this address'
+            : ''));
+    }
+
+    // 2. Socket
+    try {
+      const snap = await Promise.race([
+        db.ref('.info/connected').once('value'),
+        new Promise(function (_, rej) { setTimeout(function () { rej(new Error('timed out after 6s')); }, 6000); })
+      ]);
+      add('Socket connected', snap.val() === true, snap.val() === true ? '' : 'reported false');
+    } catch (e) {
+      add('Socket connected', false, e.message || 'failed');
+    }
+
+    // 3. Read
+    try {
+      await db.ref('tally/rooms/' + roomCode + '/items').once('value');
+      add('Read items', true, '');
+    } catch (e) {
+      add('Read items', false, e.code || e.message);
+    }
+
+    // 4. Write (scratch key, cleaned up after)
+    try {
+      const ref = db.ref('tally/rooms/' + roomCode + '/items');
+      const before = (await ref.once('value')).val();
+      await ref.set(before || { list: items });
+      add('Write items', true, '');
+    } catch (e) {
+      const code = e.code || e.message;
+      add('Write items', false, code +
+        (/permission/i.test(String(code)) ? ' — security rules are refusing it' : ''));
+    }
+
+    return out;
+  }
+
+  async function showConnectionTest() {
+    const body = document.getElementById('auditBody');
+    document.getElementById('auditGate').style.display = 'flex';
+    document.getElementById('appRoot').style.display = 'none';
+    body.innerHTML = '<div class="audit-item-name">Connection test</div>' +
+      '<div class="audit-sub">Running\u2026 this takes a few seconds.</div>';
+
+    const results = await runConnectionTest();
+    const firstFail = results.find(function (r) { return !r.ok; });
+
+    body.innerHTML =
+      '<div class="audit-item-name">Connection test</div>' +
+      '<div class="audit-sub">' + (firstFail ? 'Stopped at: ' + firstFail.label : 'Everything passed') + '</div>' +
+      results.map(function (r) {
+        return '<div class="audit-result-row">' +
+          '<span>' + (r.ok ? '\u2705 ' : '\u274C ') + r.label +
+            (r.detail ? '<br><span style="font-size:11px;color:var(--text-dim);word-break:break-all;">' +
+              escapeHtml(String(r.detail)) + '</span>' : '') + '</span></div>';
+      }).join('') +
+      '<div class="audit-summary">' +
+        (firstFail
+          ? 'The first failure above is the cause; anything below it is a knock-on effect.'
+          : 'Reads and writes both work. If counts still are not saving, use Force sync.') +
+      '</div>' +
+      '<div class="audit-actions">' +
+        '<button type="button" class="audit-skip" id="ctCopy">Copy result</button>' +
+        '<button type="button" id="ctClose">Close</button></div>';
+
+    on('ctClose', 'click', closeAudit);
+    on('ctCopy', 'click', function () {
+      const text = 'Tally connection test\n' + results.map(function (r) {
+        return (r.ok ? 'PASS ' : 'FAIL ') + r.label + (r.detail ? ' — ' + r.detail : '');
+      }).join('\n');
+      if (navigator.clipboard) navigator.clipboard.writeText(text).then(function () { alert('Copied.'); });
+      else prompt('Copy this:', text);
     });
   }
 
