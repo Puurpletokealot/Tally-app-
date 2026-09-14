@@ -1,4 +1,4 @@
-  const APP_BUILD = '202609142151';
+  const APP_BUILD = '202609142214';
 // Tally — application code
 // Split out of the single-file build so edits stay local and one mistake
 // can't silently delete unrelated features.
@@ -6116,11 +6116,15 @@ function calc(units, caseSize) {
       const reader = new Z.MultiFormatReader();
       const hints = new Map();
       if (Z.DecodeHintType && Z.BarcodeFormat) {
-        hints.set(Z.DecodeHintType.POSSIBLE_FORMATS, [
-          Z.BarcodeFormat.CODE_128, Z.BarcodeFormat.CODE_39, Z.BarcodeFormat.CODE_93,
-          Z.BarcodeFormat.ITF, Z.BarcodeFormat.EAN_13, Z.BarcodeFormat.EAN_8,
-          Z.BarcodeFormat.UPC_A, Z.BarcodeFormat.UPC_E]);
+        const want = ['CODE_128','CODE_39','CODE_93','ITF','EAN_13','EAN_8','UPC_A','UPC_E',
+                      'UPC_EAN_EXTENSION','CODABAR','QR_CODE','DATA_MATRIX'];
+        const formats = want.map(function (k) { return Z.BarcodeFormat[k]; })
+                            .filter(function (v) { return v !== undefined; });
+        if (formats.length) hints.set(Z.DecodeHintType.POSSIBLE_FORMATS, formats);
         hints.set(Z.DecodeHintType.TRY_HARDER, true);
+        if (Z.DecodeHintType.ALSO_INVERTED !== undefined) {
+          hints.set(Z.DecodeHintType.ALSO_INVERTED, true);
+        }
       }
       reader.setHints(hints);
       const res = reader.decode(bitmap);
@@ -6140,7 +6144,57 @@ function calc(units, caseSize) {
   }
 
   // Native detector when the device has one, decoder otherwise. Never hangs.
-  async function decodeFrame(canvas) {
+  function rotateCanvas90(src) {
+    const out = document.createElement('canvas');
+    out.width = src.height;
+    out.height = src.width;
+    const g = out.getContext('2d');
+    g.translate(out.width / 2, out.height / 2);
+    g.rotate(Math.PI / 2);
+    g.drawImage(src, -src.width / 2, -src.height / 2);
+    return out;
+  }
+
+  // Stretch contrast and harden to black/white. Bars printed on a curved
+  // bottle, or shot in dim light, often fail until the greys are removed.
+  function hardenCanvas(src) {
+    const out = document.createElement('canvas');
+    out.width = src.width;
+    out.height = src.height;
+    const g = out.getContext('2d', { willReadFrequently: true });
+    g.drawImage(src, 0, 0);
+    const img = g.getImageData(0, 0, out.width, out.height);
+    const d = img.data;
+    let min = 255, max = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      const v = (d[i] * 299 + d[i + 1] * 587 + d[i + 2] * 114) / 1000;
+      if (v < min) min = v;
+      if (v > max) max = v;
+    }
+    const mid = (min + max) / 2;
+    for (let i = 0; i < d.length; i += 4) {
+      const v = (d[i] * 299 + d[i + 1] * 587 + d[i + 2] * 114) / 1000;
+      const b = v > mid ? 255 : 0;
+      d[i] = d[i + 1] = d[i + 2] = b;
+    }
+    g.putImageData(img, 0, 0);
+    return out;
+  }
+
+  // ZXing scans horizontal lines only, so a barcode that sits vertical in the
+  // frame never decodes. Try the frame as-is, rotated, and hardened.
+  // pass 0 = as shot, 1 = rotated 90 (vertical codes), 2 = contrast hardened,
+  // 3 = rotated AND hardened.
+  function decodePass(Z, canvas, pass) {
+    if (pass === 0) return decodeCanvas(Z, canvas);
+    if (pass === 1) return decodeCanvas(Z, rotateCanvas90(canvas));
+    if (pass === 2) return decodeCanvas(Z, hardenCanvas(canvas));
+    return decodeCanvas(Z, rotateCanvas90(hardenCanvas(canvas)));
+  }
+
+  // `only` restricts the work to a single pass, which the live loop uses so it
+  // can stay responsive — it cycles through the passes across frames instead.
+  async function decodeFrame(canvas, only) {
     if (bcDetector) {
       try {
         const found = await bcDetector.detect(canvas);
@@ -6148,7 +6202,14 @@ function calc(units, caseSize) {
       } catch (e) {}
     }
     const Z = zxingReady();
-    if (Z) return decodeCanvas(Z, canvas);
+    if (!Z) return null;
+
+    if (only !== undefined && only !== null) return decodePass(Z, canvas, only);
+
+    for (let p = 0; p < 4; p++) {
+      const r = decodePass(Z, canvas, p);
+      if (r) return r;
+    }
     return null;
   }
 
@@ -6286,7 +6347,9 @@ function calc(units, caseSize) {
         ctx2.drawImage(video, 0, sy, vw, bandH, 0, 0, vw, bandH);
         bcFrames++;
         try {
-          const text = await decodeFrame(bcCanvas);
+          // One pass per frame keeps the preview smooth; four frames covers
+          // every orientation and contrast combination in under a second.
+          const text = await decodeFrame(bcCanvas, bcFrames % 4);
           if (text) handleBarcode(text);
         } catch (e) {}
       }
@@ -6634,51 +6697,6 @@ function calc(units, caseSize) {
 
   // A known-good Code 128 rendered to canvas, so the decoder can be tested
   // without needing a real label in front of the camera.
-  function drawTestBarcode() {
-    // Code 128B "1234567890": start B, data, checksum, stop
-    const P = ['11011001100','11001101100','11001100110','10010011000','10010001100','10001001100',
-               '10011001000','10011000100','10001100100','11001001000','11001000100','11000100100',
-               '10110011100','10011011100','10011001110','10111001100','10011101100','10011100110',
-               '11001110010','11001011100','11001001110','11011100100','11001110100','11101101110',
-               '11101001100','11100101100','11100100110','11101100100','11100110100','11100110010',
-               '11011011000','11011000110','11000110110','10100011000','10001011000','10001000110',
-               '10110001000','10001101000','10001100010','11010001000','11000101000','11000100010',
-               '10110111000','10110001110','10001101110','10111011000','10111000110','10001110110',
-               '11101110110','11010001110','11000101110','11011101000','11011100010','11011101110',
-               '11101011000','11101000110','11100010110','11101101000','11101100010','11100011010',
-               '11101111010','11001000010','11110001010','10100110000','10100001100','10010110000',
-               '10010000110','10000101100','10000100110','10110010000','10110000100','10011010000',
-               '10011000010','10000110100','10000110010','11000010010','11001010000','11110111010',
-               '11000010100','10001111010','10100111100','10010111100','10010011110','10111100100',
-               '10011110100','10011110010','11110100100','11110010100','11110010010','11011011110',
-               '11011110110','11110110110','10101111000','10100011110','10001011110','10111101000',
-               '10111100010','11110101000','11110100010','10111011110','10111101110','11101011110',
-               '11110101110','11010000100','11010010000','11010011100','1100011101011'];
-    const text = '1234567890';
-    const START_B = 104;
-    const codes = [START_B];
-    for (let i = 0; i < text.length; i++) codes.push(text.charCodeAt(i) - 32);
-    let sum = START_B;
-    for (let i = 1; i < codes.length; i++) sum += codes[i] * i;
-    codes.push(sum % 103);
-    let bits = '';
-    codes.forEach(function (v) { bits += P[v]; });
-    bits += P[106];
-
-    const mod = 3, quiet = 20, h = 120;
-    const cv = document.createElement('canvas');
-    cv.width = bits.length * mod + quiet * 2;
-    cv.height = h;
-    const ctx2 = cv.getContext('2d', { willReadFrequently: true });
-    ctx2.fillStyle = '#fff';
-    ctx2.fillRect(0, 0, cv.width, cv.height);
-    ctx2.fillStyle = '#000';
-    for (let i = 0; i < bits.length; i++) {
-      if (bits[i] === '1') ctx2.fillRect(quiet + i * mod, 10, mod, h - 20);
-    }
-    return cv;
-  }
-
   // Draws a known Code 128 barcode and decodes it. If this fails, the decoder
   // is broken; if it passes, scanning problems are camera or image quality.
   const C128_PATTERNS = ['11011001100','11001101100','11001100110','10010011000','10010001100','10001001100','10011001000','10011000100','10001100100','11001001000','11001000100','11000100100','10110011100','10011011100','10011001110','10111001100','10011101100','10011100110','11001110010','11001011100','11001001110','11011100100','11001110100','11101101110','11101001100','11100101100','11100100110','11101100100','11100110100','11100110010','11011011000','11011000110','11000110110','10100011000','10001011000','10001000110','10110001000','10001101000','10001100010','11010001000','11000101000','11000100010','10110111000','10110001110','10001101110','10111011000','10111000110','10001110110','11101110110','11010001110','11000101110','11011101000','11011100010','11011101110','11101011000','11101000110','11100010110','11101101000','11101100010','11100011010','11101111010','11001000010','11110001010','10100110000','10100001100','10010110000','10010000110','10000101100','10000100110','10110010000','10110000100','10011010000','10011000010','10000110100','10000110010','11000010010','11001010000','11110111010','11000010100','10001111010','10100111100','10010111100','10010011110','10111100100','10011110100','10011110010','11110100100','11110010100','11110010010','11011011110','11011110110','11110110110','10101111000','10100011110','10001011110','10111101000','10111100010','11110101000','11110100010','10111011110','10111101110','11101011110','11110101110','11010000100','11010010000','11010011100','1100011101011'];
@@ -6691,6 +6709,21 @@ function calc(units, caseSize) {
     values.push(sum % 103);
     values.push(106);
     return values.map(function (v) { return C128_PATTERNS[v]; }).join('');
+  }
+
+  // Flatten a canvas toward mid-grey to mimic a faint or glary label
+  function fadeCanvas(src, amount) {
+    const out = document.createElement('canvas');
+    out.width = src.width; out.height = src.height;
+    const g = out.getContext('2d', { willReadFrequently: true });
+    g.drawImage(src, 0, 0);
+    const img = g.getImageData(0, 0, out.width, out.height);
+    const d = img.data;
+    for (let i = 0; i < d.length; i += 4) {
+      for (let k = 0; k < 3; k++) d[i + k] = 128 + (d[i + k] - 128) * amount;
+    }
+    g.putImageData(img, 0, 0);
+    return out;
   }
 
   function drawTestBarcode(text, moduleWidth) {
@@ -6817,6 +6850,19 @@ function calc(units, caseSize) {
         add('Decoder reads a test barcode', got === 'TALLY123',
             got ? (got === 'TALLY123' ? 'read it correctly' : 'misread as ' + got)
                 : 'could not read a clean generated code');
+
+        // The same barcode turned on its side — proves rotation handling works,
+        // which is what a code printed sideways or round a bottle needs.
+        const sideways = rotateCanvas90(drawTestBarcode());
+        const gotRot = await withTimeout(decodeFrame(sideways), 6000, 'rotated decode');
+        add('Reads a sideways barcode', gotRot === 'TALLY123',
+            gotRot ? 'rotation handled' : 'rotated codes will not read');
+
+        // Low contrast, as on a curved or shiny surface
+        const faint = fadeCanvas(drawTestBarcode(), 0.45);
+        const gotFaint = await withTimeout(decodeFrame(faint), 6000, 'low contrast decode');
+        add('Reads a low-contrast barcode', gotFaint === 'TALLY123',
+            gotFaint ? 'contrast handled' : 'faint or shiny labels may not read');
       } else {
         add('Decoder available', false, 'library did not load');
       }
