@@ -1,4 +1,4 @@
-  const APP_BUILD = '202609141940';
+  const APP_BUILD = '202609142044';
 // Tally — application code
 // Split out of the single-file build so edits stay local and one mistake
 // can't silently delete unrelated features.
@@ -5914,9 +5914,12 @@ function calc(units, caseSize) {
   let batchTally = {};   // { itemIndex: casesScanned } collected in batch mode
   let batchCodes = {};   // { itemIndex: last raw scan, for its use-by date }
   let bcResolution = '';
+  let bcCanvas = null;
+  let bcFrames = 0;
   let batchUnknown = []; // codes scanned that match no item
   let zxingLoading = null;
   let bcZxing = null;
+  let zxingSource = null;
 
   // ============ GS1-128 (case labels) ============
   // Supplier case labels are GS1-128, not UPC. The scanned string carries the
@@ -6030,15 +6033,28 @@ function calc(units, caseSize) {
 
   // @zxing/library carries both the decoder AND the browser readers, so one
   // file covers live video and still photos. Two CDNs in case one is blocked.
+  // Several builds, tried in order. Different versions expose different globals,
+  // so we keep going until one gives us a usable core decoder.
   const ZXING_URLS = [
     'https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js',
-    'https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js'
+    'https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js',
+    'https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/index.min.js',
+    'https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js'
   ];
 
+  // We decode with the CORE reader (MultiFormatReader + RGBLuminanceSource),
+  // which every ZXing build exposes. Requiring BrowserMultiFormatReader here
+  // was wrong — the core UMD bundle doesn't ship it, so a perfectly loaded
+  // library was being treated as missing and nothing ever decoded.
   function zxingReady() {
-    return (window.ZXing && window.ZXing.BrowserMultiFormatReader) ? window.ZXing
-         : (window.ZXingBrowser && window.ZXingBrowser.BrowserMultiFormatReader) ? window.ZXingBrowser
-         : null;
+    const cands = [window.ZXing, window.ZXingBrowser, window.ZXingLibrary];
+    for (let i = 0; i < cands.length; i++) {
+      const Z = cands[i];
+      if (Z && Z.MultiFormatReader && Z.RGBLuminanceSource && Z.BinaryBitmap && Z.HybridBinarizer) {
+        return Z;
+      }
+    }
+    return null;
   }
 
   function loadZXing() {
@@ -6047,10 +6063,18 @@ function calc(units, caseSize) {
     zxingLoading = new Promise(function (resolve, reject) {
       let i = 0;
       (function attempt() {
-        if (i >= ZXING_URLS.length) { reject(new Error('could not load the decoder')); return; }
+        if (i >= ZXING_URLS.length) {
+          zxingSource = null;
+          reject(new Error('no ZXing build provided a usable decoder'));
+          return;
+        }
+        const url = ZXING_URLS[i++];
         const s = document.createElement('script');
-        s.src = ZXING_URLS[i++];
-        s.onload = function () { zxingReady() ? resolve() : attempt(); };
+        s.src = url;
+        s.onload = function () {
+          if (zxingReady()) { zxingSource = url.split('/npm/')[1] || url; resolve(); }
+          else attempt();
+        };
         s.onerror = attempt;
         document.head.appendChild(s);
       })();
@@ -6064,14 +6088,68 @@ function calc(units, caseSize) {
       const hints = new Map();
       const F = Z.BarcodeFormat, H = Z.DecodeHintType;
       if (F && H) {
-        hints.set(H.POSSIBLE_FORMATS, [F.CODE_128, F.CODE_39, F.EAN_13, F.EAN_8,
-                                       F.UPC_A, F.UPC_E, F.ITF, F.CODE_93]);
+        hints.set(H.POSSIBLE_FORMATS, [F.CODE_128, F.CODE_39, F.CODE_93, F.ITF,
+                                       F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E]);
         hints.set(H.TRY_HARDER, true);
-        hints.set(H.ASSUME_GS1, true);
-        return new Z.BrowserMultiFormatReader(hints, { delayBetweenScanAttempts: 120 });
+        return new Z.MultiFormatReader ? (function () {
+          const r = new Z.MultiFormatReader();
+          r.setHints(hints);
+          return r;
+        })() : new Z.BrowserMultiFormatReader(hints);
       }
     } catch (e) {}
-    return new Z.BrowserMultiFormatReader();
+    try { return new Z.BrowserMultiFormatReader(); } catch (e) {}
+    return null;
+  }
+
+  // Decode a single canvas. This is the ONLY decode path in the app: the live
+  // scanner feeds it video frames, the photo flow feeds it a still. One route
+  // means one set of behaviours to get right, and no reliance on the library's
+  // continuous-scan API, which differs between versions and can hang.
+  function decodeCanvas(Z, canvas) {
+    try {
+      const ctx2 = canvas.getContext('2d');
+      const img = ctx2.getImageData(0, 0, canvas.width, canvas.height);
+      const lum = new Z.RGBLuminanceSource(
+        toLuminance(img.data, canvas.width, canvas.height), canvas.width, canvas.height);
+      const bitmap = new Z.BinaryBitmap(new Z.HybridBinarizer(lum));
+      const reader = new Z.MultiFormatReader();
+      const hints = new Map();
+      if (Z.DecodeHintType && Z.BarcodeFormat) {
+        hints.set(Z.DecodeHintType.POSSIBLE_FORMATS, [
+          Z.BarcodeFormat.CODE_128, Z.BarcodeFormat.CODE_39, Z.BarcodeFormat.CODE_93,
+          Z.BarcodeFormat.ITF, Z.BarcodeFormat.EAN_13, Z.BarcodeFormat.EAN_8,
+          Z.BarcodeFormat.UPC_A, Z.BarcodeFormat.UPC_E]);
+        hints.set(Z.DecodeHintType.TRY_HARDER, true);
+      }
+      reader.setHints(hints);
+      const res = reader.decode(bitmap);
+      return res ? res.getText() : null;
+    } catch (e) {
+      return null;   // NotFoundException just means "no code in this frame"
+    }
+  }
+
+  // ZXing wants a luminance array, not RGBA
+  function toLuminance(data, w, h) {
+    const out = new Uint8ClampedArray(w * h);
+    for (let i = 0, p = 0; p < out.length; i += 4, p++) {
+      out[p] = (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114) | 0;
+    }
+    return out;
+  }
+
+  // Native detector when the device has one, decoder otherwise. Never hangs.
+  async function decodeFrame(canvas) {
+    if (bcDetector) {
+      try {
+        const found = await bcDetector.detect(canvas);
+        if (found && found.length) return found[0].rawValue;
+      } catch (e) {}
+    }
+    const Z = zxingReady();
+    if (Z) return decodeCanvas(Z, canvas);
+    return null;
   }
 
   function bcSay(msg, ok) {
@@ -6164,56 +6242,63 @@ function calc(units, caseSize) {
 
     if ('BarcodeDetector' in window) {
       try {
-        // Ask only for what this device actually supports — requesting an
-        // unsupported format throws and drops us to the slower fallback.
-        const want = ['code_128', 'ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_39', 'itf', 'databar', 'databar_expanded'];
+        const want = ['code_128', 'ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_39', 'itf'];
         let formats = want;
         if (window.BarcodeDetector.getSupportedFormats) {
           const have = await window.BarcodeDetector.getSupportedFormats();
           formats = want.filter(function (f) { return have.indexOf(f) !== -1; });
         }
-        if (formats.length) {
-          bcDetector = new window.BarcodeDetector({ formats: formats });
-          bcNativeLoop(video);
-          return;
-        }
+        if (formats.length) bcDetector = new window.BarcodeDetector({ formats: formats });
       } catch (e) {
         console.warn('Tally: native scanner unavailable —', e && e.message);
       }
     }
-    try {
-      await loadZXing();
-      const Z = zxingReady();
-      if (!Z) throw new Error('decoder unavailable');
-      const reader = zxingReader(Z);
-      bcZxing = reader;
-      bcLoop = await reader.decodeFromVideoElement(video, function (result, err) {
-        if (result) handleBarcode(result.getText());
-      });
-    } catch (e) {
-      bcSay('Scanning not supported on this browser.', false);
+
+    if (!bcDetector) {
+      try { await loadZXing(); }
+      catch (e) {
+        bcSay('Could not load the scanner. Open the app once with internet.', false);
+        return;
+      }
+      if (!zxingReady()) { bcSay('Scanner unavailable on this browser.', false); return; }
     }
+
+    bcFrameLoop(video);
   }
 
-  async function bcNativeLoop(video) {
-    if (!bcDetector) return;
-    try {
-      const found = await bcDetector.detect(video);
-      if (found && found.length) handleBarcode(found[0].rawValue);
-    } catch (e) {}
-    if (document.getElementById('barcodeGate').style.display !== 'none') {
-      bcLoop = setTimeout(function () { bcNativeLoop(video); }, 220);
+  // We drive the loop ourselves rather than handing control to the library.
+  // Frames are cropped to the middle band, which is where the barcode is and
+  // gives the decoder more pixels per bar.
+  function bcFrameLoop(video) {
+    if (!bcCanvas) bcCanvas = document.createElement('canvas');
+    const gate = document.getElementById('barcodeGate');
+
+    async function tick() {
+      if (!gate || gate.style.display === 'none') return;
+      const vw = video.videoWidth || 0, vh = video.videoHeight || 0;
+      if (vw && vh && !bcBusy) {
+        // middle 100% width, middle 45% height — a wide label band
+        const bandH = Math.max(80, Math.round(vh * 0.45));
+        const sy = Math.round((vh - bandH) / 2);
+        bcCanvas.width = vw;
+        bcCanvas.height = bandH;
+        const ctx2 = bcCanvas.getContext('2d', { willReadFrequently: true });
+        ctx2.drawImage(video, 0, sy, vw, bandH, 0, 0, vw, bandH);
+        bcFrames++;
+        try {
+          const text = await decodeFrame(bcCanvas);
+          if (text) handleBarcode(text);
+        } catch (e) {}
+      }
+      bcLoop = setTimeout(tick, 180);
     }
+    tick();
   }
 
   function closeBarcode() {
     const gate = document.getElementById('barcodeGate');
     if (gate) gate.style.display = 'none';
-    if (bcLoop) {
-      if (typeof bcLoop === 'number') clearTimeout(bcLoop);
-      else if (bcLoop.stop) { try { bcLoop.stop(); } catch (e) {} }
-      bcLoop = null;
-    }
+    if (bcLoop) { clearTimeout(bcLoop); bcLoop = null; }
     bcDetector = null;
     if (bcZxing) {
       try { if (bcZxing.reset) bcZxing.reset(); } catch (e) {}
@@ -6451,37 +6536,52 @@ function calc(units, caseSize) {
       document.getElementById('auditGate').style.display = 'flex';
       document.getElementById('appRoot').style.display = 'none';
       body.innerHTML = '<div class="audit-item-name">Reading label</div>' +
-        '<div class="audit-sub">Decoding\u2026</div>';
+        '<div class="audit-sub" id="photoStatus">Decoding\u2026</div>';
 
       let text = null;
       try {
-        const bmp = await createImageBitmap(file);
-        if ('BarcodeDetector' in window) {
-          const want = ['code_128', 'ean_13', 'upc_a', 'itf', 'code_39'];
-          let formats = want;
-          if (window.BarcodeDetector.getSupportedFormats) {
-            const have = await window.BarcodeDetector.getSupportedFormats();
-            formats = want.filter(function (f) { return have.indexOf(f) !== -1; });
-          }
-          const det = new window.BarcodeDetector({ formats: formats });
-          const found = await det.detect(bmp);
-          if (found && found.length) text = found[0].rawValue;
+        if (!bcDetector && 'BarcodeDetector' in window) {
+          try {
+            const want = ['code_128', 'ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_39', 'itf'];
+            let formats = want;
+            if (window.BarcodeDetector.getSupportedFormats) {
+              const have = await window.BarcodeDetector.getSupportedFormats();
+              formats = want.filter(function (f) { return have.indexOf(f) !== -1; });
+            }
+            if (formats.length) bcDetector = new window.BarcodeDetector({ formats: formats });
+          } catch (e) {}
         }
-        if (!text) {
-          await loadZXing();
-          const Z = zxingReady();
-          const reader = zxingReader(Z);
-          const cv = document.createElement('canvas');
-          cv.width = bmp.width; cv.height = bmp.height;
-          cv.getContext('2d').drawImage(bmp, 0, 0);
-          let res = null;
-          if (reader.decodeFromCanvas) {
-            try { res = reader.decodeFromCanvas(cv); } catch (e) {}
-          }
-          if (!res && reader.decodeFromImageUrl) {
-            try { res = await reader.decodeFromImageUrl(cv.toDataURL('image/png')); } catch (e) {}
-          }
-          if (res) text = res.getText();
+        // Always have the fallback ready — the built-in detector misses plenty
+        try { await loadZXing(); } catch (e) {
+          console.warn('Tally: decoder download failed —', e && e.message);
+        }
+
+        const img = await loadImageFile(file);
+        const cv = document.createElement('canvas');
+        const ctx2 = cv.getContext('2d', { willReadFrequently: true });
+
+        // Try the whole image, then progressively tighter horizontal bands.
+        // A label photographed at an angle often decodes in one strip when the
+        // full frame won't.
+        const attempts = [
+          { scale: 1,    top: 0,    height: 1 },
+          { scale: 1,    top: 0.25, height: 0.5 },
+          { scale: 0.6,  top: 0,    height: 1 },
+          { scale: 1,    top: 0,    height: 0.5 },
+          { scale: 1,    top: 0.5,  height: 0.5 },
+          { scale: 1.6,  top: 0.2,  height: 0.6 }
+        ];
+
+        for (let i = 0; i < attempts.length && !text; i++) {
+          const a = attempts[i];
+          const sy = Math.round(img.height * a.top);
+          const sh = Math.max(40, Math.round(img.height * a.height));
+          cv.width = Math.round(img.width * a.scale);
+          cv.height = Math.round(sh * a.scale);
+          ctx2.drawImage(img, 0, sy, img.width, sh, 0, 0, cv.width, cv.height);
+          const st = document.getElementById('photoStatus');
+          if (st) st.textContent = 'Decoding\u2026 pass ' + (i + 1) + ' of ' + attempts.length;
+          text = await decodeFrame(cv);
         }
       } catch (e) {
         console.warn('Tally: photo decode failed —', e && e.message);
@@ -6489,8 +6589,11 @@ function calc(units, caseSize) {
 
       if (!text) {
         body.innerHTML = '<div class="audit-item-name">No barcode found</div>' +
-          '<div class="audit-sub">Get closer so the barcode fills the width of the photo, ' +
-          'hold steady, and avoid glare on the label.</div>' +
+          '<div class="audit-sub">Hold the phone square to the label so the barcode ' +
+          'fills the width of the photo, with no glare across the bars.</div>' +
+          '<div class="audit-summary">Tips: get close enough that the barcode alone nearly ' +
+          'fills the frame, keep the phone parallel to the box (not tilted), and avoid ' +
+          'shadows falling across it.</div>' +
           '<div class="audit-actions">' +
             '<button type="button" class="audit-skip" id="bpRetry">Try again</button>' +
             '<button type="button" id="bpClose">Close</button></div>';
@@ -6503,14 +6606,109 @@ function calc(units, caseSize) {
       bcMode = 'count';
       bcBusy = false;
       handleBarcode(text);
-      // Photographing a delivery means many boxes in a row
       setTimeout(function () {
         if (confirm('Scan another label?')) scanBarcodeFromPhoto();
       }, 700);
     });
   }
 
-  // Tells you exactly why scanning isn't working instead of just failing quietly.
+  // createImageBitmap isn't everywhere; an <img> always works.
+  function loadImageFile(file) {
+    return new Promise(function (resolve, reject) {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = function () { resolve(img); };
+      img.onerror = function () { reject(new Error('could not open that photo')); };
+      img.src = url;
+    });
+  }
+
+  function withTimeout(promise, ms, what) {
+    return Promise.race([
+      Promise.resolve(promise),
+      new Promise(function (_, rej) {
+        setTimeout(function () { rej(new Error((what || 'step') + ' timed out')); }, ms);
+      })
+    ]);
+  }
+
+  // A known-good Code 128 rendered to canvas, so the decoder can be tested
+  // without needing a real label in front of the camera.
+  function drawTestBarcode() {
+    // Code 128B "1234567890": start B, data, checksum, stop
+    const P = ['11011001100','11001101100','11001100110','10010011000','10010001100','10001001100',
+               '10011001000','10011000100','10001100100','11001001000','11001000100','11000100100',
+               '10110011100','10011011100','10011001110','10111001100','10011101100','10011100110',
+               '11001110010','11001011100','11001001110','11011100100','11001110100','11101101110',
+               '11101001100','11100101100','11100100110','11101100100','11100110100','11100110010',
+               '11011011000','11011000110','11000110110','10100011000','10001011000','10001000110',
+               '10110001000','10001101000','10001100010','11010001000','11000101000','11000100010',
+               '10110111000','10110001110','10001101110','10111011000','10111000110','10001110110',
+               '11101110110','11010001110','11000101110','11011101000','11011100010','11011101110',
+               '11101011000','11101000110','11100010110','11101101000','11101100010','11100011010',
+               '11101111010','11001000010','11110001010','10100110000','10100001100','10010110000',
+               '10010000110','10000101100','10000100110','10110010000','10110000100','10011010000',
+               '10011000010','10000110100','10000110010','11000010010','11001010000','11110111010',
+               '11000010100','10001111010','10100111100','10010111100','10010011110','10111100100',
+               '10011110100','10011110010','11110100100','11110010100','11110010010','11011011110',
+               '11011110110','11110110110','10101111000','10100011110','10001011110','10111101000',
+               '10111100010','11110101000','11110100010','10111011110','10111101110','11101011110',
+               '11110101110','11010000100','11010010000','11010011100','1100011101011'];
+    const text = '1234567890';
+    const START_B = 104;
+    const codes = [START_B];
+    for (let i = 0; i < text.length; i++) codes.push(text.charCodeAt(i) - 32);
+    let sum = START_B;
+    for (let i = 1; i < codes.length; i++) sum += codes[i] * i;
+    codes.push(sum % 103);
+    let bits = '';
+    codes.forEach(function (v) { bits += P[v]; });
+    bits += P[106];
+
+    const mod = 3, quiet = 20, h = 120;
+    const cv = document.createElement('canvas');
+    cv.width = bits.length * mod + quiet * 2;
+    cv.height = h;
+    const ctx2 = cv.getContext('2d', { willReadFrequently: true });
+    ctx2.fillStyle = '#fff';
+    ctx2.fillRect(0, 0, cv.width, cv.height);
+    ctx2.fillStyle = '#000';
+    for (let i = 0; i < bits.length; i++) {
+      if (bits[i] === '1') ctx2.fillRect(quiet + i * mod, 10, mod, h - 20);
+    }
+    return cv;
+  }
+
+  // Draws a known Code 128 barcode and decodes it. If this fails, the decoder
+  // is broken; if it passes, scanning problems are camera or image quality.
+  const C128_PATTERNS = ['11011001100','11001101100','11001100110','10010011000','10010001100','10001001100','10011001000','10011000100','10001100100','11001001000','11001000100','11000100100','10110011100','10011011100','10011001110','10111001100','10011101100','10011100110','11001110010','11001011100','11001001110','11011100100','11001110100','11101101110','11101001100','11100101100','11100100110','11101100100','11100110100','11100110010','11011011000','11011000110','11000110110','10100011000','10001011000','10001000110','10110001000','10001101000','10001100010','11010001000','11000101000','11000100010','10110111000','10110001110','10001101110','10111011000','10111000110','10001110110','11101110110','11010001110','11000101110','11011101000','11011100010','11011101110','11101011000','11101000110','11100010110','11101101000','11101100010','11100011010','11101111010','11001000010','11110001010','10100110000','10100001100','10010110000','10010000110','10000101100','10000100110','10110010000','10110000100','10011010000','10011000010','10000110100','10000110010','11000010010','11001010000','11110111010','11000010100','10001111010','10100111100','10010111100','10010011110','10111100100','10011110100','10011110010','11110100100','11110010100','11110010010','11011011110','11011110110','11110110110','10101111000','10100011110','10001011110','10111101000','10111100010','11110101000','11110100010','10111011110','10111101110','11101011110','11110101110','11010000100','11010010000','11010011100','1100011101011'];
+
+  function code128Bits(text) {
+    const values = [104];
+    for (let i = 0; i < text.length; i++) values.push(text.charCodeAt(i) - 32);
+    let sum = 104;
+    for (let i = 1; i < values.length; i++) sum += values[i] * i;
+    values.push(sum % 103);
+    values.push(106);
+    return values.map(function (v) { return C128_PATTERNS[v]; }).join('');
+  }
+
+  function drawTestBarcode(text, moduleWidth) {
+    const bits = code128Bits(text);
+    const quiet = 10 * moduleWidth;
+    const cv = document.createElement('canvas');
+    cv.width = bits.length * moduleWidth + quiet * 2;
+    cv.height = 120;
+    const g = cv.getContext('2d');
+    g.fillStyle = '#fff';
+    g.fillRect(0, 0, cv.width, cv.height);
+    g.fillStyle = '#000';
+    for (let i = 0; i < bits.length; i++) {
+      if (bits[i] === '1') g.fillRect(quiet + i * moduleWidth, 10, moduleWidth, 100);
+    }
+    return cv;
+  }
+
   async function showScannerTest() {
     const body = document.getElementById('auditBody');
     document.getElementById('auditGate').style.display = 'flex';
@@ -6591,7 +6789,7 @@ function calc(units, caseSize) {
       try {
         await loadZXing();
         const Z = zxingReady();
-        add('Fallback decoder loaded', !!Z, Z ? '' : 'script loaded but decoder missing');
+        add('Decoder loaded', !!Z, Z ? (zxingSource || 'ready') : 'script loaded but decoder missing');
         if (Z) {
           let hinted = false;
           try { const r = zxingReader(Z); hinted = !!r; } catch (e) {}
@@ -6603,37 +6801,66 @@ function calc(units, caseSize) {
       }
     }
 
-    // Run the actual decode loop for a few seconds against the live camera.
+    // Decode a barcode we generate ourselves — proves the decoder works
+    // regardless of the camera. Hard-capped so this screen can never hang.
+    try {
+      if (!zxingReady()) await withTimeout(loadZXing(), 8000, 'decoder download');
+      const Z = zxingReady();
+      if (Z) {
+        const cv = drawTestBarcode();
+        const got = await withTimeout(decodeFrame(cv), 5000, 'decode');
+        add('Decoder reads a test barcode', got === '1234567890',
+            got ? 'read: ' + got : 'could not read a clean generated code');
+      } else {
+        add('Decoder available', false, 'library did not load');
+      }
+    } catch (e) {
+      add('Decoder reads a test barcode', false, (e && e.message) || 'failed');
+    }
+
+    // A few live frames, with a hard stop
     if (stream) {
       try {
-        await loadZXing();
-        const Z = zxingReady();
-        if (Z) {
-          const vid = document.createElement('video');
-          vid.setAttribute('playsinline', '');
-          vid.muted = true;
-          vid.srcObject = stream;
-          await vid.play().catch(function () {});
-          const reader = zxingReader(Z);
-          let frames = 0, hit = null, firstErr = null;
-          const controls = await reader.decodeFromVideoElement(vid, function (result, err) {
+        const vid = document.createElement('video');
+        vid.setAttribute('playsinline', '');
+        vid.muted = true;
+        vid.srcObject = stream;
+        await withTimeout(vid.play(), 3000, 'video start').catch(function () {});
+        const cv = document.createElement('canvas');
+        let frames = 0, hit = null;
+        const until = Date.now() + 3000;
+        while (Date.now() < until && !hit) {
+          const vw = vid.videoWidth || 0, vh = vid.videoHeight || 0;
+          if (vw && vh) {
+            cv.width = vw; cv.height = vh;
+            cv.getContext('2d', { willReadFrequently: true }).drawImage(vid, 0, 0);
             frames++;
-            if (result) hit = result.getText();
-            else if (err && !firstErr && err.name && err.name !== 'NotFoundException') {
-              firstErr = err.name + ': ' + (err.message || '');
-            }
-          });
-          await new Promise(function (r) { setTimeout(r, 4000); });
-          try { if (controls && controls.stop) controls.stop(); else if (reader.reset) reader.reset(); } catch (e) {}
-          add('Live decode loop runs', frames > 0,
-              frames > 0
-                ? frames + ' frames checked in 4s' + (hit ? ' — READ: ' + hit.slice(0, 24) : ' — no code in view')
-                : 'the loop never ran' + (firstErr ? ' — ' + firstErr : ''));
+            hit = await withTimeout(decodeFrame(cv), 1500, 'frame decode').catch(function () { return null; });
+          }
+          await new Promise(function (r) { setTimeout(r, 150); });
         }
+        add('Live frames decode', frames > 0,
+            frames + ' frames checked' + (hit ? ' — READ: ' + String(hit).slice(0, 26) : ' — no code in view'));
       } catch (e) {
-        add('Live decode loop runs', false, (e && e.message) || 'failed to start');
+        add('Live frames decode', false, (e && e.message) || 'failed');
       }
       stream.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} });
+    }
+
+    // Decode a barcode we generated ourselves — no camera involved
+    try {
+      await loadZXing();
+      const sample = 'TALLY123';
+      let got = null;
+      for (const mw of [3, 2, 4]) {
+        if (got) break;
+        got = await decodeFrame(drawTestBarcode(sample, mw));
+      }
+      add('Decodes a known barcode', got === sample,
+          got ? (got === sample ? 'read it correctly' : 'misread as ' + got)
+              : 'could not read a perfect barcode — the decoder is not working');
+    } catch (e) {
+      add('Decodes a known barcode', false, (e && e.message) || 'test failed to run');
     }
 
     const firstFail = res.find(function (r) { return !r.ok; });
