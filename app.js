@@ -510,7 +510,10 @@ function calc(units, caseSize) {
       status: kind || 'opened',
       at: Date.now(),
       session: SESSION_ID
-    }).catch(function () {});
+    }).catch(function (e) {
+      lastSyncError = 'sessions write: ' + (e.code || e.message);
+      console.warn('Tally: could not record sign-in —', e && e.message);
+    });
   }
 
   function startPresence() {
@@ -2463,7 +2466,7 @@ function calc(units, caseSize) {
 
     let rows = [];
     try {
-      const snap = await varianceRef().orderByChild('at').limitToLast(120).get();
+      const snap = await varianceRef().limitToLast(200).get();
       const val = snap.val() || {};
       rows = Object.keys(val).map(function (k) { return val[k]; })
         .sort(function (a, b) { return b.at - a.at; });
@@ -2640,7 +2643,7 @@ function calc(units, caseSize) {
 
     let list = [];
     try {
-      const snap = await bugsRef().orderByChild('at').limitToLast(80).get();
+      const snap = await bugsRef().limitToLast(120).get();
       const val = snap.val() || {};
       list = Object.keys(val).map(function (k) { return Object.assign({ key: k }, val[k]); })
         .sort(function (a, b) {
@@ -4801,7 +4804,7 @@ function calc(units, caseSize) {
 
     let records = [];
     try {
-      const snap = await auditLogRef().orderByChild('ts').limitToLast(25).get();
+      const snap = await auditLogRef().limitToLast(40).get();
       const val = snap.val() || {};
       records = Object.keys(val).map(function(k) { return val[k]; }).sort(function(a, b) { return b.ts - a.ts; });
     } catch (e) {}
@@ -4959,19 +4962,47 @@ function calc(units, caseSize) {
     body.innerHTML = '<div class="audit-item-name">Sign-in log</div><div class="audit-sub">Loading...</div>';
 
     let records = [];
+    let readError = null;
     try {
+      // No orderByChild here: it needs an index in the rules, and without one
+      // Firebase can return nothing. Sorting a hundred rows locally is free.
       const snap = await db.ref('tally/rooms/' + roomCode + '/sessions')
-        .orderByChild('at').limitToLast(100).get();
+        .limitToLast(200).get();
       const val = snap.val() || {};
       records = Object.keys(val).map(function(k) { return val[k]; })
+        .filter(function (r) { return r && r.at; })
         .sort(function(a, b) { return b.at - a.at; });
-    } catch (e) {}
+    } catch (e) {
+      readError = e.code || e.message;
+    }
 
     if (!records.length) {
       body.innerHTML = '<div class="audit-item-name">Sign-in log</div>' +
-        '<div class="audit-sub">No sessions recorded yet for this store.</div>' +
-        '<div class="audit-actions"><button type="button" id="sessCloseBtn">Close</button></div>';
-      document.getElementById('sessCloseBtn').addEventListener('click', closeAudit);
+        '<div class="audit-sub">' +
+          (readError ? 'Could not read the log.' : 'Nothing recorded yet for this store.') +
+        '</div>' +
+        (readError
+          ? '<div class="audit-summary"><b>' + escapeHtml(String(readError)) + '</b><br><br>' +
+            (/permission/i.test(String(readError))
+              ? 'The security rules are blocking it. Publish the latest rules in Firebase.'
+              : 'Check the connection test on the sync screen.') + '</div>'
+          : '<div class="audit-summary">A row is written each time someone with a profile opens the app. ' +
+            'If this stays empty after a reload, run the connection test from the corner dot.</div>') +
+        '<div class="audit-actions">' +
+          '<button type="button" class="audit-skip" id="sessTest">Write a test entry</button>' +
+          '<button type="button" id="sessCloseBtn">Close</button></div>';
+      on('sessCloseBtn', 'click', closeAudit);
+      on('sessTest', 'click', async function () {
+        try {
+          await db.ref('tally/rooms/' + roomCode + '/sessions').push({
+            name: myName || 'Test', role: myRole || null, status: 'test entry',
+            at: Date.now(), session: SESSION_ID
+          });
+          showSessionLog();
+        } catch (e) {
+          alert('Write failed: ' + (e.code || e.message));
+        }
+      });
       return;
     }
 
@@ -5261,7 +5292,7 @@ function calc(units, caseSize) {
     if (Date.now() - lastSnapshotTs < SNAPSHOT_INTERVAL) return;
     lastSnapshotTs = Date.now();
     try {
-      const last = await snapshotsRef().orderByChild('ts').limitToLast(1).get();
+      const last = await snapshotsRef().limitToLast(1).get();
       const val = last.val() || {};
       const keys = Object.keys(val);
       const lastTs = keys.length ? (val[keys[0]].ts || 0) : 0;
@@ -5293,7 +5324,7 @@ function calc(units, caseSize) {
         })
       });
 
-      const all = await snapshotsRef().orderByChild('ts').get();
+      const all = await snapshotsRef().get();
       const av = all.val() || {};
       const sorted = Object.keys(av).sort(function (a, b) { return (av[a].ts || 0) - (av[b].ts || 0); });
       for (let i = 0; i < sorted.length - SNAPSHOT_KEEP; i++) {
@@ -5324,7 +5355,7 @@ function calc(units, caseSize) {
 
     let snaps = [];
     try {
-      const snap = await snapshotsRef().orderByChild('ts').get();
+      const snap = await snapshotsRef().limitToLast(40).get();
       const val = snap.val() || {};
       snaps = Object.keys(val).map(function (k) { return Object.assign({ key: k }, val[k]); })
         .sort(function (a, b) { return b.ts - a.ts; });
@@ -6017,7 +6048,16 @@ function calc(units, caseSize) {
       video.srcObject = bcStream;
       await video.play();
     } catch (e) {
-      bcSay('Camera unavailable. Check permissions.', false);
+      const n = (e && e.name) || '';
+      bcSay(n === 'NotAllowedError' ? 'Camera permission denied \u2014 allow it for this site'
+          : n === 'NotReadableError' ? 'Camera is busy in another app'
+          : n === 'NotFoundError' ? 'No camera found'
+          : 'Camera unavailable: ' + (e && e.message ? e.message : n), false);
+      const msg = document.getElementById('barcodeMsg');
+      if (msg) {
+        msg.innerHTML += '<br><button type="button" class="store-action" id="bcFailTest">run scanner test</button>';
+        on('bcFailTest', 'click', function () { closeBarcode(); showScannerTest(); });
+      }
       return;
     }
 
@@ -6351,6 +6391,86 @@ function calc(units, caseSize) {
     });
   }
 
+  // Tells you exactly why scanning isn't working instead of just failing quietly.
+  async function showScannerTest() {
+    const body = document.getElementById('auditBody');
+    document.getElementById('auditGate').style.display = 'flex';
+    document.getElementById('appRoot').style.display = 'none';
+    body.innerHTML = '<div class="audit-item-name">Scanner test</div>' +
+      '<div class="audit-sub">Checking\u2026</div>';
+
+    const res = [];
+    function add(label, ok, detail) { res.push({ label: label, ok: ok, detail: detail || '' }); }
+
+    add('Secure connection (https)',
+        location.protocol === 'https:' || location.hostname === 'localhost',
+        location.protocol === 'https:' ? '' : 'cameras only work over https');
+
+    add('Camera API available', !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia),
+        navigator.mediaDevices ? '' : 'this browser exposes no camera');
+
+    let stream = null;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } });
+      const track = stream.getVideoTracks()[0];
+      const s = track && track.getSettings ? track.getSettings() : {};
+      add('Camera opened', true, (s.width || '?') + '\u00d7' + (s.height || '?'));
+    } catch (e) {
+      const n = e && e.name;
+      add('Camera opened', false, n +
+        (n === 'NotAllowedError' ? ' \u2014 permission was denied. Allow camera for this site in Safari settings.'
+         : n === 'NotFoundError' ? ' \u2014 no camera found'
+         : n === 'NotReadableError' ? ' \u2014 another app is using the camera'
+         : ' \u2014 ' + (e.message || '')));
+    }
+
+    const hasNative = 'BarcodeDetector' in window;
+    add('Built-in scanner', hasNative, hasNative ? '' : 'will use the fallback decoder');
+
+    if (hasNative && window.BarcodeDetector.getSupportedFormats) {
+      try {
+        const have = await window.BarcodeDetector.getSupportedFormats();
+        add('Reads Code 128 (case labels)', have.indexOf('code_128') !== -1, have.join(', '));
+      } catch (e) {
+        add('Reads Code 128 (case labels)', false, e.message || 'could not ask');
+      }
+    }
+
+    if (!hasNative) {
+      try { await loadZXing(); add('Fallback decoder loaded', true, ''); }
+      catch (e) { add('Fallback decoder loaded', false, 'could not download it \u2014 needs internet once'); }
+    }
+
+    if (stream) stream.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} });
+
+    const firstFail = res.find(function (r) { return !r.ok; });
+    body.innerHTML =
+      '<div class="audit-item-name">Scanner test</div>' +
+      '<div class="audit-sub">' + (firstFail ? 'Problem: ' + firstFail.label : 'Scanner looks healthy') + '</div>' +
+      res.map(function (r) {
+        return '<div class="audit-result-row"><span>' + (r.ok ? '\u2705 ' : '\u274C ') + r.label +
+          (r.detail ? '<br><span style="font-size:11px;color:var(--text-dim);word-break:break-word;">' +
+            escapeHtml(String(r.detail)) + '</span>' : '') + '</span></div>';
+      }).join('') +
+      '<div class="audit-summary">' +
+        (firstFail
+          ? 'Fix the first failure above. If the camera is blocked, iPhone: Settings \u2192 Safari \u2192 Camera \u2192 Allow, or tap \u201cAA\u201d in the address bar \u2192 Website Settings.'
+          : 'If a specific label still will not read, use \u201cphotograph the label instead\u201d on the scan screen \u2014 it gets a sharper image than the live view.') +
+      '</div>' +
+      '<div class="audit-actions">' +
+        '<button type="button" class="audit-skip" id="stCopy">Copy result</button>' +
+        '<button type="button" id="stClose">Close</button></div>';
+
+    on('stClose', 'click', closeAudit);
+    on('stCopy', 'click', function () {
+      const text = 'Tally scanner test\n' + res.map(function (r) {
+        return (r.ok ? 'PASS ' : 'FAIL ') + r.label + (r.detail ? ' — ' + r.detail : '');
+      }).join('\n');
+      if (navigator.clipboard) navigator.clipboard.writeText(text).then(function () { alert('Copied.'); });
+      else prompt('Copy this:', text);
+    });
+  }
+
   function chooseBarcodeMode() {
     const body = document.getElementById('auditBody');
     document.getElementById('auditGate').style.display = 'flex';
@@ -6372,10 +6492,12 @@ function calc(units, caseSize) {
       '</div>' +
       '<div class="join-hint">Batch is better for a full delivery &mdash; nothing changes until you review it.<br><br>' +
       '<button type="button" class="store-action" id="bcPhotoBtn">camera struggling? photograph the label instead</button><br>' +
+      '<button type="button" class="store-action" id="bcTestBtn">scanner not working? run a test</button><br>' +
       '<button type="button" class="store-action" id="bcModeCancel">Cancel</button></div>';
 
     on('bcModeCancel', 'click', closeAudit);
     on('bcPhotoBtn', 'click', function () { closeAudit(); scanBarcodeFromPhoto(); });
+    on('bcTestBtn', 'click', showScannerTest);
     document.getElementById('bcOneBtn').addEventListener('click', function () {
       closeAudit();
       openBarcode('count');
