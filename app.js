@@ -574,6 +574,20 @@ function calc(units, caseSize) {
     });
   }
 
+  let adminAllowed = false;
+
+  // Run a startup step without letting it take the whole boot down with it.
+  function safely(what, fn) {
+    try {
+      const r = fn();
+      if (r && typeof r.catch === 'function') {
+        r.catch(function (e) { console.warn('Tally: ' + what + ' failed —', e && e.message); });
+      }
+    } catch (e) {
+      console.warn('Tally: ' + what + ' failed —', e && e.message);
+    }
+  }
+
   function initSync() {
     if (!isConfigured) {
       setSyncStatus('Not connected — finish setup above', false);
@@ -611,6 +625,13 @@ function calc(units, caseSize) {
         setSyncStatus('Offline', false);
       }
     });
+
+    // If the store resolved late, build the reference now rather than throwing
+    if (!itemsRef && roomCode) itemsRef = db.ref('tally/rooms/' + roomCode + '/items');
+    if (!itemsRef) {
+      setSyncStatus('No store selected', false);
+      return;
+    }
 
     let firstLoad = true;
     itemsRef.on('value', function(snapshot) {
@@ -1591,7 +1612,10 @@ function calc(units, caseSize) {
     document.getElementById('sheetBody').innerHTML =
       '<div class="sheet-group">' +
         '<div class="sheet-label">' + tab.label + '</div>' +
-        tab.items.map(function (r) {
+        tab.items.filter(function (r) {
+          // Hide Admin entirely on devices that aren't approved for it
+          return r[0] !== 'adminBtn' || adminAllowed;
+        }).map(function (r) {
           return '<button type="button" class="sheet-item" id="' + r[0] + '">' +
             '<span class="si-icon">' + r[1] + '</span>' +
             '<span class="si-text"><b>' + r[2] + '</b><i>' + r[3] + '</i></span>' +
@@ -6490,7 +6514,13 @@ function calc(units, caseSize) {
       return;
     }
 
-    startApp();
+    try {
+      await startApp();
+    } catch (e) {
+      // A boot failure must be visible, not silent
+      console.error('Tally: startApp failed —', e);
+      setSplashStatus('Startup problem: ' + (e && e.message ? e.message : 'unknown'));
+    }
     await minShow;
     hideSplash();
   }
@@ -6589,18 +6619,25 @@ function calc(units, caseSize) {
       return;
     }
 
+    // The Admin button lives in the menu sheet, which is built on demand, so it
+    // may not exist yet. Never assume an element is there.
+    adminAllowed = approved;
     const adminBtn = document.getElementById('adminBtn');
     if (!approved) {
-      adminBtn.style.display = 'none';
+      if (adminBtn) adminBtn.style.display = 'none';
       isAdmin = false;
       sessionStorage.removeItem('tally_admin');
-      document.getElementById('adminPanel').style.display = 'none';
+      const ap = document.getElementById('adminPanel');
+      if (ap) ap.style.display = 'none';
     } else {
-      adminBtn.style.display = '';
+      if (adminBtn) {
+        adminBtn.style.display = '';
+        adminBtn.textContent = isAdmin ? 'Admin \u2713' : 'Admin';
+      }
       isAdmin = sessionStorage.getItem('tally_admin') === '1';
-      adminBtn.textContent = isAdmin ? 'Admin \u2713' : 'Admin';
       if (isAdmin) {
-        document.getElementById('adminPanel').style.display = 'block';
+        const ap = document.getElementById('adminPanel');
+        if (ap) ap.style.display = 'block';
         refreshStoreList();
         applyAdminDeviceState();
       }
@@ -6610,19 +6647,25 @@ function calc(units, caseSize) {
       db.ref('tally/rooms/' + roomCode + '/staff/' + profileId)
         .update({ name: myName, role: myRole || null, lastSeen: Date.now(), uid: myUid || null }).catch(function() {});
     }
-    loadCategories();
-    loadRecipes();
-    setInterval(function () { verifySync(false); }, 120000);
-    // Queued work retries on its own, not only when the socket flaps
-    setInterval(function () { if (hasPending && isOnline) flushPending(); }, 20000);
-    loadComponents();
-    flushBugQueue();
-    watchMyAccess();
-    if (approved) { watchPendingStaff(); watchBugs(); }
+    // Sync comes FIRST and on its own. Everything below is secondary, and a
+    // failure in any of it must never stop the app from connecting.
     initSync();
-    setTimeout(maybeStartTour, 600);
     startPresence();
     watchPresence();
+
+    setInterval(function () { verifySync(false); }, 120000);
+    setInterval(function () { if (hasPending && isOnline) flushPending(); }, 20000);
+
+    safely('categories', loadCategories);
+    safely('recipes', loadRecipes);
+    safely('components', loadComponents);
+    safely('bug queue', flushBugQueue);
+    safely('access watch', watchMyAccess);
+    if (approved) {
+      safely('pending staff', watchPendingStaff);
+      safely('bug watch', watchBugs);
+    }
+    setTimeout(function () { safely('tour', maybeStartTour); }, 600);
   }
 
   // Safety net so the splash never traps the user
