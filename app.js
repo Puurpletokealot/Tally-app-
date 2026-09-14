@@ -1,3 +1,4 @@
+  const APP_BUILD = '202609141940';
 // Tally — application code
 // Split out of the single-file build so edits stay local and one mistake
 // can't silently delete unrelated features.
@@ -886,6 +887,25 @@ function calc(units, caseSize) {
 
   // Tap the corner dot to see exactly what the sync layer is doing. When
   // something won't sync, guessing is worse than looking.
+  // A stale service worker can keep serving an old build after an upload,
+  // which looks exactly like "the fix didn't work". This clears it out.
+  async function forceUpdate() {
+    if (!confirm('Clear the cached app and reload?\n\nYour counts are safe — they live in the database.')) return;
+    try {
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(function (k) { return caches.delete(k); }));
+      }
+      if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(function (r) { return r.unregister(); }));
+      }
+    } catch (e) {
+      console.warn('Tally: cache clear failed —', e && e.message);
+    }
+    location.replace(location.pathname + '?fresh=' + Date.now());
+  }
+
   function showSyncInfo() {
     const body = document.getElementById('auditBody');
     document.getElementById('auditGate').style.display = 'flex';
@@ -919,13 +939,19 @@ function calc(units, caseSize) {
             ? 'There are unsent changes. They are safe on this phone and will go up when the write succeeds.'
             : 'Everything on this phone has been written to the database.') +
       '</div>' +
+      line('App version', APP_BUILD, false) +
       '<div class="audit-actions">' +
         '<button type="button" class="audit-skip" id="syncTest">Connection test</button>' +
         '<button type="button" id="syncForce">Force sync now</button></div>' +
-      '<div class="join-hint"><button type="button" class="store-action" id="syncClose">Close</button></div>';
+      '<div class="join-hint">' +
+        '<button type="button" class="store-action" id="syncScanTest">scanner test</button><br>' +
+        '<button type="button" class="store-action" id="syncReload">force update the app</button><br>' +
+        '<button type="button" class="store-action" id="syncClose">Close</button></div>';
 
     on('syncClose', 'click', closeAudit);
     on('syncTest', 'click', showConnectionTest);
+    on('syncScanTest', 'click', guardScreen('Scanner test', showScannerTest));
+    on('syncReload', 'click', forceUpdate);
     on('syncForce', 'click', function () {
       lastSyncError = null;
       hasPending = true;
@@ -6131,7 +6157,7 @@ function calc(units, caseSize) {
       const msg = document.getElementById('barcodeMsg');
       if (msg) {
         msg.innerHTML += '<br><button type="button" class="store-action" id="bcFailTest">run scanner test</button>';
-        on('bcFailTest', 'click', function () { closeBarcode(); showScannerTest(); });
+        on('bcFailTest', 'click', function () { closeBarcode(); guardScreen('Scanner test', showScannerTest)(); });
       }
       return;
     }
@@ -6638,6 +6664,29 @@ function calc(units, caseSize) {
     });
   }
 
+  // A screen that throws should tell you, not leave you staring at nothing.
+  function guardScreen(name, fn) {
+    return async function () {
+      try {
+        return await fn.apply(null, arguments);
+      } catch (e) {
+        console.error('Tally: ' + name + ' failed', e);
+        const body = document.getElementById('auditBody');
+        if (body) {
+          document.getElementById('auditGate').style.display = 'flex';
+          document.getElementById('appRoot').style.display = 'none';
+          body.innerHTML =
+            '<div class="audit-item-name">' + name + ' hit a problem</div>' +
+            '<div class="audit-sub">' + escapeHtml((e && e.message) || String(e)) + '</div>' +
+            '<div class="audit-summary">Tap Report a problem under More and paste this in, ' +
+            'or send it on so it can be fixed.</div>' +
+            '<div class="audit-actions"><button type="button" id="gsClose">Close</button></div>';
+          on('gsClose', 'click', closeAudit);
+        }
+      }
+    };
+  }
+
   function chooseBarcodeMode() {
     const body = document.getElementById('auditBody');
     document.getElementById('auditGate').style.display = 'flex';
@@ -6670,7 +6719,7 @@ function calc(units, caseSize) {
     on('bcModeCancel', 'click', closeAudit);
     on('bcPhotoMain', 'click', function () { closeAudit(); scanBarcodeFromPhoto(); });
     on('bcPhotoBtn', 'click', function () { closeAudit(); scanBarcodeFromPhoto(); });
-    on('bcTestBtn', 'click', showScannerTest);
+    on('bcTestBtn', 'click', guardScreen('Scanner test', showScannerTest));
     document.getElementById('bcOneBtn').addEventListener('click', function () {
       closeAudit();
       openBarcode('count');

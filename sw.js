@@ -4,7 +4,7 @@
 // signal; the cache is only the fallback. Static assets are cache-first but
 // revalidated in the background, so styles/app changes land on next launch.
 
-const CACHE = 'tally-v3';
+const CACHE = 'tally-v4';
 const SHELL = ['./', './index.html', './styles.css', './app.js', './manifest.json'];
 
 self.addEventListener('install', function (event) {
@@ -41,8 +41,12 @@ self.addEventListener('fetch', function (event) {
   const isPage = req.mode === 'navigate' || url.pathname.endsWith('/') || url.pathname.endsWith('index.html');
   const sameOrigin = url.origin === self.location.origin;
 
+  // Versioned assets (app.js?v=...) are unique per build, so a cached copy can
+  // never shadow a new one. Always go to the network first for our own code.
+  const versioned = sameOrigin && url.search.indexOf('v=') !== -1;
+
   // The page and our own app files: network first so updates are never hidden
-  if (isPage || (sameOrigin && /\.(js|css|json)$/.test(url.pathname))) {
+  if (isPage || versioned || (sameOrigin && /\.(js|css|json)$/.test(url.pathname))) {
     event.respondWith(
       fetch(req).then(function (res) {
         if (res && res.ok) {
