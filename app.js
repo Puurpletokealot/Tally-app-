@@ -5887,8 +5887,10 @@ function calc(units, caseSize) {
   let bcStream = null, bcDetector = null, bcLoop = null, bcMode = 'count', bcLinkIdx = null, bcBusy = false;
   let batchTally = {};   // { itemIndex: casesScanned } collected in batch mode
   let batchCodes = {};   // { itemIndex: last raw scan, for its use-by date }
+  let bcResolution = '';
   let batchUnknown = []; // codes scanned that match no item
   let zxingLoading = null;
+  let bcZxing = null;
 
   // ============ GS1-128 (case labels) ============
   // Supplier case labels are GS1-128, not UPC. The scanned string carries the
@@ -6000,17 +6002,50 @@ function calc(units, caseSize) {
     });
   }
 
+  // @zxing/library carries both the decoder AND the browser readers, so one
+  // file covers live video and still photos. Two CDNs in case one is blocked.
+  const ZXING_URLS = [
+    'https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js',
+    'https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js'
+  ];
+
+  function zxingReady() {
+    return (window.ZXing && window.ZXing.BrowserMultiFormatReader) ? window.ZXing
+         : (window.ZXingBrowser && window.ZXingBrowser.BrowserMultiFormatReader) ? window.ZXingBrowser
+         : null;
+  }
+
   function loadZXing() {
-    if (window.ZXingBrowser) return Promise.resolve();
+    if (zxingReady()) return Promise.resolve();
     if (zxingLoading) return zxingLoading;
     zxingLoading = new Promise(function (resolve, reject) {
-      const s = document.createElement('script');
-      s.src = 'https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/zxing-browser.min.js';
-      s.onload = resolve;
-      s.onerror = function () { reject(new Error('no scanner')); };
-      document.head.appendChild(s);
+      let i = 0;
+      (function attempt() {
+        if (i >= ZXING_URLS.length) { reject(new Error('could not load the decoder')); return; }
+        const s = document.createElement('script');
+        s.src = ZXING_URLS[i++];
+        s.onload = function () { zxingReady() ? resolve() : attempt(); };
+        s.onerror = attempt;
+        document.head.appendChild(s);
+      })();
     });
     return zxingLoading;
+  }
+
+  // Restricting the formats makes the decoder both faster and more accurate.
+  function zxingReader(Z) {
+    try {
+      const hints = new Map();
+      const F = Z.BarcodeFormat, H = Z.DecodeHintType;
+      if (F && H) {
+        hints.set(H.POSSIBLE_FORMATS, [F.CODE_128, F.CODE_39, F.EAN_13, F.EAN_8,
+                                       F.UPC_A, F.UPC_E, F.ITF, F.CODE_93]);
+        hints.set(H.TRY_HARDER, true);
+        hints.set(H.ASSUME_GS1, true);
+        return new Z.BrowserMultiFormatReader(hints, { delayBetweenScanAttempts: 120 });
+      }
+    } catch (e) {}
+    return new Z.BrowserMultiFormatReader();
   }
 
   function bcSay(msg, ok) {
@@ -6037,15 +6072,40 @@ function calc(units, caseSize) {
 
     const video = document.getElementById('barcodeVideo');
     try {
-      bcStream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: 'environment' },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-          focusMode: 'continuous'
-        }
-      });
+      // A wide Code 128 case label needs real horizontal resolution. 640x480
+      // blurs the narrow bars together and nothing decodes. Ask for HD and
+      // step down only if the camera refuses.
+      // NOTE: focusMode is NOT a valid getUserMedia constraint — including it
+      // makes Safari silently ignore the whole video block and hand back VGA.
+      const ladder = [
+        { facingMode: { ideal: 'environment' }, width: { min: 1280, ideal: 1920 }, height: { min: 720, ideal: 1080 } },
+        { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
+        { facingMode: { ideal: 'environment' } },
+        true
+      ];
+      for (let i = 0; i < ladder.length && !bcStream; i++) {
+        try { bcStream = await navigator.mediaDevices.getUserMedia({ video: ladder[i] }); }
+        catch (err) { if (i === ladder.length - 1) throw err; }
+      }
+
+      const track = bcStream.getVideoTracks()[0];
+      // Focus and zoom are applied to the live track, not requested up front
+      if (track && track.applyConstraints) {
+        const caps = track.getCapabilities ? track.getCapabilities() : {};
+        const advanced = [];
+        if (caps.focusMode && caps.focusMode.indexOf('continuous') !== -1) advanced.push({ focusMode: 'continuous' });
+        if (advanced.length) { try { await track.applyConstraints({ advanced: advanced }); } catch (e) {} }
+      }
+
+      const got = track && track.getSettings ? track.getSettings() : {};
+      bcResolution = (got.width || 0) + '\u00d7' + (got.height || 0);
+      if ((got.width || 0) < 1000) {
+        bcSay('Camera is only ' + bcResolution + ' \u2014 wide case labels may not read. ' +
+              'Use \u201cphotograph the label\u201d if it struggles.', false);
+      }
+
       video.srcObject = bcStream;
+      video.setAttribute('playsinline', '');
       await video.play();
     } catch (e) {
       const n = (e && e.name) || '';
@@ -6082,8 +6142,11 @@ function calc(units, caseSize) {
     }
     try {
       await loadZXing();
-      const reader = new window.ZXingBrowser.BrowserMultiFormatReader();
-      bcLoop = await reader.decodeFromVideoElement(video, function (result) {
+      const Z = zxingReady();
+      if (!Z) throw new Error('decoder unavailable');
+      const reader = zxingReader(Z);
+      bcZxing = reader;
+      bcLoop = await reader.decodeFromVideoElement(video, function (result, err) {
         if (result) handleBarcode(result.getText());
       });
     } catch (e) {
@@ -6111,6 +6174,10 @@ function calc(units, caseSize) {
       bcLoop = null;
     }
     bcDetector = null;
+    if (bcZxing) {
+      try { if (bcZxing.reset) bcZxing.reset(); } catch (e) {}
+      bcZxing = null;
+    }
     if (bcStream) {
       bcStream.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} });
       bcStream = null;
@@ -6361,11 +6428,18 @@ function calc(units, caseSize) {
         }
         if (!text) {
           await loadZXing();
+          const Z = zxingReady();
+          const reader = zxingReader(Z);
           const cv = document.createElement('canvas');
           cv.width = bmp.width; cv.height = bmp.height;
           cv.getContext('2d').drawImage(bmp, 0, 0);
-          const reader = new window.ZXingBrowser.BrowserMultiFormatReader();
-          const res = await reader.decodeFromCanvas(cv);
+          let res = null;
+          if (reader.decodeFromCanvas) {
+            try { res = reader.decodeFromCanvas(cv); } catch (e) {}
+          }
+          if (!res && reader.decodeFromImageUrl) {
+            try { res = await reader.decodeFromImageUrl(cv.toDataURL('image/png')); } catch (e) {}
+          }
           if (res) text = res.getText();
         }
       } catch (e) {
@@ -6388,6 +6462,10 @@ function calc(units, caseSize) {
       bcMode = 'count';
       bcBusy = false;
       handleBarcode(text);
+      // Photographing a delivery means many boxes in a row
+      setTimeout(function () {
+        if (confirm('Scan another label?')) scanBarcodeFromPhoto();
+      }, 700);
     });
   }
 
@@ -6411,10 +6489,19 @@ function calc(units, caseSize) {
 
     let stream = null;
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } });
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' },
+                 width: { min: 1280, ideal: 1920 }, height: { min: 720, ideal: 1080 } }
+      }).catch(function () {
+        return navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } });
+      });
       const track = stream.getVideoTracks()[0];
       const s = track && track.getSettings ? track.getSettings() : {};
-      add('Camera opened', true, (s.width || '?') + '\u00d7' + (s.height || '?'));
+      const w = s.width || 0;
+      add('Camera opened', true, w + '\u00d7' + (s.height || 0));
+      add('Resolution good enough for case labels', w >= 1000,
+          w >= 1000 ? '' : w + 'px wide \u2014 a GS1 case label needs about 1280 or more. ' +
+          'Use \u201cphotograph the label\u201d instead, which uses the full camera.');
     } catch (e) {
       const n = e && e.name;
       add('Camera opened', false, n +
@@ -6437,8 +6524,19 @@ function calc(units, caseSize) {
     }
 
     if (!hasNative) {
-      try { await loadZXing(); add('Fallback decoder loaded', true, ''); }
-      catch (e) { add('Fallback decoder loaded', false, 'could not download it \u2014 needs internet once'); }
+      try {
+        await loadZXing();
+        const Z = zxingReady();
+        add('Fallback decoder loaded', !!Z, Z ? '' : 'script loaded but decoder missing');
+        if (Z) {
+          let hinted = false;
+          try { const r = zxingReader(Z); hinted = !!r; } catch (e) {}
+          add('Decoder set up for Code 128', hinted, hinted ? 'case labels supported' : 'could not configure');
+        }
+      } catch (e) {
+        add('Fallback decoder loaded', false, (e.message || 'download failed') +
+          ' \u2014 open the app once with internet so it can be cached');
+      }
     }
 
     if (stream) stream.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} });
@@ -6479,23 +6577,29 @@ function calc(units, caseSize) {
       '<div class="audit-item-name">Scan barcodes</div>' +
       '<div class="audit-sub">How do you want to count?</div>' +
       '<div class="scan-choice">' +
+        '<button type="button" class="scan-source" id="bcPhotoMain">' +
+          '<span class="scan-icon">&#128247;</span>' +
+          '<span><b style="display:block;">Photograph the label</b>' +
+          '<i style="font-style:normal;font-size:11px;color:var(--text-dim);">Most reliable \u2014 uses the full camera. Best for case labels.</i></span>' +
+        '</button>' +
         '<button type="button" class="scan-source" id="bcOneBtn">' +
           '<span class="scan-icon">1\u20E3</span>' +
-          '<span><b style="display:block;">One by one</b>' +
+          '<span><b style="display:block;">Live scan, one by one</b>' +
           '<i style="font-style:normal;font-size:11px;color:var(--text-dim);">Each scan adds a case right away</i></span>' +
         '</button>' +
         '<button type="button" class="scan-source" id="bcBatchBtn">' +
           '<span class="scan-icon">&#128230;</span>' +
-          '<span><b style="display:block;">Scan everything first</b>' +
-          '<i style="font-style:normal;font-size:11px;color:var(--text-dim);">Collect the whole lot, then edit before saving</i></span>' +
+          '<span><b style="display:block;">Live scan, whole delivery</b>' +
+          '<i style="font-style:normal;font-size:11px;color:var(--text-dim);">Collect the lot, then edit before saving</i></span>' +
         '</button>' +
       '</div>' +
       '<div class="join-hint">Batch is better for a full delivery &mdash; nothing changes until you review it.<br><br>' +
-      '<button type="button" class="store-action" id="bcPhotoBtn">camera struggling? photograph the label instead</button><br>' +
+
       '<button type="button" class="store-action" id="bcTestBtn">scanner not working? run a test</button><br>' +
       '<button type="button" class="store-action" id="bcModeCancel">Cancel</button></div>';
 
     on('bcModeCancel', 'click', closeAudit);
+    on('bcPhotoMain', 'click', function () { closeAudit(); scanBarcodeFromPhoto(); });
     on('bcPhotoBtn', 'click', function () { closeAudit(); scanBarcodeFromPhoto(); });
     on('bcTestBtn', 'click', showScannerTest);
     document.getElementById('bcOneBtn').addEventListener('click', function () {
