@@ -2967,3 +2967,14 @@ body.light .drift-bar { background: #f7dcd6; }
 /* The corner dot is the single source of truth for connection state;
    the one that used to sit beside the name was duplicate noise. */
 #syncDot[hidden], #syncText[hidden] { display: none !important; }
+
+
+/* use-by read off the case label */
+.useby {
+  color: var(--text-dim);
+}
+
+.useby.soon {
+  color: var(--red);
+  font-weight: 700;
+}

@@ -240,6 +240,10 @@ function calc(units, caseSize) {
                 '<span>' + item.caseSize + ' per ' + packOf(item).one + '</span>' +
                 (item.note ? '<span title="' + escapeHtml(item.note) + '">&#128221;</span>' : '') +
                 (Array.isArray(item.barcodes) && item.barcodes.length ? '<span>&#9646;&#9474;&#9646;</span>' : '') +
+                (useByLabel(item)
+                  ? '<span class="useby' + (item.useBy < Date.now() + 14 * 86400000 ? ' soon' : '') + '">' +
+                    escapeHtml(useByLabel(item)) + '</span>'
+                  : '') +
                 (isVariantItem(item) && item.lastVariant ? '<span>' + escapeHtml(item.lastVariant) + '</span>' : '') +
               '</div>' +
             '</div>' +
@@ -2332,6 +2336,7 @@ function calc(units, caseSize) {
           row('Note', item.note ? escapeHtml(item.note) : '<i>none</i>', 'note') +
           row('Barcodes', codes ? codes + ' linked' : '<i>none</i>', 'barcode') +
           row('Product code', item.productCode ? escapeHtml(item.productCode) : '<i>none</i>', 'code') +
+          row('Use by', item.useBy ? escapeHtml(useByLabel(item)) : '<i>not scanned</i>', 'useby') +
           (isVariantItem(item)
             ? row('Varies \u2014 last was', item.lastVariant ? escapeHtml(item.lastVariant) : '<i>not set</i>', 'variant')
             : row('Varies day to day', item.variable ? 'yes' : 'no', 'variable')) +
@@ -2390,6 +2395,13 @@ function calc(units, caseSize) {
         if (v === null) return;
         item.productCode = v.trim().toUpperCase() || null;
         touchItem(item); saveItems(); draw();
+        return;
+      }
+      if (what === 'useby') {
+        if (!item.useBy) { alert('This is read from the case label when you scan it.'); return; }
+        if (confirm('Clear the use-by date for "' + item.name + '"?')) {
+          item.useBy = null; touchItem(item); saveItems(); draw();
+        }
         return;
       }
       if (what === 'variant') { askVariant(item, function () { editItem(idx); }); return; }
@@ -5275,7 +5287,8 @@ function calc(units, caseSize) {
             packType: it.packType || null,
             recipe: it.recipe || null,
             variable: !!it.variable,
-            lastVariant: it.lastVariant || null
+            lastVariant: it.lastVariant || null,
+            useBy: it.useBy || null
           };
         })
       });
@@ -5379,6 +5392,7 @@ function calc(units, caseSize) {
           barcodes: Array.isArray(it.barcodes) ? it.barcodes : [],
           packType: it.packType || null, recipe: it.recipe || null,
           variable: !!it.variable, lastVariant: it.lastVariant || null,
+          useBy: it.useBy || null,
           history: [], touched: Date.now()
         };
       });
@@ -5841,12 +5855,117 @@ function calc(units, caseSize) {
   // ===================== BARCODES =====================
   let bcStream = null, bcDetector = null, bcLoop = null, bcMode = 'count', bcLinkIdx = null, bcBusy = false;
   let batchTally = {};   // { itemIndex: casesScanned } collected in batch mode
+  let batchCodes = {};   // { itemIndex: last raw scan, for its use-by date }
   let batchUnknown = []; // codes scanned that match no item
   let zxingLoading = null;
 
+  // ============ GS1-128 (case labels) ============
+  // Supplier case labels are GS1-128, not UPC. The scanned string carries the
+  // product (AI 01), plus a lot (10) and serial (21) that are DIFFERENT on every
+  // box. Matching on the whole string means no two cases ever look alike, so we
+  // key off the GTIN and keep the rest as useful extras.
+  const GS1_FIXED = { '00':18,'01':14,'02':14,'11':6,'12':6,'13':6,'15':6,'16':6,'17':6,
+                      '20':2,'31':7,'32':7,'33':7,'34':7,'35':7,'36':7,'41':13 };
+  const GS1_SEP = /[\x1d\x1e\x04]/;
+
+  function parseGS1(raw) {
+    if (!raw) return null;
+    let s = String(raw).trim();
+    const hadPrefix = s.charAt(0) === ']';
+    if (hadPrefix) s = s.replace(/^\][A-Za-z]\d/, '');
+    if (!/^\d{2}/.test(s)) return null;
+
+    // A plain UPC can begin "01" by chance — require a real AI-01 payload.
+    const looksGs1 = hadPrefix || GS1_SEP.test(s) ||
+                     (s.indexOf('01') === 0 && s.length >= 16 && /^\d{16}/.test(s));
+    if (!looksGs1) return null;
+
+    const out = {};
+    let i = 0, guard = 0;
+    while (i < s.length && guard++ < 30) {
+      const ai2 = s.substr(i, 2);
+      let ai = ai2, len = GS1_FIXED[ai2];
+      if (len === undefined) {
+        const ai3 = s.substr(i, 3), ai4 = s.substr(i, 4);
+        if (GS1_FIXED[ai3] !== undefined) { ai = ai3; len = GS1_FIXED[ai3]; }
+        else if (GS1_FIXED[ai4] !== undefined) { ai = ai4; len = GS1_FIXED[ai4]; }
+      }
+      i += ai.length;
+
+      let value;
+      if (len !== undefined) {
+        value = s.substr(i, len);
+        i += len;
+        if (GS1_SEP.test(s.charAt(i))) i++;
+      } else {
+        let end = i;
+        while (end < s.length && !GS1_SEP.test(s.charAt(end))) end++;
+        value = s.slice(i, end);
+        i = end + (end < s.length ? 1 : 0);
+      }
+      if (!value) break;
+      out[ai] = value;
+    }
+    return Object.keys(out).length ? out : null;
+  }
+
+  function gs1Date(v) {
+    if (!/^\d{6}$/.test(v)) return null;
+    const yy = +v.slice(0, 2), mm = +v.slice(2, 4);
+    const dd = +v.slice(4, 6) || 1;
+    if (mm < 1 || mm > 12) return null;
+    return new Date(2000 + yy, mm - 1, dd);
+  }
+
+  // The stable identity of a product across every case of it
+  function barcodeKey(raw) {
+    const g = parseGS1(raw);
+    if (g && g['01']) return g['01'].replace(/^0+/, '') || g['01'];
+    return String(raw || '').trim();
+  }
+
+  function gs1Extras(raw) {
+    const g = parseGS1(raw);
+    if (!g) return null;
+    const useBy = g['15'] || g['17'] || g['16'] || null;
+    return {
+      gtin: g['01'] || null,
+      lot: g['10'] || null,
+      serial: g['21'] || null,
+      useBy: useBy ? gs1Date(useBy) : null,
+      count: g['30'] ? parseInt(g['30'], 10) : null
+    };
+  }
+
+  // Case labels carry a use-by date. Keep the earliest one on hand so old
+  // stock can be flagged before it becomes waste.
+  function noteUseBy(item, rawCode) {
+    const ex = gs1Extras(rawCode);
+    if (!ex || !ex.useBy) return;
+    const ts = ex.useBy.getTime();
+    if (isNaN(ts)) return;
+    if (!item.useBy || ts < item.useBy) item.useBy = ts;
+    if (ex.lot) item.lastLot = ex.lot;
+  }
+
+  function useByLabel(item) {
+    if (!item || !item.useBy) return '';
+    const days = Math.round((item.useBy - Date.now()) / 86400000);
+    const d = new Date(item.useBy).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    if (days < 0) return 'expired ' + d;
+    if (days === 0) return 'use by today';
+    if (days <= 30) return 'use by ' + d + ' (' + days + 'd)';
+    return 'use by ' + d;
+  }
+
   function findByBarcode(code) {
+    const key = barcodeKey(code);
     return items.findIndex(function (it) {
-      return Array.isArray(it.barcodes) && it.barcodes.indexOf(code) !== -1;
+      if (!Array.isArray(it.barcodes)) return false;
+      for (let i = 0; i < it.barcodes.length; i++) {
+        if (barcodeKey(it.barcodes[i]) === key) return true;
+      }
+      return false;
     });
   }
 
@@ -5874,6 +5993,7 @@ function calc(units, caseSize) {
     bcMode = mode || 'count';
     bcLinkIdx = (linkIdx == null ? null : linkIdx);
     bcBusy = false;
+    bcSay('Fill the frame with the barcode \u2014 case labels are wide');
     document.getElementById('barcodeTitle').textContent =
       bcMode === 'link' ? 'Scan the code to link'
       : bcMode === 'batch' ? 'Scan everything \u2014 nothing saves yet'
@@ -5886,7 +6006,14 @@ function calc(units, caseSize) {
 
     const video = document.getElementById('barcodeVideo');
     try {
-      bcStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } });
+      bcStream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+          focusMode: 'continuous'
+        }
+      });
       video.srcObject = bcStream;
       await video.play();
     } catch (e) {
@@ -5896,12 +6023,22 @@ function calc(units, caseSize) {
 
     if ('BarcodeDetector' in window) {
       try {
-        bcDetector = new window.BarcodeDetector({
-          formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'itf']
-        });
-        bcNativeLoop(video);
-        return;
-      } catch (e) {}
+        // Ask only for what this device actually supports — requesting an
+        // unsupported format throws and drops us to the slower fallback.
+        const want = ['code_128', 'ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_39', 'itf', 'databar', 'databar_expanded'];
+        let formats = want;
+        if (window.BarcodeDetector.getSupportedFormats) {
+          const have = await window.BarcodeDetector.getSupportedFormats();
+          formats = want.filter(function (f) { return have.indexOf(f) !== -1; });
+        }
+        if (formats.length) {
+          bcDetector = new window.BarcodeDetector({ formats: formats });
+          bcNativeLoop(video);
+          return;
+        }
+      } catch (e) {
+        console.warn('Tally: native scanner unavailable —', e && e.message);
+      }
     }
     try {
       await loadZXing();
@@ -5958,12 +6095,15 @@ function calc(units, caseSize) {
         setTimeout(function () { bcBusy = false; }, 1600);
         return;
       }
+      const key = barcodeKey(code);
       if (!Array.isArray(item.barcodes)) item.barcodes = [];
-      if (item.barcodes.indexOf(code) === -1) item.barcodes.push(code);
+      if (item.barcodes.indexOf(key) === -1) item.barcodes.push(key);
+      const ex = gs1Extras(code);
+      if (ex && ex.count && !item.caseSize) item.caseSize = ex.count;
       touchItem(item);
       render();
       saveItems();
-      bcSay('Linked to ' + item.name, true);
+      bcSay('Linked to ' + item.name + (ex && ex.gtin ? ' (case label)' : ''), true);
       setTimeout(closeBarcode, 900);
       return;
     }
@@ -5973,10 +6113,12 @@ function calc(units, caseSize) {
     // ---- batch mode: collect, don't touch the counts yet ----
     if (bcMode === 'batch') {
       if (idx === -1) {
-        if (batchUnknown.indexOf(code) === -1) batchUnknown.push(code);
+        const key = barcodeKey(code);
+        if (batchUnknown.indexOf(key) === -1) batchUnknown.push(key);
         bcSay('Unknown code \u2014 noted', false);
       } else {
         batchTally[idx] = (batchTally[idx] || 0) + 1;
+        batchCodes[idx] = code;
         const total = Object.keys(batchTally).reduce(function (s, k) { return s + batchTally[k]; }, 0);
         bcSay(items[idx].name + ' \u00d7' + batchTally[idx] + '  (' + total + ' scanned)', true);
       }
@@ -5997,7 +6139,7 @@ function calc(units, caseSize) {
       if (!cs || cs < 1) { bcBusy = false; return; }
       snapshotForUndo('add item');
       items.push({ name: name.trim(), caseSize: cs, units: cs, mode: 'case',
-                   history: [], touched: Date.now(), barcodes: [code],
+                   history: [], touched: Date.now(), barcodes: [barcodeKey(code)],
                    category: guessCategory(name) || null });
       minimized.add(items.length - 1);
       render();
@@ -6009,14 +6151,18 @@ function calc(units, caseSize) {
 
     const item = items[idx];
     const delta = item.caseSize || 1;
-    snapshotForUndo();
+    snapshotForUndo('+1 case ' + item.name);
     item.units += delta;
     pushHistory(item, delta);
+    noteUseBy(item, code);
     bumpCount(idx);
     render();
     saveItems();
     const c2 = calc(item.units, item.caseSize);
-    bcSay('+1 case  ' + item.name + '  \u2192 ' + c2.decimalCases + ' cs', true);
+    const ex = gs1Extras(code);
+    bcSay('+1 case  ' + item.name + '  \u2192 ' + c2.decimalCases + ' cs' +
+          (ex && ex.useBy ? '   use by ' + ex.useBy.toLocaleDateString('en-US',
+            { month: 'short', day: 'numeric', year: 'numeric' }) : ''), true);
     setTimeout(function () { bcBusy = false; }, 1100);
   }
 
@@ -6106,9 +6252,10 @@ function calc(units, caseSize) {
           if (delta === 0) return;
           item.units = Math.max(0, item.units + delta);
           pushHistory(item, delta);
+          if (batchCodes[k]) noteUseBy(item, batchCodes[k]);
           n++;
         });
-        batchTally = {}; batchUnknown = [];
+        batchTally = {}; batchUnknown = []; batchCodes = {};
         render(); saveItems(); closeAudit();
         showCommandToast((batchDir > 0 ? 'Added ' : 'Removed ') + n + ' item(s) from scan');
       });
@@ -6148,6 +6295,62 @@ function calc(units, caseSize) {
 
   document.getElementById('batchDoneBtn').addEventListener('click', showBatchReview);
 
+  // Camera scanning struggles with wide case labels in poor light. A still
+  // photo gives the decoder a sharp, full-resolution frame to work with.
+  async function scanBarcodeFromPhoto() {
+    pickImage(true, async function (file) {
+      const body = document.getElementById('auditBody');
+      document.getElementById('auditGate').style.display = 'flex';
+      document.getElementById('appRoot').style.display = 'none';
+      body.innerHTML = '<div class="audit-item-name">Reading label</div>' +
+        '<div class="audit-sub">Decoding\u2026</div>';
+
+      let text = null;
+      try {
+        const bmp = await createImageBitmap(file);
+        if ('BarcodeDetector' in window) {
+          const want = ['code_128', 'ean_13', 'upc_a', 'itf', 'code_39'];
+          let formats = want;
+          if (window.BarcodeDetector.getSupportedFormats) {
+            const have = await window.BarcodeDetector.getSupportedFormats();
+            formats = want.filter(function (f) { return have.indexOf(f) !== -1; });
+          }
+          const det = new window.BarcodeDetector({ formats: formats });
+          const found = await det.detect(bmp);
+          if (found && found.length) text = found[0].rawValue;
+        }
+        if (!text) {
+          await loadZXing();
+          const cv = document.createElement('canvas');
+          cv.width = bmp.width; cv.height = bmp.height;
+          cv.getContext('2d').drawImage(bmp, 0, 0);
+          const reader = new window.ZXingBrowser.BrowserMultiFormatReader();
+          const res = await reader.decodeFromCanvas(cv);
+          if (res) text = res.getText();
+        }
+      } catch (e) {
+        console.warn('Tally: photo decode failed —', e && e.message);
+      }
+
+      if (!text) {
+        body.innerHTML = '<div class="audit-item-name">No barcode found</div>' +
+          '<div class="audit-sub">Get closer so the barcode fills the width of the photo, ' +
+          'hold steady, and avoid glare on the label.</div>' +
+          '<div class="audit-actions">' +
+            '<button type="button" class="audit-skip" id="bpRetry">Try again</button>' +
+            '<button type="button" id="bpClose">Close</button></div>';
+        on('bpClose', 'click', closeAudit);
+        on('bpRetry', 'click', scanBarcodeFromPhoto);
+        return;
+      }
+
+      closeAudit();
+      bcMode = 'count';
+      bcBusy = false;
+      handleBarcode(text);
+    });
+  }
+
   function chooseBarcodeMode() {
     const body = document.getElementById('auditBody');
     document.getElementById('auditGate').style.display = 'flex';
@@ -6168,16 +6371,18 @@ function calc(units, caseSize) {
         '</button>' +
       '</div>' +
       '<div class="join-hint">Batch is better for a full delivery &mdash; nothing changes until you review it.<br><br>' +
+      '<button type="button" class="store-action" id="bcPhotoBtn">camera struggling? photograph the label instead</button><br>' +
       '<button type="button" class="store-action" id="bcModeCancel">Cancel</button></div>';
 
-    document.getElementById('bcModeCancel').addEventListener('click', closeAudit);
+    on('bcModeCancel', 'click', closeAudit);
+    on('bcPhotoBtn', 'click', function () { closeAudit(); scanBarcodeFromPhoto(); });
     document.getElementById('bcOneBtn').addEventListener('click', function () {
       closeAudit();
       openBarcode('count');
     });
     document.getElementById('bcBatchBtn').addEventListener('click', function () {
       closeAudit();
-      batchTally = {};
+      batchTally = {}; batchCodes = {}; batchUnknown = [];
       openBarcode('batch');
     });
   }
