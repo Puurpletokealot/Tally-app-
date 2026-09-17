@@ -1,4 +1,4 @@
-  const APP_BUILD = '202609170239';
+  const APP_BUILD = '202609170337';
 // Tally — application code
 // Split out of the single-file build so edits stay local and one mistake
 // can't silently delete unrelated features.
@@ -840,9 +840,7 @@ function calc(units, caseSize) {
   }
 
   function showDiagnostics() {
-    const body = document.getElementById('auditBody');
-    document.getElementById('auditGate').style.display = 'flex';
-    document.getElementById('appRoot').style.display = 'none';
+    const body = openAuditScreen();
 
     function line(label, value, bad) {
       return '<div class="audit-result-row"><span>' + label + '</span>' +
@@ -913,9 +911,7 @@ function calc(units, caseSize) {
   }
 
   function showSyncInfo() {
-    const body = document.getElementById('auditBody');
-    document.getElementById('auditGate').style.display = 'flex';
-    document.getElementById('appRoot').style.display = 'none';
+    const body = openAuditScreen();
 
     function line(label, value, bad) {
       return '<div class="audit-result-row"><span>' + label + '</span>' +
@@ -1029,9 +1025,7 @@ function calc(units, caseSize) {
   }
 
   async function showConnectionTest() {
-    const body = document.getElementById('auditBody');
-    document.getElementById('auditGate').style.display = 'flex';
-    document.getElementById('appRoot').style.display = 'none';
+    const body = openAuditScreen();
     body.innerHTML = '<div class="audit-item-name">Connection test</div>' +
       '<div class="audit-sub">Running\u2026 this takes a few seconds.</div>';
 
@@ -1499,9 +1493,7 @@ function calc(units, caseSize) {
 
   // ---- admin sub-screens (moved out of the old accordion) ----
   function adminScreen(title, sub, html, onReady) {
-    const body = document.getElementById('auditBody');
-    document.getElementById('auditGate').style.display = 'flex';
-    document.getElementById('appRoot').style.display = 'none';
+    const body = openAuditScreen();
     body.innerHTML =
       '<div class="audit-item-name">' + title + '</div>' +
       (sub ? '<div class="audit-sub">' + sub + '</div>' : '') +
@@ -2152,9 +2144,7 @@ function calc(units, caseSize) {
   }
 
   function showRecipes() {
-    const body = document.getElementById('auditBody');
-    document.getElementById('auditGate').style.display = 'flex';
-    document.getElementById('appRoot').style.display = 'none';
+    const body = openAuditScreen();
 
     function draw() {
       const rows = recipes.map(function (r, i) {
@@ -2272,9 +2262,7 @@ function calc(units, caseSize) {
   }
 
   function showUsage() {
-    const body = document.getElementById('auditBody');
-    document.getElementById('auditGate').style.display = 'flex';
-    document.getElementById('appRoot').style.display = 'none';
+    const body = openAuditScreen();
 
     function draw() {
       const rows = componentUsage(28);
@@ -2396,9 +2384,7 @@ function calc(units, caseSize) {
   function editItem(idx) {
     const item = items[idx];
     if (!item) return;
-    const body = document.getElementById('auditBody');
-    document.getElementById('auditGate').style.display = 'flex';
-    document.getElementById('appRoot').style.display = 'none';
+    const body = openAuditScreen();
 
     function row(label, value, action, danger) {
       return '<button type="button" class="set-row' + (danger ? ' danger' : '') + '" data-set="' + action + '">' +
@@ -2569,9 +2555,7 @@ function calc(units, caseSize) {
   }
 
   async function showVariance() {
-    const body = document.getElementById('auditBody');
-    document.getElementById('auditGate').style.display = 'flex';
-    document.getElementById('appRoot').style.display = 'none';
+    const body = openAuditScreen();
     body.innerHTML = '<div class="audit-item-name">Variance history</div><div class="audit-sub">Loading\u2026</div>';
 
     let rows = [];
@@ -2745,9 +2729,7 @@ function calc(units, caseSize) {
   }
 
   async function showBugs() {
-    const body = document.getElementById('auditBody');
-    document.getElementById('auditGate').style.display = 'flex';
-    document.getElementById('appRoot').style.display = 'none';
+    const body = openAuditScreen();
     body.innerHTML = '<div class="audit-item-name">Reports</div><div class="audit-sub">Loading...</div>';
 
     let list = [];
@@ -2980,9 +2962,7 @@ function calc(units, caseSize) {
   }
 
   function askVariant(item, then) {
-    const body = document.getElementById('auditBody');
-    document.getElementById('auditGate').style.display = 'flex';
-    document.getElementById('appRoot').style.display = 'none';
+    const body = openAuditScreen();
 
     body.innerHTML =
       '<div class="audit-item-name">' + escapeHtml(item.name) + '</div>' +
@@ -3013,9 +2993,7 @@ function calc(units, caseSize) {
   }
 
   function chooseCountItem() {
-    const body = document.getElementById('auditBody');
-    document.getElementById('auditGate').style.display = 'flex';
-    document.getElementById('appRoot').style.display = 'none';
+    const body = openAuditScreen();
 
     if (!items.length) {
       body.innerHTML = '<div class="audit-item-name">Hand count</div>' +
@@ -3512,9 +3490,19 @@ function calc(units, caseSize) {
   function closeModal() {
     const el = document.getElementById('appModal');
     if (el) el.style.display = 'none';
+    const body = document.getElementById('appModalBody');
+    if (body) body.innerHTML = '';
     modalOpen = false;
     const next = modalQueue.shift();
     if (next) next();
+  }
+
+  // Leaving a screen should not leave its questions queued behind it
+  function clearModals() {
+    modalQueue = [];
+    modalOpen = false;
+    const el = document.getElementById('appModal');
+    if (el) el.style.display = 'none';
   }
 
   function showModal(build) {
@@ -3525,7 +3513,15 @@ function calc(units, caseSize) {
         const body = document.getElementById('appModalBody');
         if (!wrap || !body) { resolve(null); modalOpen = false; return; }
         wrap.style.display = 'flex';
-        build(body, function (value) { closeModal(); resolve(value); });
+        // Resolve exactly once. A double tap, or a duplicate listener, must
+        // never run the action twice or leave the card on screen.
+        let settled = false;
+        build(body, function (value) {
+          if (settled) return;
+          settled = true;
+          closeModal();
+          resolve(value);
+        });
       };
       if (modalOpen) modalQueue.push(run); else run();
     });
@@ -3714,9 +3710,7 @@ function calc(units, caseSize) {
   });
 
   document.getElementById('editProfileBtn').addEventListener('click', function () {
-    const body = document.getElementById('auditBody');
-    document.getElementById('auditGate').style.display = 'flex';
-    document.getElementById('appRoot').style.display = 'none';
+    const body = openAuditScreen();
 
     body.innerHTML =
       '<div class="audit-item-name">Your profile</div>' +
@@ -4736,9 +4730,7 @@ function calc(units, caseSize) {
     }
 
     // Offer hands-free before starting
-    const body = document.getElementById('auditBody');
-    document.getElementById('auditGate').style.display = 'flex';
-    document.getElementById('appRoot').style.display = 'none';
+    const body = openAuditScreen();
     body.innerHTML =
       '<div class="audit-item-name">Spot audit</div>' +
       '<div class="audit-sub">A random sample of your items. How do you want to count?</div>' +
@@ -4777,7 +4769,29 @@ function calc(units, caseSize) {
     renderAuditStep();
   }
 
+  // #auditBody is a permanent element, so any listener attached to it survives
+  // after the screen closes. Opening the same screen twice used to stack a
+  // second listener, so one tap fired two confirms — that is why Delete needed
+  // several presses. Replacing the node with a clone drops every old listener.
+  function openAuditScreen() {
+    const old = document.getElementById('auditBody');
+    let body = old;
+    if (old && old.parentNode && old.cloneNode) {
+      const fresh = old.cloneNode(false);
+      fresh.id = 'auditBody';
+      old.parentNode.replaceChild(fresh, old);
+      body = fresh;
+    }
+    if (body) body.innerHTML = '';
+    const gate = document.getElementById('auditGate');
+    if (gate) gate.style.display = 'flex';
+    const root = document.getElementById('appRoot');
+    if (root) root.style.display = 'none';
+    return body;
+  }
+
   function closeAudit() {
+    clearModals();
     stopAuditVoice();
     auditState = null;
     document.getElementById('auditGate').style.display = 'none';
@@ -5069,9 +5083,7 @@ function calc(units, caseSize) {
   }
 
   async function showAuditHistory() {
-    const body = document.getElementById('auditBody');
-    document.getElementById('auditGate').style.display = 'flex';
-    document.getElementById('appRoot').style.display = 'none';
+    const body = openAuditScreen();
     body.innerHTML = '<div class="audit-item-name">Audit history</div><div class="audit-sub">Loading...</div>';
 
     let records = [];
@@ -5228,9 +5240,7 @@ function calc(units, caseSize) {
   });
 
   async function showSessionLog() {
-    const body = document.getElementById('auditBody');
-    document.getElementById('auditGate').style.display = 'flex';
-    document.getElementById('appRoot').style.display = 'none';
+    const body = openAuditScreen();
     body.innerHTML = '<div class="audit-item-name">Sign-in log</div><div class="audit-sub">Loading...</div>';
 
     let records = [];
@@ -5316,9 +5326,7 @@ function calc(units, caseSize) {
   }
 
   async function showStaff() {
-    const body = document.getElementById('auditBody');
-    document.getElementById('auditGate').style.display = 'flex';
-    document.getElementById('appRoot').style.display = 'none';
+    const body = openAuditScreen();
     body.innerHTML = '<div class="audit-item-name">Staff profiles</div><div class="audit-sub">Loading...</div>';
 
     let staff = [];
@@ -5471,9 +5479,7 @@ function calc(units, caseSize) {
   }
 
   function showOrderList() {
-    const body = document.getElementById('auditBody');
-    document.getElementById('auditGate').style.display = 'flex';
-    document.getElementById('appRoot').style.display = 'none';
+    const body = openAuditScreen();
 
     const rows = items.map(function (it, i) {
       const t = lowThresholdUnits(it);
@@ -5644,9 +5650,7 @@ function calc(units, caseSize) {
   }
 
   async function showSnapshots() {
-    const body = document.getElementById('auditBody');
-    document.getElementById('auditGate').style.display = 'flex';
-    document.getElementById('appRoot').style.display = 'none';
+    const body = openAuditScreen();
     body.innerHTML = '<div class="audit-item-name">Backups</div><div class="audit-sub">Loading...</div>';
 
     let snaps = [];
@@ -5762,9 +5766,7 @@ function calc(units, caseSize) {
   }
 
   function sourcePicker(title, sub, onPick) {
-    const body = document.getElementById('auditBody');
-    document.getElementById('auditGate').style.display = 'flex';
-    document.getElementById('appRoot').style.display = 'none';
+    const body = openAuditScreen();
     body.innerHTML =
       '<div class="audit-item-name">' + title + '</div>' +
       '<div class="audit-sub">' + sub + '</div>' +
@@ -6659,9 +6661,7 @@ function calc(units, caseSize) {
   function showUnknownCode(code) {
     const key = barcodeKey(code);
     const ex = gs1Extras(code);
-    const body = document.getElementById('auditBody');
-    document.getElementById('auditGate').style.display = 'flex';
-    document.getElementById('appRoot').style.display = 'none';
+    const body = openAuditScreen();
 
     const sorted = items.map(function (it, i) { return { it: it, i: i }; })
       .sort(function (a, b) { return a.it.name.localeCompare(b.it.name); });
@@ -6832,9 +6832,7 @@ function calc(units, caseSize) {
 
   function showBatchReview() {
     closeBarcode();
-    const body = document.getElementById('auditBody');
-    document.getElementById('auditGate').style.display = 'flex';
-    document.getElementById('appRoot').style.display = 'none';
+    const body = openAuditScreen();
 
     const keys = Object.keys(batchTally);
     if (!keys.length) {
@@ -6976,9 +6974,7 @@ function calc(units, caseSize) {
 
   async function scanBarcodeFromPhoto() {
     pickImage(true, async function (file) {
-      const body = document.getElementById('auditBody');
-      document.getElementById('auditGate').style.display = 'flex';
-      document.getElementById('appRoot').style.display = 'none';
+      const body = openAuditScreen();
       body.innerHTML = '<div class="audit-item-name">Reading label</div>' +
         '<div class="audit-sub" id="photoStatus">Decoding\u2026</div>';
 
@@ -7127,9 +7123,7 @@ function calc(units, caseSize) {
   }
 
   async function showScannerTest() {
-    const body = document.getElementById('auditBody');
-    document.getElementById('auditGate').style.display = 'flex';
-    document.getElementById('appRoot').style.display = 'none';
+    const body = openAuditScreen();
     body.innerHTML = '<div class="audit-item-name">Scanner test</div>' +
       '<div class="audit-sub">Checking\u2026</div>';
 
@@ -7332,9 +7326,7 @@ function calc(units, caseSize) {
   }
 
   function chooseBarcodeMode() {
-    const body = document.getElementById('auditBody');
-    document.getElementById('auditGate').style.display = 'flex';
-    document.getElementById('appRoot').style.display = 'none';
+    const body = openAuditScreen();
     body.innerHTML =
       '<div class="audit-item-name">Scan barcodes</div>' +
       '<div class="audit-sub">How do you want to count?</div>' +
@@ -7376,9 +7368,7 @@ function calc(units, caseSize) {
 
   document.getElementById('barcodeClose').addEventListener('click', closeBarcode);
   function openProductionPicker() {
-    const body = document.getElementById('auditBody');
-    document.getElementById('auditGate').style.display = 'flex';
-    document.getElementById('appRoot').style.display = 'none';
+    const body = openAuditScreen();
     body.innerHTML =
       '<div class="audit-item-name">Scan production</div>' +
       '<div class="audit-sub">Which paperwork is it?</div>' +
@@ -7402,9 +7392,7 @@ function calc(units, caseSize) {
 
 
   function showWasteReport() {
-    const body = document.getElementById('auditBody');
-    document.getElementById('auditGate').style.display = 'flex';
-    document.getElementById('appRoot').style.display = 'none';
+    const body = openAuditScreen();
 
     const cutoff = Date.now() - 28 * 86400000;
     const rows = [];
@@ -7491,9 +7479,7 @@ function calc(units, caseSize) {
   }
 
   function showCategories() {
-    const body = document.getElementById('auditBody');
-    document.getElementById('auditGate').style.display = 'flex';
-    document.getElementById('appRoot').style.display = 'none';
+    const body = openAuditScreen();
 
     function draw() {
       const counts = {};
@@ -7595,9 +7581,7 @@ function calc(units, caseSize) {
   document.getElementById('staffBtn').addEventListener('click', showStaff);
   document.getElementById('bugsBtn').addEventListener('click', showBugs);
   function openTrayPicker() {
-    const body = document.getElementById('auditBody');
-    document.getElementById('auditGate').style.display = 'flex';
-    document.getElementById('appRoot').style.display = 'none';
+    const body = openAuditScreen();
     body.innerHTML =
       '<div class="audit-item-name">Count a tray</div>' +
       '<div class="audit-sub">How do you want to count it?</div>' +
