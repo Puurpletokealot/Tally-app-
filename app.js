@@ -1,4 +1,4 @@
-  const APP_BUILD = '202609142214';
+  const APP_BUILD = '202609170239';
 // Tally — application code
 // Split out of the single-file build so edits stay local and one mistake
 // can't silently delete unrelated features.
@@ -79,8 +79,6 @@ const firebaseConfig = {
         ? '\u21A9 Undo (' + undoStack.length + ')'
         : '\u21A9 Undo';
     }
-    const bar = document.getElementById('undoBar');
-    if (bar) bar.style.display = undoStack.length ? 'flex' : 'none';
   }
 
   function performUndo() {
@@ -180,6 +178,15 @@ function calc(units, caseSize) {
 
     list.innerHTML = visibleIdx.map(function(idx) {
       const item = items[idx];
+
+      // One malformed record must never blank the whole list. Coerce to sane
+      // numbers here rather than trusting whatever came out of the database.
+      const units = Number(item.units);
+      item.units = (isFinite(units) && units >= 0) ? units : 0;
+      const csize = Number(item.caseSize);
+      item.caseSize = (isFinite(csize) && csize > 0) ? csize : 1;
+      if (!item.name) item.name = 'Unnamed item';
+
       const c = calc(item.units, item.caseSize);
       const mode = item.mode || 'case';
       const isCase = mode === 'case';
@@ -874,14 +881,13 @@ function calc(units, caseSize) {
       saveItems();
       setTimeout(showDiagnostics, 900);
     });
-    on('diagCopy', 'click', function () {
+    on('diagCopy', 'click', async function () {
       const text = 'Tally diagnostics\n' +
         'store=' + roomCode + '\nuid=' + myUid + '\nonline=' + isOnline +
         '\npending=' + hasPending + '\nitems=' + items.length +
         '\nwrites=' + diag.writes + ' failures=' + diag.failures +
         '\nlastError=' + diag.lastErrorCode + ' ' + diag.lastError;
-      if (navigator.clipboard) navigator.clipboard.writeText(text).then(function () { alert('Copied.'); });
-      else prompt('Copy this:', text);
+      copyText(text);
     });
   }
 
@@ -890,7 +896,7 @@ function calc(units, caseSize) {
   // A stale service worker can keep serving an old build after an upload,
   // which looks exactly like "the fix didn't work". This clears it out.
   async function forceUpdate() {
-    if (!confirm('Clear the cached app and reload?\n\nYour counts are safe — they live in the database.')) return;
+    if (!(await askConfirm('Confirm', 'Clear the cached app and reload?\n\nYour counts are safe — they live in the database.', 'OK'))) return;
     try {
       if ('caches' in window) {
         const keys = await caches.keys();
@@ -1055,8 +1061,7 @@ function calc(units, caseSize) {
       const text = 'Tally connection test\n' + results.map(function (r) {
         return (r.ok ? 'PASS ' : 'FAIL ') + r.label + (r.detail ? ' — ' + r.detail : '');
       }).join('\n');
-      if (navigator.clipboard) navigator.clipboard.writeText(text).then(function () { alert('Copied.'); });
-      else prompt('Copy this:', text);
+      copyText(text);
     });
   }
 
@@ -1092,6 +1097,22 @@ function calc(units, caseSize) {
 
   let sawItems = false;   // this session has seen a non-empty list
   let allowEmptySave = false;
+
+  // Background saves used to fail silently, which is how a blocked database
+  // looked like "recipes just don't save". Now it says so, once.
+  const saveFailureShown = {};
+  function noteSaveFailure(what, err) {
+    const code = (err && (err.code || err.message)) || 'unknown';
+    lastSyncError = what + ': ' + code;
+    console.warn('Tally: could not save ' + what + ' —', code);
+    if (saveFailureShown[what]) return;
+    saveFailureShown[what] = true;
+    if (/permission/i.test(String(code))) {
+      showCommandToast('Could not save ' + what + ' \u2014 check database rules', true);
+    } else {
+      showCommandToast('Could not save ' + what, true);
+    }
+  }
 
   function saveItems() {
     // Refuse to push an empty list over a list we know had items, unless the
@@ -1379,7 +1400,8 @@ function calc(units, caseSize) {
 
   async function saveCategories() {
     if (!isConfigured || !roomCode) return;
-    try { await catsRef().set(categories); } catch (e) {}
+    try { await catsRef().set(categories); }
+    catch (e) { noteSaveFailure('categories', e); }
   }
 
   // Best-guess category from an item name, used when seeding or adding
@@ -1509,14 +1531,13 @@ function calc(units, caseSize) {
             document.getElementById('newStoreCode').value = '';
             renderStoreList(stores);
           } catch (e) {
-            alert('Could not create store \u2014 this device is not an approved admin device.');
+            notify('Tally', 'Could not create store \u2014 this device is not an approved admin device.');
           }
         });
         on('shareStoreBtn', 'click', function () {
           const url = window.location.origin + window.location.pathname + '?store=' + roomCode;
           if (navigator.share) navigator.share({ title: 'Tally \u2014 ' + roomCode, url: url }).catch(function () {});
-          else if (navigator.clipboard) navigator.clipboard.writeText(url).then(function () { alert('Link copied.'); });
-          else prompt('Copy this link:', url);
+          else copyText(url);
         });
         on('storeList', 'click', function (e) {
           const b = e.target.closest('button[data-store]');
@@ -1536,33 +1557,35 @@ function calc(units, caseSize) {
       function () {
         loadConfig().then(function (cfg) { renderApprovedDevices(cfg); }).catch(function () {});
         on('deviceIdBtn', 'click', function () {
-          if (!myUid) { alert('Not signed in yet.'); return; }
-          if (navigator.clipboard) navigator.clipboard.writeText(myUid).then(function () { alert('Device ID copied:\n\n' + myUid); });
-          else prompt('Device ID:', myUid);
+          if (!myUid) { notify('Not signed in', 'Wait a moment and try again.'); return; }
+          copyText(myUid, 'Device ID');
         });
         on('addDeviceBtn', 'click', async function () {
-          const uid = prompt('Paste the device ID to approve:');
-          if (uid === null || !uid.trim()) return;
-          const label = (prompt('Name this device:', 'Device') || 'Device').trim().slice(0, 30);
+          const uid = await askText('Approve a device', {
+            placeholder: 'Paste the device ID',
+            hint: 'Get this from the other phone: sync screen \u2192 Device ID.'
+          });
+          if (!uid) return;
+          const label = (await askText('Name this device', { value: 'Device' })) || 'Device';
           try {
             const update = {};
             update['adminUids/' + uid.trim()] = { label: label, addedAt: Date.now() };
             await configRef().update(update);
             renderApprovedDevices(await loadConfig());
-            alert('Device approved.');
+            notify('Tally', 'Device approved.');
           } catch (e) {
-            alert('Could not approve \u2014 this device is not an approved admin device.');
+            notify('Tally', 'Could not approve \u2014 this device is not an approved admin device.');
           }
         });
         on('deviceList', 'click', async function (e) {
           const b = e.target.closest('button[data-revoke]');
           if (!b) return;
-          if (!confirm('Revoke admin access for this device?')) return;
+          if (!(await askConfirm('Confirm', 'Revoke admin access for this device?', 'OK'))) return;
           try {
             await configRef().child('adminUids').child(b.getAttribute('data-revoke')).remove();
             renderApprovedDevices(await loadConfig());
           } catch (err) {
-            alert('Could not revoke.');
+            notify('Tally', 'Could not revoke.');
           }
         });
       });
@@ -1577,31 +1600,35 @@ function calc(units, caseSize) {
         '<button type="button" class="admin-mini-btn danger" id="resetAdminBtn">Reset admin</button>' +
       '</div>' +
       '<div class="audit-summary">Reset admin clears every approved admin device. The next device that opens Tally claims it \u2014 do that only when you are about to open it yourself.</div>',
-      function () {
+      async function () {
         on('changePassBtn', 'click', async function () {
-          const p = prompt('New admin password (at least 4 characters):');
-          if (p === null) return;
-          if (p.length < 4) { alert('Too short.'); return; }
+          const p = await askText('New admin password', {
+            placeholder: 'At least 4 characters', hint: 'Used to unlock the admin panel.'
+          });
+          if (!p) return;
+          if (p.length < 4) { await notify('Too short', 'Use at least 4 characters.'); return; }
           try {
             await configRef().update({ adminHash: await hashPass(p) });
-            alert('Password updated.');
+            notify('Tally', 'Password updated.');
           } catch (e) {
-            alert('Could not update password \u2014 this device is not an approved admin device.');
+            notify('Tally', 'Could not update password \u2014 this device is not an approved admin device.');
           }
         });
         on('resetAdminBtn', 'click', async function () {
-          if (!confirm('Clear ALL approved admin devices?\n\nThe next device that opens Tally becomes the admin.')) return;
+          if (!(await askConfirm('Confirm', 'Clear ALL approved admin devices?\n\nThe next device that opens Tally becomes the admin.', 'OK'))) return;
           try {
             await configRef().child('adminUids').remove();
             await configRef().child('adminUid').remove();
-            alert('Admin cleared. Reload on the device you want as admin.');
+            notify('Tally', 'Admin cleared. Reload on the device you want as admin.');
             isAdmin = false;
             sessionStorage.removeItem('tally_admin');
             closeAudit();
-            document.getElementById('adminPanel').style.display = 'none';
-            document.getElementById('adminBtn').style.display = 'none';
+            const ap = document.getElementById('adminPanel');
+            if (ap) ap.style.display = 'none';
+            const ab = document.getElementById('adminBtn');
+            if (ab) ab.style.display = 'none';
           } catch (e) {
-            alert('Could not reset \u2014 this device is not an approved admin device.');
+            notify('Tally', 'Could not reset \u2014 this device is not an approved admin device.');
           }
         });
       });
@@ -1766,9 +1793,11 @@ function calc(units, caseSize) {
     bar.style.display = 'flex';
     on('pendingReview', 'click', showStaff);
     on('pendingClear', 'click', async function () {
-      if (!confirm('Clear ' + waiting.length + ' waiting request(s)?\n\n' +
-                   'Use this for people who have already gone. If they open the app ' +
-                   'again they will simply ask a second time.')) return;
+      const okClear = await askConfirm('Clear waiting requests?',
+        waiting.length + ' request(s) will be removed.\n\n' +
+        'Use this for people who have already gone. If they open the app ' +
+        'again they will simply ask a second time.', 'Clear', true);
+      if (!okClear) return;
       for (const p of waiting) {
         await db.ref('tally/rooms/' + roomCode + '/staff/' + p.id)
           .update({ pending: null }).catch(function () {});
@@ -2034,7 +2063,8 @@ function calc(units, caseSize) {
 
   async function saveRecipes() {
     if (!isConfigured || !roomCode) return;
-    try { await recipesRef().set(recipes); } catch (e) {}
+    try { await recipesRef().set(recipes); }
+    catch (e) { noteSaveFailure('recipes', e); }
   }
 
   function recipeFor(itemName) {
@@ -2067,7 +2097,8 @@ function calc(units, caseSize) {
 
   async function saveComponents() {
     if (!isConfigured || !roomCode) return;
-    try { await componentsRef().set(components); } catch (e) {}
+    try { await componentsRef().set(components); }
+    catch (e) { noteSaveFailure('component links', e); }
   }
 
   // Every component named anywhere in the recipe book
@@ -2160,6 +2191,7 @@ function calc(units, caseSize) {
         if (!nm) { el.style.borderColor = 'var(--red)'; return; }
         recipes.push({ name: nm, base: null, filling: null, toppings: [] });
         saveRecipes();
+        el.value = '';
         editRecipe(recipes.length - 1, draw);
       });
     }
@@ -2170,10 +2202,12 @@ function calc(units, caseSize) {
       if (ed) { editRecipe(parseInt(ed.getAttribute('data-recedit'), 10), draw); return; }
       if (dl) {
         const i = parseInt(dl.getAttribute('data-recdel'), 10);
-        if (!confirm('Delete the recipe for "' + recipes[i].name + '"?')) return;
-        recipes.splice(i, 1);
-        saveRecipes();
-        draw();
+        askConfirm('Delete recipe?', recipes[i].name, 'Delete', true).then(function (ok) {
+          if (!ok) return;
+          recipes.splice(i, 1);
+          saveRecipes();
+          draw();
+        });
       }
     });
 
@@ -2315,26 +2349,48 @@ function calc(units, caseSize) {
       body.querySelectorAll('button[data-linkc]').forEach(function (b) {
         b.addEventListener('click', function () {
           const c2 = comps[parseInt(b.getAttribute('data-linkc'), 10)];
-          const list = items.map(function (it, k) { return (k + 1) + '. ' + it.name; }).join('\n');
-          const pick = prompt('Which item is "' + c2.name + '"?\n\n' + list +
-            '\n\nType a number, or leave blank to unlink.',
-            (components[c2.name] && components[c2.name].itemName) || '');
-          if (pick === null) return;
-          const v = pick.trim();
-          if (!v) { delete components[c2.name]; saveComponents(); draw(); return; }
-          const k = parseInt(v, 10);
-          const item = items[k - 1];
-          if (!item) { alert('No item with that number.'); return; }
-          const per = parseInt(prompt('How many donuts does one ' + packOf(item).one +
-            ' of ' + item.name + ' finish?', (components[c2.name] && components[c2.name].perPack) || '400'), 10);
-          if (!per || per < 1) return;
-          components[c2.name] = { itemName: item.name, perPack: per };
-          saveComponents();
-          draw();
+          const opts = items.map(function (it) {
+            return { label: it.name, value: it.name,
+                     sub: it.caseSize + ' per ' + packOf(it).one };
+          });
+          askChoice('Which item is "' + c2.name + '"?', opts, {
+            current: (components[c2.name] && components[c2.name].itemName) || null,
+            clearLabel: components[c2.name] ? 'Unlink' : null
+          }).then(function (v) {
+            if (v === null) return;
+            if (v === '__clear') { delete components[c2.name]; saveComponents(); draw(); return; }
+            const item = items.find(function (it) { return it.name === v; });
+            if (!item) return;
+            return askText('How many donuts does one ' + packOf(item).one + ' finish?', {
+              number: true, min: 1,
+              value: (components[c2.name] && components[c2.name].perPack) || 400,
+              hint: 'A rough figure is fine \u2014 the variance report will show if it needs tuning.'
+            }).then(function (per) {
+              if (!per) return;
+              components[c2.name] = { itemName: item.name, perPack: Math.round(per) };
+              saveComponents();
+              draw();
+            });
+          });
         });
       });
     }
     draw();
+  }
+
+  function deleteItemAt(idx) {
+    const item = items[idx];
+    if (!item) return;
+    snapshotForUndo('delete ' + item.name);
+    allowEmptySave = true;
+    items.splice(idx, 1);
+    expanded.delete(idx);
+    minimized.delete(idx);
+    moreOpen.delete(idx);
+    closeAudit();
+    render();
+    saveItems();
+    showCommandToast('Deleted ' + item.name);
   }
 
   function editItem(idx) {
@@ -2383,54 +2439,82 @@ function calc(units, caseSize) {
       const what = b.getAttribute('data-set');
 
       if (what === 'name') {
-        const v = prompt('Item name:', item.name);
-        if (v && v.trim()) { item.name = v.trim(); touchItem(item); saveItems(); draw(); }
+        askText('Item name', { value: item.name }).then(function (v) {
+          if (!v) return;
+          item.name = v; touchItem(item); saveItems(); draw();
+        });
         return;
       }
       if (what === 'case') {
-        const v = parseInt(prompt('How many per ' + packOf(item).one + '?', item.caseSize), 10);
-        if (v > 0) { item.caseSize = v; touchItem(item); saveItems(); draw(); }
+        askText('How many per ' + packOf(item).one + '?',
+                { number: true, min: 1, value: item.caseSize,
+                  hint: 'The number of pieces in one full ' + packOf(item).one + '.' })
+          .then(function (v) {
+            if (!v) return;
+            item.caseSize = Math.round(v); touchItem(item); saveItems(); draw();
+          });
         return;
       }
       if (what === 'pack') {
-        const keys = Object.keys(PACK_TYPES);
-        const menu = keys.map(function (k, i) { return (i + 1) + '. ' + PACK_TYPES[k].one; }).join('\n');
-        const v = parseInt(prompt('What does it come in?\n\n' + menu, ''), 10);
-        if (keys[v - 1]) { item.packType = keys[v - 1]; touchItem(item); saveItems(); draw(); }
+        const opts = Object.keys(PACK_TYPES).map(function (k) {
+          return { label: PACK_TYPES[k].one, value: k,
+                   sub: 'counted in ' + PACK_TYPES[k].units };
+        });
+        askChoice('What does it come in?', opts, { current: item.packType || 'case' })
+          .then(function (v) {
+            if (!v) return;
+            item.packType = v; touchItem(item); saveItems(); draw();
+          });
         return;
       }
       if (what === 'cat') {
-        const menu = categories.map(function (c2, i) { return (i + 1) + '. ' + c2; }).join('\n');
-        const v = prompt('Category:\n\n' + menu + '\n\nNumber, new name, or blank to clear.', itemCategory(item));
-        if (v === null) return;
-        const t2 = v.trim();
-        if (!t2) item.category = null;
-        else if (/^\d+$/.test(t2) && categories[parseInt(t2, 10) - 1]) item.category = categories[parseInt(t2, 10) - 1];
-        else { item.category = t2; if (categories.indexOf(t2) === -1) { categories.push(t2); saveCategories(); } }
-        touchItem(item); saveItems(); draw();
+        const opts = categories.map(function (c2) { return { label: c2, value: c2 }; });
+        opts.push({ label: '+ New category\u2026', value: '__new' });
+        askChoice('Category', opts, { current: itemCategory(item), clearLabel: 'Clear' })
+          .then(function (v) {
+            if (v === null) return;
+            if (v === '__clear') { item.category = null; }
+            else if (v === '__new') {
+              return askText('New category', { placeholder: 'e.g. Seasonal' }).then(function (nm) {
+                if (!nm) return;
+                if (categories.indexOf(nm) === -1) { categories.push(nm); saveCategories(); }
+                item.category = nm; touchItem(item); saveItems(); draw();
+              });
+            } else item.category = v;
+            touchItem(item); saveItems(); draw();
+          });
         return;
       }
       if (what === 'low') { closeAudit(); openLowStockModal(idx); return; }
       if (what === 'note') {
-        const v = prompt('Note (supplier, shelf, item number). Blank to clear:', item.note || '');
-        if (v === null) return;
-        item.note = v.trim() || null;
-        touchItem(item); saveItems(); draw();
+        askText('Note', { value: item.note || '', allowEmpty: true,
+                          hint: 'Supplier, shelf, item number \u2014 anything useful. Leave blank to clear.' })
+          .then(function (v) {
+            if (v === null) return;
+            item.note = v || null; touchItem(item); saveItems(); draw();
+          });
         return;
       }
       if (what === 'barcode') { closeAudit(); openBarcode('link', idx); return; }
       if (what === 'code') {
-        const v = prompt('Product code from the order sheet (e.g. F20016):', item.productCode || '');
-        if (v === null) return;
-        item.productCode = v.trim().toUpperCase() || null;
-        touchItem(item); saveItems(); draw();
+        askText('Product code', { value: item.productCode || '', allowEmpty: true,
+                                  hint: 'From the order sheet, like F20016 or U10034.' })
+          .then(function (v) {
+            if (v === null) return;
+            item.productCode = v ? v.toUpperCase() : null;
+            touchItem(item); saveItems(); draw();
+          });
         return;
       }
       if (what === 'useby') {
-        if (!item.useBy) { alert('This is read from the case label when you scan it.'); return; }
-        if (confirm('Clear the use-by date for "' + item.name + '"?')) {
-          item.useBy = null; touchItem(item); saveItems(); draw();
+        if (!item.useBy) {
+          notify('Use by', 'This is read from the case label when you scan a barcode.');
+          return;
         }
+        askConfirm('Clear use-by date?', item.name, 'Clear', true).then(function (ok) {
+          if (!ok) return;
+          item.useBy = null; touchItem(item); saveItems(); draw();
+        });
         return;
       }
       if (what === 'variant') { askVariant(item, function () { editItem(idx); }); return; }
@@ -2441,11 +2525,11 @@ function calc(units, caseSize) {
       }
       if (what === 'recipe') { closeAudit(); showRecipes(); return; }
       if (what === 'delete') {
-        if (!confirm('Delete "' + item.name + '" and its history?')) return;
-        snapshotForUndo();
-        items.splice(idx, 1);
-        expanded.delete(idx); minimized.delete(idx);
-        closeAudit(); render(); saveItems();
+        askConfirm('Delete this item?', item.name + ' and its history will be removed. You can undo straight after.', 'Delete', true)
+          .then(function (ok) {
+            if (!ok) return;
+            deleteItemAt(idx);
+          });
         return;
       }
     });
@@ -2560,8 +2644,7 @@ function calc(units, caseSize) {
           '  est ' + r.estPacks.toFixed(2) + '  actual ' + r.actualPacks.toFixed(2) +
           '  (' + r.donuts + ' donuts)';
       }).join('\n');
-      if (navigator.clipboard) navigator.clipboard.writeText(text).then(function () { alert('Copied.'); });
-      else prompt('Copy this:', text);
+      copyText(text);
     });
   }
 
@@ -2643,7 +2726,7 @@ function calc(units, caseSize) {
         closeBugReport();
         showCommandToast('Saved \u2014 will send when you\'re back online');
       } catch (e2) {
-        alert('Could not send that report.');
+        notify('Tally', 'Could not send that report.');
       }
     }
   });
@@ -2724,9 +2807,7 @@ function calc(units, caseSize) {
             return '[' + (b.severity || '?') + '] ' + b.text +
               '\n   \u2014 ' + (b.by || 'Unnamed') + ', ' + new Date(b.at).toLocaleString();
           }).join('\n\n');
-        if (navigator.clipboard) {
-          navigator.clipboard.writeText(text).then(function () { alert('Copied.'); });
-        } else { prompt('Copy this:', text); }
+        copyText(text);
       });
     }
 
@@ -2747,7 +2828,8 @@ function calc(units, caseSize) {
       }
       if (del) {
         const b = list[parseInt(del.getAttribute('data-bugdel'), 10)];
-        if (!b || !confirm('Delete this report?')) return;
+        if (!b) return;
+        if (!(await askConfirm('Delete report?', null, 'Delete', true))) return;
         try { await bugsRef().child(b.key).remove(); } catch (err) {}
         list = list.filter(function (x) { return x.key !== b.key; });
         draw();
@@ -2855,15 +2937,15 @@ function calc(units, caseSize) {
     drawCounter();
   });
 
-  document.getElementById('counterReset').addEventListener('click', function () {
-    if (counterN && !confirm('Start this count over?')) return;
+  document.getElementById('counterReset').addEventListener('click', async function () {
+    if (counterN && !(await askConfirm('Start over?', 'The current count will be cleared.', 'Start over'))) return;
     counterN = 0;
     counterHist = [];
     drawCounter();
   });
 
-  document.getElementById('counterClose').addEventListener('click', function () {
-    if (counterN && !confirm('Leave without saving this count?')) return;
+  document.getElementById('counterClose').addEventListener('click', async function () {
+    if (counterN && !(await askConfirm('Leave without saving?', 'This count will be lost.', 'Discard', true))) return;
     closeCounter();
   });
 
@@ -3023,7 +3105,7 @@ function calc(units, caseSize) {
   let hcIdx = null, hcCount = 0, hcHistory = [], hcBump = 10;
 
   function startHandCount(preIdx) {
-    if (!items.length) { alert('No items yet.'); return; }
+    if (!items.length) { notify('Tally', 'No items yet.'); return; }
     hcIdx = (preIdx != null) ? preIdx : null;
     hcCount = 0;
     hcHistory = [];
@@ -3129,14 +3211,14 @@ function calc(units, caseSize) {
       drawHandCount();
     });
 
-    document.getElementById('hcReset').addEventListener('click', function () {
-      if (hcCount && !confirm('Start this count over?')) return;
+    document.getElementById('hcReset').addEventListener('click', async function () {
+      if (hcCount && !(await askConfirm('Start over?', 'The current count will be cleared.', 'Start over'))) return;
       hcCount = 0; hcHistory = [];
       drawHandCount();
     });
 
-    document.getElementById('hcCancel').addEventListener('click', function () {
-      if (hcCount && !confirm('Throw away this count of ' + hcCount + '?')) return;
+    document.getElementById('hcCancel').addEventListener('click', async function () {
+      if (hcCount && !(await askConfirm('Leave without saving?', 'The count of ' + hcCount + ' will be lost.', 'Discard', true))) return;
       closeAudit();
     });
 
@@ -3396,15 +3478,16 @@ function calc(units, caseSize) {
     });
     document.getElementById('trayCancel').addEventListener('click', closeAudit);
 
-    document.getElementById('traySave').addEventListener('click', function () {
+    document.getElementById('traySave').addEventListener('click', async function () {
       const n = trayMarkers.length;
       if (trayItemIdx == null) {
         // No item chosen: let them pick one now
-        const list = items.map(function (it, i) { return (i + 1) + '. ' + it.name; }).join('\n');
-        const pick = prompt('Counted ' + n + '. Which item is this?\n\n' + list, '');
-        const k = parseInt(pick, 10);
-        if (!k || !items[k - 1]) { closeAudit(); return; }
-        trayItemIdx = k - 1;
+        const opts = items.map(function (it, i) {
+          return { label: it.name, value: i, sub: it.units + ' ' + unitLabel(it, it.units) + ' now' };
+        });
+        const pick = await askChoice('Counted ' + n + '. Which item?', opts);
+        if (pick === null) { closeAudit(); return; }
+        trayItemIdx = pick;
       }
       const item = items[trayItemIdx];
       const delta = n - item.units;
@@ -3416,6 +3499,149 @@ function calc(units, caseSize) {
       saveItems();
       closeAudit();
       showCommandToast(item.name + ' set to ' + n + ' from tray count');
+    });
+  }
+
+  // ===================== IN-PAGE DIALOGS =====================
+  // Native prompt/confirm/alert are jarring on a phone, block the page, and on
+  // iOS can need several taps to register. These are the same thing drawn in
+  // the app: one at a time, promise-based, keyboard-friendly.
+  let modalQueue = [];
+  let modalOpen = false;
+
+  function closeModal() {
+    const el = document.getElementById('appModal');
+    if (el) el.style.display = 'none';
+    modalOpen = false;
+    const next = modalQueue.shift();
+    if (next) next();
+  }
+
+  function showModal(build) {
+    return new Promise(function (resolve) {
+      const run = function () {
+        modalOpen = true;
+        const wrap = document.getElementById('appModal');
+        const body = document.getElementById('appModalBody');
+        if (!wrap || !body) { resolve(null); modalOpen = false; return; }
+        wrap.style.display = 'flex';
+        build(body, function (value) { closeModal(); resolve(value); });
+      };
+      if (modalOpen) modalQueue.push(run); else run();
+    });
+  }
+
+  function askConfirm(title, message, okLabel, danger) {
+    return showModal(function (body, done) {
+      body.innerHTML =
+        '<h3>' + escapeHtml(title) + '</h3>' +
+        (message ? '<p>' + escapeHtml(message).replace(/\n/g, '<br>') + '</p>' : '') +
+        '<div class="modal-actions">' +
+          '<button type="button" class="modal-cancel" id="mCancel">Cancel</button>' +
+          '<button type="button" class="modal-ok' + (danger ? ' danger' : '') + '" id="mOk">' +
+            escapeHtml(okLabel || 'OK') + '</button>' +
+        '</div>';
+      on('mCancel', 'click', function () { done(false); });
+      on('mOk', 'click', function () { done(true); });
+    });
+  }
+
+  function notify(title, message) {
+    return showModal(function (body, done) {
+      body.innerHTML =
+        '<h3>' + escapeHtml(title) + '</h3>' +
+        (message ? '<p>' + escapeHtml(message).replace(/\n/g, '<br>') + '</p>' : '') +
+        '<div class="modal-actions"><button type="button" class="modal-ok" id="mOk">OK</button></div>';
+      on('mOk', 'click', function () { done(true); });
+    });
+  }
+
+  function askText(title, opts) {
+    opts = opts || {};
+    return showModal(function (body, done) {
+      body.innerHTML =
+        '<h3>' + escapeHtml(title) + '</h3>' +
+        (opts.message ? '<p>' + escapeHtml(opts.message) + '</p>' : '') +
+        '<input type="' + (opts.number ? 'number' : 'text') + '" id="mInput"' +
+          (opts.number ? ' inputmode="numeric" min="' + (opts.min != null ? opts.min : 1) + '"' : '') +
+          ' value="' + escapeHtml(String(opts.value == null ? '' : opts.value)) + '"' +
+          ' placeholder="' + escapeHtml(opts.placeholder || '') + '"' +
+          (opts.number ? '' : ' autocapitalize="words"') + '>' +
+        (opts.hint ? '<div class="modal-hint">' + escapeHtml(opts.hint) + '</div>' : '') +
+        '<div class="modal-actions">' +
+          '<button type="button" class="modal-cancel" id="mCancel">Cancel</button>' +
+          '<button type="button" class="modal-ok" id="mOk">' + escapeHtml(opts.okLabel || 'Save') + '</button>' +
+        '</div>';
+
+      const input = document.getElementById('mInput');
+      function submit() {
+        const raw = input.value;
+        if (opts.number) {
+          const n = parseFloat(raw);
+          if (isNaN(n) || (opts.min != null && n < opts.min)) { input.style.borderColor = 'var(--red)'; return; }
+          done(n);
+          return;
+        }
+        const v = raw.trim();
+        if (!v && !opts.allowEmpty) { input.style.borderColor = 'var(--red)'; return; }
+        done(v);
+      }
+      on('mCancel', 'click', function () { done(null); });
+      on('mOk', 'click', submit);
+      input.addEventListener('keydown', function (e) { if (e.key === 'Enter') submit(); });
+      setTimeout(function () { try { input.focus(); input.select(); } catch (e) {} }, 60);
+    });
+  }
+
+  // options: [{ label, value, sub }]  — the replacement for numbered prompts
+  function askChoice(title, options, opts) {
+    opts = opts || {};
+    return showModal(function (body, done) {
+      body.innerHTML =
+        '<h3>' + escapeHtml(title) + '</h3>' +
+        (opts.message ? '<p>' + escapeHtml(opts.message) + '</p>' : '') +
+        '<div class="modal-list">' +
+          options.map(function (o, i) {
+            return '<button type="button" class="modal-choice' +
+              (o.value === opts.current ? ' on' : '') + '" data-mi="' + i + '">' +
+              '<span>' + escapeHtml(o.label) + '</span>' +
+              (o.sub ? '<i>' + escapeHtml(o.sub) + '</i>' : '') + '</button>';
+          }).join('') +
+        '</div>' +
+        '<div class="modal-actions">' +
+          '<button type="button" class="modal-cancel" id="mCancel">Cancel</button>' +
+          (opts.clearLabel ? '<button type="button" class="modal-ok" id="mClear">' +
+            escapeHtml(opts.clearLabel) + '</button>' : '') +
+        '</div>';
+      on('mCancel', 'click', function () { done(null); });
+      on('mClear', 'click', function () { done('__clear'); });
+      body.querySelectorAll('button[data-mi]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          done(options[parseInt(b.getAttribute('data-mi'), 10)].value);
+        });
+      });
+    });
+  }
+
+  // Copying text needs a fallback when the clipboard API is unavailable
+  function copyText(text, what) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text)
+        .then(function () { showCommandToast((what || 'Copied') + ' \u2014 copied'); })
+        .catch(function () { return showCopyBox(text); });
+    }
+    return showCopyBox(text);
+  }
+
+  function showCopyBox(text) {
+    return showModal(function (body, done) {
+      body.innerHTML =
+        '<h3>Copy this</h3>' +
+        '<textarea id="mCopy" rows="6" readonly>' + escapeHtml(text) + '</textarea>' +
+        '<div class="modal-actions"><button type="button" class="modal-ok" id="mOk">Done</button></div>';
+      const ta = document.getElementById('mCopy');
+      setTimeout(function () { try { ta.focus(); ta.select(); } catch (e) {} }, 60);
+      on('mOk', 'click', function () { done(true); });
     });
   }
 
@@ -3595,7 +3821,7 @@ function calc(units, caseSize) {
       if (r) r.classList.toggle('show', dx < -18);
     }, { passive: true });
 
-    function endSwipe() {
+    async function endSwipe() {
       if (!card) { active = false; return; }
       const idx = parseInt(card.getAttribute('data-idx'), 10);
       const item = items[idx];
@@ -3629,7 +3855,7 @@ function calc(units, caseSize) {
     list.addEventListener('touchcancel', endSwipe);
   })();
 
-  document.getElementById('itemList').addEventListener('click', function(e) {
+  document.getElementById('itemList').addEventListener('click', async function(e) {
     const btn = e.target.closest('button');
     if (!btn) return;
     const idx = parseInt(btn.getAttribute('data-idx'), 10);
@@ -3644,7 +3870,8 @@ function calc(units, caseSize) {
     }
 
     if (btn.classList.contains('remove-btn')) {
-      if (!confirm('Delete "' + items[idx].name + '" and its history? You can undo this right after.')) return;
+      if (!(await askConfirm('Delete item?',
+            items[idx].name + ' and its history. You can undo right after.', 'Delete', true))) return;
       snapshotForUndo('delete ' + items[idx].name);
       allowEmptySave = true;
       items.splice(idx, 1);
@@ -3656,7 +3883,8 @@ function calc(units, caseSize) {
     }
 
     if (btn.classList.contains('edit-case')) {
-      const val = prompt('Units per case for "' + items[idx].name + '":', items[idx].caseSize);
+      const val = await askText('Units per ' + packOf(items[idx]).one,
+        { number: true, min: 1, value: items[idx].caseSize });
       const n = parseInt(val, 10);
       if (n && n > 0) {
         items[idx].caseSize = n;
@@ -3671,10 +3899,11 @@ function calc(units, caseSize) {
       const item = items[idx];
       const codes = Array.isArray(item.barcodes) ? item.barcodes : [];
       if (codes.length) {
-        const which = confirm('"' + item.name + '" has ' + codes.length + ' linked code(s):\n\n' +
+        const which = await askConfirm('Barcodes', item.name + ' has ' + codes.length + ' linked code(s):\n\n' +
           codes.join('\n') + '\n\nOK = scan another code\nCancel = remove all codes');
         if (which) { openBarcode('link', idx); return; }
-        if (confirm('Remove all barcodes from "' + item.name + '"?')) {
+        if (await askConfirm('Remove barcodes?',
+            'All linked codes for ' + item.name + '.', 'Remove', true)) {
           item.barcodes = [];
           touchItem(item);
           render();
@@ -3688,27 +3917,22 @@ function calc(units, caseSize) {
 
     if (btn.classList.contains('edit-cat')) {
       const item = items[idx];
-      const list = categories.slice();
-      const menu = list.map(function (cat, i) { return (i + 1) + '. ' + cat; }).join('\n');
-      const pick = prompt('Category for "' + item.name + '"\n\n' + menu +
-        '\n\nType a number, or type a new category name. Blank clears it.',
-        itemCategory(item));
-      if (pick === null) return;
-      const val = pick.trim();
-      if (!val) {
-        item.category = null;
-      } else if (/^\d+$/.test(val) && list[parseInt(val, 10) - 1]) {
-        item.category = list[parseInt(val, 10) - 1];
-      } else {
-        item.category = val;
-        if (categories.indexOf(val) === -1) {
-          categories.push(val);
-          saveCategories();
-        }
-      }
-      touchItem(item);
-      render();
-      saveItems();
+      const opts = categories.map(function (cat) { return { label: cat, value: cat }; });
+      opts.push({ label: '+ New category\u2026', value: '__new' });
+      askChoice('Category for ' + item.name, opts,
+                { current: itemCategory(item), clearLabel: 'Clear' })
+        .then(function (v) {
+          if (v === null) return;
+          if (v === '__clear') item.category = null;
+          else if (v === '__new') {
+            return askText('New category').then(function (nm) {
+              if (!nm) return;
+              if (categories.indexOf(nm) === -1) { categories.push(nm); saveCategories(); }
+              item.category = nm; touchItem(item); render(); saveItems();
+            });
+          } else item.category = v;
+          touchItem(item); render(); saveItems();
+        });
       return;
     }
 
@@ -3735,30 +3959,39 @@ function calc(units, caseSize) {
     if (btn.classList.contains('waste-btn')) {
       const item = items[idx];
       const cs = item.caseSize || 1;
-      const ans = prompt('Log waste for "' + item.name + '".\n\n' +
-        'How much was thrown out? Add "cs" for cases (e.g. "12" = 12 units, "1 cs" = 1 case).', '');
-      if (ans === null) return;
-      const txt = ans.trim().toLowerCase();
-      const num = parseFloat(txt);
-      if (isNaN(num) || num <= 0) return;
-      const units = /\b(cs|case|cases|box|boxes)\b/.test(txt) ? Math.round(num * cs) : Math.round(num);
-      const delta = -Math.min(units, item.units);
-      if (delta === 0) { alert('Nothing on hand to waste.'); return; }
-      snapshotForUndo('waste ' + item.name);
-      item.units = Math.max(0, item.units + delta);
-      pushHistory(item, delta, 'waste');
-      buzz(20);
-      bumpCount(idx);
-      render();
-      saveItems();
-      showCommandToast('Logged ' + Math.abs(delta) + ' units wasted \u2014 ' + item.name, true);
+      const pack = packOf(item);
+      askChoice('Waste \u2014 ' + item.name, [
+        { label: 'By ' + unitLabel(item, 2), value: 'unit', sub: 'individual pieces' },
+        { label: 'By ' + packLabel(item, 2), value: 'case', sub: pack.one + 's of ' + cs }
+      ]).then(async function (mode) {
+        if (!mode) return;
+        return askText('How many ' + (mode === 'case' ? packLabel(item, 2) : unitLabel(item, 2)) + ' thrown out?',
+                       { number: true, min: 0.5, value: '', placeholder: '0' })
+          .then(async function (num) {
+            if (!num) return;
+            const units = mode === 'case' ? Math.round(num * cs) : Math.round(num);
+            const delta = -Math.min(units, item.units);
+            if (delta === 0) { notify('Nothing to waste', 'There is none on hand.'); return; }
+            snapshotForUndo('waste ' + item.name);
+            item.units = Math.max(0, item.units + delta);
+            pushHistory(item, delta, 'waste');
+            buzz(20);
+            bumpCount(idx);
+            render();
+            saveItems();
+            showCommandToast('Logged ' + Math.abs(delta) + ' ' + unitLabel(item, 2) + ' wasted');
+          });
+      });
       return;
     }
 
     if (btn.classList.contains('edit-note')) {
-      const val = prompt('Note for "' + items[idx].name + '" (supplier, item number, where it lives, etc.). Leave blank to remove:', items[idx].note || '');
-      if (val === null) return;
-      items[idx].note = val.trim() || null;
+      const noteVal = await askText('Note for ' + items[idx].name, {
+        value: items[idx].note || '', allowEmpty: true,
+        hint: 'Supplier, item number, where it lives. Blank removes it.'
+      });
+      if (noteVal === null) return;
+      items[idx].note = noteVal || null;
       touchItem(items[idx]);
       render();
       saveItems();
@@ -3778,7 +4011,8 @@ function calc(units, caseSize) {
     }
 
     if (action === 'clear-history') {
-      if (confirm('Clear all activity history for "' + items[idx].name + '"? This can\'t be undone.')) {
+      if (await askConfirm('Clear history?',
+          'All activity for ' + items[idx].name + '. This cannot be undone.', 'Clear', true)) {
         items[idx].history = [];
         render();
         saveItems();
@@ -4366,9 +4600,9 @@ function calc(units, caseSize) {
       await configRef().set({ adminHash: hash, stores: [DEFAULT_STORE], adminUid: myUid || null, adminUids: adminUids });
     } catch (e) {
       const code = e.code || e.message || 'unknown';
-      alert('Could not save admin setup.\n\nError: ' + code +
+      notify('Could not save admin setup', 'Error: ' + code +
         (String(code).indexOf('permission') !== -1
-          ? '\n\nYour Firebase rules are blocking this. Open Realtime Database -> Rules and publish the updated rules (the ones that read the approved-device list), or temporarily use:\n\n{ "rules": { ".read": true, ".write": true } }'
+          ? '\n\nYour Firebase rules are blocking this. Open Realtime Database \u2192 Rules and publish the updated rules.'
           : ''));
       console.error('Tally setup error:', e);
       return;
@@ -4386,8 +4620,6 @@ function calc(units, caseSize) {
   }
 
   async function applyAdminDeviceState() {
-    const banner = document.getElementById('adminReadOnly');
-    if (banner) banner.style.display = 'none';
     let cfg = null;
     try { cfg = await loadConfig(); } catch (e) {}
     if (!cfg) return;
@@ -4474,10 +4706,12 @@ function calc(units, caseSize) {
       const val = snap.val();
       const oldList = val && val.list ? val.list : null;
       if (!oldList || !oldList.length) {
-        alert('No old inventory found to import.');
+        notify('Tally', 'No old inventory found to import.');
         return;
       }
-      if (!confirm('Import ' + oldList.length + ' item(s) from the old inventory into store ' + roomCode + '? Existing items here will be kept and duplicates may appear.')) return;
+      if (!(await askConfirm('Import items?',
+            oldList.length + ' item(s) will be added to ' + roomCode +
+            '. Existing items are kept, so duplicates are possible.', 'Import'))) return;
       snapshotForUndo();
       oldList.forEach(function(oldItem) {
         const exists = items.some(function(it) {
@@ -4487,9 +4721,9 @@ function calc(units, caseSize) {
       });
       render();
       saveItems();
-      alert('Imported. Your old items are now in ' + roomCode + '.');
+      notify('Imported', 'Your old items are now in ' + roomCode + '.');
     } catch (e) {
-      alert('Import failed: ' + e.message);
+      notify('Import failed', e.message);
     }
   });
 
@@ -4497,7 +4731,7 @@ function calc(units, caseSize) {
 
   function startAudit() {
     if (!items.length) {
-      alert('No items to audit yet.');
+      notify('Tally', 'No items to audit yet.');
       return;
     }
 
@@ -4586,10 +4820,12 @@ function calc(units, caseSize) {
       document.getElementById('auditCases').focus();
     }
     document.getElementById('auditNextBtn').addEventListener('click', function () {
+      if (!auditState) return;
       stopAuditVoice();
       recordAuditStep();
     });
     document.getElementById('auditSkipBtn').addEventListener('click', function() {
+      if (!auditState) return;
       stopAuditVoice();
       auditState.step++;
       renderAuditStep();
@@ -4734,10 +4970,19 @@ function calc(units, caseSize) {
   }
 
   function recordAuditStep() {
+    if (!auditState) return;
     const idx = auditState.queue[auditState.step];
     const item = items[idx];
-    const cases = parseInt(document.getElementById('auditCases').value, 10) || 0;
-    const loose = parseInt(document.getElementById('auditUnits').value, 10) || 0;
+    // Past the end (a double-tap on Next), or the item was deleted mid-audit
+    if (!item) {
+      auditState.step = auditState.queue.length;
+      renderAuditStep();
+      return;
+    }
+    const casesEl = document.getElementById('auditCases');
+    const unitsEl = document.getElementById('auditUnits');
+    const cases = parseInt(casesEl ? casesEl.value : 0, 10) || 0;
+    const loose = parseInt(unitsEl ? unitsEl.value : 0, 10) || 0;
     const counted = cases * item.caseSize + loose;
     auditState.results.push({
       idx: idx,
@@ -4752,7 +4997,7 @@ function calc(units, caseSize) {
 
   function renderAuditReport() {
     const body = document.getElementById('auditBody');
-    const results = auditState.results;
+    const results = (auditState && auditState.results) || [];
 
     if (!results.length) {
       body.innerHTML = '<div class="audit-item-name">Audit cancelled</div>' +
@@ -4785,7 +5030,8 @@ function calc(units, caseSize) {
 
     document.getElementById('auditDiscardBtn').addEventListener('click', closeAudit);
     document.getElementById('auditApplyBtn').addEventListener('click', function() {
-      snapshotForUndo();
+      if (!auditState || !auditState.results) return;
+      snapshotForUndo('audit corrections');
       auditState.results.forEach(function(r) {
         const item = items[r.idx];
         if (!item) return;
@@ -4877,9 +5123,9 @@ function calc(units, caseSize) {
       }).join('\n\n');
       const full = 'Tally audit history — store ' + roomCode + '\n\n' + text;
       if (navigator.clipboard) {
-        navigator.clipboard.writeText(full).then(function() { alert('Copied to clipboard.'); });
+        navigator.clipboard.writeText(full).then(function() { notify('Tally', 'Copied to clipboard.'); });
       } else {
-        prompt('Copy this:', full);
+        showCopyBox(full);
       }
     });
 
@@ -4892,7 +5138,7 @@ function calc(units, caseSize) {
         const diff = l.counted - l.expected;
         return l.name + ': ' + l.expected + ' → ' + l.counted + (diff ? ' (' + (diff > 0 ? '+' : '') + diff + ')' : ' ✓');
       }).join('\n');
-      alert(new Date(r.ts).toLocaleString() + '\nby ' + (r.by || 'someone') + '\n\n' + detail);
+      notify('Audit detail', new Date(r.ts).toLocaleString() + '\nby ' + (r.by || 'someone') + '\n\n' + detail);
     });
   }
 
@@ -5026,7 +5272,7 @@ function calc(units, caseSize) {
           });
           showSessionLog();
         } catch (e) {
-          alert('Write failed: ' + (e.code || e.message));
+          notify('Write failed', String(e.code || e.message));
         }
       });
       return;
@@ -5062,9 +5308,9 @@ function calc(units, caseSize) {
           return new Date(r.at).toLocaleString() + ' — ' + (r.name || 'Unnamed');
         }).join('\n');
       if (navigator.clipboard) {
-        navigator.clipboard.writeText(text).then(function() { alert('Copied to clipboard.'); });
+        navigator.clipboard.writeText(text).then(function() { notify('Tally', 'Copied to clipboard.'); });
       } else {
-        prompt('Copy this:', text);
+        showCopyBox(text);
       }
     });
   }
@@ -5140,14 +5386,14 @@ function calc(units, caseSize) {
       if (approve) {
         const uid = approve.getAttribute('data-approve');
         const name = approve.getAttribute('data-pname');
-        if (!confirm('Approve "' + name + '" to use Tally?')) return;
+        if (!(await askConfirm('Approve ' + name + '?', 'They will be able to count and change stock.', 'Approve'))) return;
         try {
           const update = {};
           update['approvedUids/' + uid] = { label: name, addedAt: Date.now() };
           await configRef().update(update);
           showStaff();
         } catch (err) {
-          alert('Could not approve — this device is not an approved admin device.');
+          notify('Tally', 'Could not approve — this device is not an approved admin device.');
         }
         return;
       }
@@ -5156,7 +5402,7 @@ function calc(units, caseSize) {
       if (revoke) {
         const uid = revoke.getAttribute('data-revoke');
         const nm = revoke.getAttribute('data-pname');
-        if (!confirm('Revoke access for "' + nm + '"?\n\nThey will be locked out. If they open the app again they will ask to be approved.')) return;
+        if (!(await askConfirm('Revoke access?', nm + ' will be locked out and put back in the waiting list.', 'Revoke', true))) return;
         try {
           await configRef().child('approvedUids').child(uid).remove();
           await configRef().child('adminUids').child(uid).remove();
@@ -5171,7 +5417,7 @@ function calc(units, caseSize) {
           }
           showStaff();
         } catch (err) {
-          alert('Could not revoke \u2014 this device is not an approved admin device.');
+          notify('Tally', 'Could not revoke \u2014 this device is not an approved admin device.');
         }
         return;
       }
@@ -5180,14 +5426,14 @@ function calc(units, caseSize) {
       if (promote) {
         const uid = promote.getAttribute('data-promote');
         const name = promote.getAttribute('data-pname');
-        if (!confirm('Give "' + name + '" admin access?')) return;
+        if (!(await askConfirm('Make ' + name + ' an admin?', 'They will be able to change settings, staff and backups.', 'Make admin'))) return;
         try {
           const update = {};
           update['adminUids/' + uid] = { label: name, addedAt: Date.now() };
           await configRef().update(update);
           showStaff();
         } catch (err) {
-          alert('Could not grant admin — this device is not an approved admin device.');
+          notify('Tally', 'Could not grant admin — this device is not an approved admin device.');
         }
         return;
       }
@@ -5195,13 +5441,16 @@ function calc(units, caseSize) {
       const demote = e.target.closest('button[data-demote]');
       if (demote) {
         const uid = demote.getAttribute('data-demote');
-        if (uid === myUid && !confirm('This will remove YOUR admin access on this device. Continue?')) return;
-        if (uid !== myUid && !confirm('Remove admin access from this person?')) return;
+        const okDemote = uid === myUid
+          ? await askConfirm('Remove your own admin access?',
+              'You will need the password to get it back.', 'Remove', true)
+          : await askConfirm('Remove admin access?', null, 'Remove', true);
+        if (!okDemote) return;
         try {
           await configRef().child('adminUids').child(uid).remove();
           showStaff();
         } catch (err) {
-          alert('Could not remove admin — this device is not an approved admin device.');
+          notify('Tally', 'Could not remove admin — this device is not an approved admin device.');
         }
         return;
       }
@@ -5210,7 +5459,8 @@ function calc(units, caseSize) {
       if (!btn) return;
       const id = btn.getAttribute('data-staff');
       const person = staff.find(function(p) { return p.id === id; });
-      if (!confirm('Delete profile "' + (person ? person.name : id) + '"?\n\nTheir access is revoked too, so the device has to be approved again.')) return;
+      if (!(await askConfirm('Delete profile?', (person ? person.name : id) +
+            '\n\nTheir access is revoked too, so the device must be approved again.', 'Delete', true))) return;
       if (person && person.uid) {
         await configRef().child('approvedUids').child(person.uid).remove().catch(function () {});
         await configRef().child('adminUids').child(person.uid).remove().catch(function () {});
@@ -5296,11 +5546,7 @@ function calc(units, caseSize) {
             (r.daysLeft != null ? ', out in ' + r.daysLeft + 'd' : '') + ')' +
             (r.note ? '  [' + r.note + ']' : '');
         }).join('\n');
-      if (navigator.clipboard) {
-        navigator.clipboard.writeText(text).then(function () { alert('Order list copied.'); });
-      } else {
-        prompt('Copy this:', text);
-      }
+      copyText(text);
     });
   }
 
@@ -5373,6 +5619,30 @@ function calc(units, caseSize) {
     return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
   }
 
+  function applySnapshot(s) {
+    snapshotForUndo('restore backup');
+    allowEmptySave = true;
+    items = s.items.map(function (it) {
+      return {
+        name: it.name, units: it.units, caseSize: it.caseSize, mode: it.mode || 'case',
+        note: it.note || null, category: it.category || null, productCode: it.productCode || null,
+        lowStockValue: it.lowStockValue, lowStockMode: it.lowStockMode,
+        barcodes: Array.isArray(it.barcodes) ? it.barcodes : [],
+        packType: it.packType || null, recipe: it.recipe || null,
+        variable: !!it.variable, lastVariant: it.lastVariant || null,
+        useBy: it.useBy || null,
+        history: [], touched: Date.now()
+      };
+    });
+    minimized.clear();
+    expanded.clear();
+    items.forEach(function (it, i) { minimized.add(i); });
+    render();
+    saveItems();
+    closeAudit();
+    showCommandToast('Restored backup from ' + new Date(s.ts).toLocaleDateString());
+  }
+
   async function showSnapshots() {
     const body = document.getElementById('auditBody');
     document.getElementById('auditGate').style.display = 'flex';
@@ -5438,25 +5708,12 @@ function calc(units, caseSize) {
       if (!btn) return;
       const s = snaps[parseInt(btn.getAttribute('data-snap'), 10)];
       if (!s || !Array.isArray(s.items)) return;
-      if (!confirm('Restore the snapshot from ' + new Date(s.ts).toLocaleString() + '?\n\n' +
-          s.itemCount + ' items will REPLACE your current list. Undo is available right after.')) return;
-      snapshotForUndo();
-      items = s.items.map(function (it) {
-        return {
-          name: it.name, units: it.units, caseSize: it.caseSize, mode: it.mode || 'case',
-          note: it.note || null, category: it.category || null, productCode: it.productCode || null,
-          lowStockValue: it.lowStockValue, lowStockMode: it.lowStockMode,
-          barcodes: Array.isArray(it.barcodes) ? it.barcodes : [],
-          packType: it.packType || null, recipe: it.recipe || null,
-          variable: !!it.variable, lastVariant: it.lastVariant || null,
-          useBy: it.useBy || null,
-          history: [], touched: Date.now()
-        };
-      });
-      minimized.clear(); expanded.clear();
-      items.forEach(function (it, i) { minimized.add(i); });
-      render(); saveItems(); closeAudit();
-      showCommandToast('Restored snapshot from ' + new Date(s.ts).toLocaleDateString());
+      askConfirm('Restore this backup?',
+        new Date(s.ts).toLocaleString() + '\n\n' + s.itemCount +
+        ' items will replace your current list. Undo is available right after.',
+        'Restore').then(function (ok) {
+          if (ok) applySnapshot(s);
+        });
     });
   }
 
@@ -5724,7 +5981,7 @@ function calc(units, caseSize) {
           '<button type="button" id="shClose">Close</button></div>';
       document.getElementById('shClose').addEventListener('click', closeAudit);
       document.getElementById('shRaw').addEventListener('click', function () {
-        alert(rawText.slice(0, 1800) || '(nothing read)');
+        showCopyBox(rawText.slice(0, 1800) || '(nothing read)');
       });
       return;
     }
@@ -5785,7 +6042,7 @@ function calc(units, caseSize) {
 
     document.getElementById('shApply').addEventListener('click', function () {
       const use = sheetResults.filter(function (r) { return r.include && r.idx !== -1 && r.qty > 0; });
-      if (!use.length) { alert('Nothing selected to apply.'); return; }
+      if (!use.length) { notify('Tally', 'Nothing selected to apply.'); return; }
       snapshotForUndo();
       use.forEach(function (r) {
         const item = items[r.idx];
@@ -5853,7 +6110,7 @@ function calc(units, caseSize) {
           '<button type="button" id="scClose">Close</button></div>';
       document.getElementById('scClose').addEventListener('click', closeAudit);
       document.getElementById('scRaw').addEventListener('click', function () {
-        alert(rawText.slice(0, 1500) || '(nothing read)');
+        showCopyBox(rawText.slice(0, 1500) || '(nothing read)');
       });
       return;
     }
@@ -5893,7 +6150,7 @@ function calc(units, caseSize) {
     });
     document.getElementById('scApply').addEventListener('click', function () {
       const use = scanResults.filter(function (r) { return r.include && r.matchIdx !== -1 && r.qty > 0; });
-      if (!use.length) { alert('Nothing selected to apply.'); return; }
+      if (!use.length) { notify('Tally', 'Nothing selected to apply.'); return; }
       snapshotForUndo();
       use.forEach(function (r) {
         const item = items[r.matchIdx];
@@ -5919,6 +6176,8 @@ function calc(units, caseSize) {
   let batchUnknown = []; // codes scanned that match no item
   let zxingLoading = null;
   let bcZxing = null;
+  let lastScanKey = null;
+  let lastScanAt = 0;
   let zxingSource = null;
 
   // ============ GS1-128 (case labels) ============
@@ -6334,26 +6593,47 @@ function calc(units, caseSize) {
     if (!bcCanvas) bcCanvas = document.createElement('canvas');
     const gate = document.getElementById('barcodeGate');
 
+    // For a 1D barcode only HORIZONTAL resolution matters — every extra row of
+    // pixels is wasted work. So each attempt grabs a thin strip at full width
+    // rather than a tall block, and we rotate the strip when hunting for codes
+    // that sit vertically in the frame.
+    function grab(kind, vw, vh) {
+      const ctx2 = bcCanvas.getContext('2d', { willReadFrequently: true });
+      if (kind === 'vertical') {
+        // narrow centre column, turned on its side
+        const bandW = Math.max(120, Math.round(vw * 0.16));
+        const sx = Math.round((vw - bandW) / 2);
+        bcCanvas.width = vh;
+        bcCanvas.height = bandW;
+        ctx2.save();
+        ctx2.translate(vh / 2, bandW / 2);
+        ctx2.rotate(Math.PI / 2);
+        ctx2.drawImage(video, sx, 0, bandW, vh, -bandW / 2, -vh / 2, bandW, vh);
+        ctx2.restore();
+        return;
+      }
+      // horizontal strip through the middle
+      const bandH = Math.max(120, Math.min(220, Math.round(vh * 0.28)));
+      const sy = Math.round((vh - bandH) / 2);
+      bcCanvas.width = vw;
+      bcCanvas.height = bandH;
+      ctx2.drawImage(video, 0, sy, vw, bandH, 0, 0, vw, bandH);
+    }
+
     async function tick() {
       if (!gate || gate.style.display === 'none') return;
       const vw = video.videoWidth || 0, vh = video.videoHeight || 0;
       if (vw && vh && !bcBusy) {
-        // middle 100% width, middle 45% height — a wide label band
-        const bandH = Math.max(80, Math.round(vh * 0.45));
-        const sy = Math.round((vh - bandH) / 2);
-        bcCanvas.width = vw;
-        bcCanvas.height = bandH;
-        const ctx2 = bcCanvas.getContext('2d', { willReadFrequently: true });
-        ctx2.drawImage(video, 0, sy, vw, bandH, 0, 0, vw, bandH);
-        bcFrames++;
+        const step = bcFrames % 3;
         try {
-          // One pass per frame keeps the preview smooth; four frames covers
-          // every orientation and contrast combination in under a second.
-          const text = await decodeFrame(bcCanvas, bcFrames % 4);
+          grab(step === 1 ? 'vertical' : 'horizontal', vw, vh);
+          bcFrames++;
+          // step 0: plain strip, 1: vertical strip, 2: contrast-hardened strip
+          const text = await decodeFrame(bcCanvas, step === 2 ? 2 : 0);
           if (text) handleBarcode(text);
         } catch (e) {}
       }
-      bcLoop = setTimeout(tick, 180);
+      bcLoop = setTimeout(tick, 120);
     }
     tick();
   }
@@ -6375,8 +6655,102 @@ function calc(units, caseSize) {
     if (v) v.srcObject = null;
   }
 
+  // One screen, one decision. No stacked dialogs over a running camera.
+  function showUnknownCode(code) {
+    const key = barcodeKey(code);
+    const ex = gs1Extras(code);
+    const body = document.getElementById('auditBody');
+    document.getElementById('auditGate').style.display = 'flex';
+    document.getElementById('appRoot').style.display = 'none';
+
+    const sorted = items.map(function (it, i) { return { it: it, i: i }; })
+      .sort(function (a, b) { return a.it.name.localeCompare(b.it.name); });
+
+    body.innerHTML =
+      '<div class="audit-item-name">New barcode</div>' +
+      '<div class="audit-sub">Nothing is linked to this code yet.' +
+        (ex && ex.gtin ? ' Case label, product ' + escapeHtml(ex.gtin) : '') + '</div>' +
+      '<div class="code-box">' + escapeHtml(key) +
+        (ex && ex.useBy ? '<br><span>use by ' +
+          ex.useBy.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) +
+          '</span>' : '') + '</div>' +
+
+      '<div class="role-label">Link it to an item you already have</div>' +
+      '<div class="hc-items" id="unkList">' +
+        sorted.map(function (r) {
+          return '<button type="button" class="hc-item" data-unk="' + r.i + '">' +
+            '<span class="hc-name">' + escapeHtml(r.it.name) + '</span>' +
+            '<span class="hc-now">' + calc(r.it.units, r.it.caseSize).decimalCases +
+              '<i>' + packLabel(r.it, 2) + '</i></span></button>';
+        }).join('') +
+      '</div>' +
+
+      '<div class="audit-actions">' +
+        '<button type="button" class="audit-skip" id="unkCancel">Skip</button>' +
+        '<button type="button" id="unkNew">Create a new item</button></div>';
+
+    on('unkCancel', 'click', closeAudit);
+
+    body.querySelectorAll('button[data-unk]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        const item = items[parseInt(b.getAttribute('data-unk'), 10)];
+        if (!item) return;
+        if (!Array.isArray(item.barcodes)) item.barcodes = [];
+        if (item.barcodes.indexOf(key) === -1) item.barcodes.push(key);
+        noteUseBy(item, code);
+        touchItem(item);
+        render();
+        saveItems();
+        closeAudit();
+        showCommandToast('Linked to ' + item.name + ' \u2014 scan again to count it');
+      });
+    });
+
+    on('unkNew', 'click', function () {
+      body.innerHTML =
+        '<div class="audit-item-name">New item</div>' +
+        '<div class="audit-sub">This barcode will be linked to it.</div>' +
+        '<input type="text" id="unkName" placeholder="Item name" autocapitalize="words">' +
+        '<input type="number" id="unkSize" placeholder="How many per case" min="1" value="' +
+          ((ex && ex.count) || 24) + '">' +
+        '<div class="audit-actions">' +
+          '<button type="button" class="audit-skip" id="unkBack">Back</button>' +
+          '<button type="button" id="unkSave">Add item</button></div>';
+
+      on('unkBack', 'click', function () { showUnknownCode(code); });
+      on('unkSave', 'click', function () {
+        const nameEl = document.getElementById('unkName');
+        const sizeEl = document.getElementById('unkSize');
+        const nm = nameEl.value.trim();
+        const cs = parseInt(sizeEl.value, 10);
+        if (!nm) { nameEl.style.borderColor = 'var(--red)'; return; }
+        if (!cs || cs < 1) { sizeEl.style.borderColor = 'var(--red)'; return; }
+        snapshotForUndo('add ' + nm);
+        const item = {
+          name: nm, caseSize: cs, units: cs, mode: 'case', history: [],
+          touched: Date.now(), barcodes: [key], category: guessCategory(nm) || null
+        };
+        noteUseBy(item, code);
+        items.push(item);
+        minimized.add(items.length - 1);
+        render();
+        saveItems();
+        closeAudit();
+        showCommandToast('Added ' + nm + ' with 1 case');
+      });
+      const el = document.getElementById('unkName');
+      if (el) el.focus();
+    });
+  }
+
   function handleBarcode(code) {
     if (bcBusy || !code) return;
+    // The same box sitting in frame decodes many times a second. Treat a repeat
+    // of the same code within a few seconds as the same scan, not a new one.
+    const nowTs = Date.now();
+    if (barcodeKey(code) === lastScanKey && nowTs - lastScanAt < 2500) return;
+    lastScanKey = barcodeKey(code);
+    lastScanAt = nowTs;
     code = String(code).trim();
     if (!code) return;
     bcBusy = true;
@@ -6424,24 +6798,11 @@ function calc(units, caseSize) {
     }
 
     if (idx === -1) {
-      bcSay('Unknown code', false);
-      if (!confirm('No item uses this barcode.\n\nCreate a new item for it?')) {
-        setTimeout(function () { bcBusy = false; }, 900);
-        return;
-      }
-      const name = prompt('Item name:');
-      if (!name || !name.trim()) { bcBusy = false; return; }
-      const cs = parseInt(prompt('Units per case:', '24'), 10);
-      if (!cs || cs < 1) { bcBusy = false; return; }
-      snapshotForUndo('add item');
-      items.push({ name: name.trim(), caseSize: cs, units: cs, mode: 'case',
-                   history: [], touched: Date.now(), barcodes: [barcodeKey(code)],
-                   category: guessCategory(name) || null });
-      minimized.add(items.length - 1);
-      render();
-      saveItems();
-      bcSay('Created ' + name.trim(), true);
-      setTimeout(function () { bcBusy = false; bcSay(''); }, 1200);
+      // Stop the camera first. Stacked browser dialogs over a live video are
+      // what made this need four taps to get through.
+      closeBarcode();
+      showUnknownCode(code);
+      bcBusy = false;
       return;
     }
 
@@ -6593,6 +6954,26 @@ function calc(units, caseSize) {
 
   // Camera scanning struggles with wide case labels in poor light. A still
   // photo gives the decoder a sharp, full-resolution frame to work with.
+  // A floating "scan the next one" button, so a delivery can be worked through
+  // without a dialog interrupting every box.
+  function showScanAgain() {
+    let bar = document.getElementById('scanAgain');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'scanAgain';
+      bar.className = 'scan-again';
+      document.body.appendChild(bar);
+    }
+    bar.innerHTML = '<span>Scanned.</span>' +
+      '<button type="button" id="scanAgainGo">Next label</button>' +
+      '<button type="button" id="scanAgainDone">Done</button>';
+    bar.style.display = 'flex';
+    on('scanAgainGo', 'click', function () { bar.style.display = 'none'; scanBarcodeFromPhoto(); });
+    on('scanAgainDone', 'click', function () { bar.style.display = 'none'; });
+    clearTimeout(bar._t);
+    bar._t = setTimeout(function () { bar.style.display = 'none'; }, 12000);
+  }
+
   async function scanBarcodeFromPhoto() {
     pickImage(true, async function (file) {
       const body = document.getElementById('auditBody');
@@ -6670,8 +7051,9 @@ function calc(units, caseSize) {
       bcBusy = false;
       handleBarcode(text);
       setTimeout(function () {
-        if (confirm('Scan another label?')) scanBarcodeFromPhoto();
-      }, 700);
+        // A button, not a dialog — dialogs stack up when scanning a delivery
+        if (document.getElementById('auditGate').style.display === 'none') showScanAgain();
+      }, 600);
     });
   }
 
@@ -6922,8 +7304,7 @@ function calc(units, caseSize) {
       const text = 'Tally scanner test\n' + res.map(function (r) {
         return (r.ok ? 'PASS ' : 'FAIL ') + r.label + (r.detail ? ' — ' + r.detail : '');
       }).join('\n');
-      if (navigator.clipboard) navigator.clipboard.writeText(text).then(function () { alert('Copied.'); });
-      else prompt('Copy this:', text);
+      copyText(text);
     });
   }
 
@@ -6981,7 +7362,6 @@ function calc(units, caseSize) {
 
     on('bcModeCancel', 'click', closeAudit);
     on('bcPhotoMain', 'click', function () { closeAudit(); scanBarcodeFromPhoto(); });
-    on('bcPhotoBtn', 'click', function () { closeAudit(); scanBarcodeFromPhoto(); });
     on('bcTestBtn', 'click', guardScreen('Scanner test', showScannerTest));
     document.getElementById('bcOneBtn').addEventListener('click', function () {
       closeAudit();
@@ -7082,10 +7462,32 @@ function calc(units, caseSize) {
         rows.map(function (r) {
           return r.cases + ' cs (' + r.units + ' un)  ' + r.name + '  \u2014 ' + r.times + ' time(s)';
         }).join('\n') + '\n\nTotal: ' + grand + ' units';
-      if (navigator.clipboard) {
-        navigator.clipboard.writeText(text).then(function () { alert('Waste report copied.'); });
-      } else { prompt('Copy this:', text); }
+      copyText(text);
     });
+  }
+
+  function renameCategory(i, oldName, clean) {
+    categories[i] = clean;
+    items.forEach(function (it) { if (it.category === oldName) it.category = clean; });
+    if (catFilter === oldName) {
+      catFilter = clean;
+      localStorage.setItem('tally_catfilter', catFilter);
+    }
+    saveCategories();
+    saveItems();
+    showCategories();
+  }
+
+  function removeCategory(i, name) {
+    categories.splice(i, 1);
+    items.forEach(function (it) { if (it.category === name) it.category = null; });
+    if (catFilter === name) {
+      catFilter = '';
+      localStorage.setItem('tally_catfilter', '');
+    }
+    saveCategories();
+    saveItems();
+    showCategories();
   }
 
   function showCategories() {
@@ -7165,31 +7567,23 @@ function calc(units, caseSize) {
       if (ren) {
         const i = parseInt(ren.getAttribute('data-cren'), 10);
         const oldName = categories[i];
-        const val = prompt('Rename "' + oldName + '" to:', oldName);
-        if (val === null) return;
-        const clean = val.trim();
-        if (!clean) return;
-        categories[i] = clean;
-        items.forEach(function (it) { if (it.category === oldName) it.category = clean; });
-        if (catFilter === oldName) {
-          catFilter = clean;
-          localStorage.setItem('tally_catfilter', catFilter);
-        }
-        saveCategories(); saveItems(); draw(); return;
+        askText('Rename category', { value: oldName }).then(function (clean) {
+          if (!clean) return;
+          renameCategory(i, oldName, clean);
+        });
+        return;
       }
       if (del) {
         const i = parseInt(del.getAttribute('data-cdel'), 10);
         const name = categories[i];
         const n = items.filter(function (it) { return it.category === name; }).length;
-        if (!confirm('Delete category "' + name + '"?' +
-            (n ? '\n\n' + n + ' item(s) will become uncategorised. The items themselves are kept.' : ''))) return;
-        categories.splice(i, 1);
-        items.forEach(function (it) { if (it.category === name) it.category = null; });
-        if (catFilter === name) {
-          catFilter = '';
-          localStorage.setItem('tally_catfilter', '');
-        }
-        saveCategories(); saveItems(); draw(); return;
+        askConfirm('Delete category?', name +
+          (n ? '\n\n' + n + ' item(s) become uncategorised. The items are kept.' : ''),
+          'Delete', true).then(function (ok) {
+            if (!ok) return;
+            removeCategory(i, name);
+          });
+        return;
       }
     });
 
@@ -7355,7 +7749,7 @@ function calc(units, caseSize) {
       if (ab) ab.style.display = 'none';
       const ap = document.getElementById('adminPanel');
       if (ap) ap.style.display = 'none';
-      alert('Your access was removed by an admin.');
+      notify('Tally', 'Your access was removed by an admin.');
       showPendingScreen();
     });
   }
@@ -7417,7 +7811,7 @@ function calc(units, caseSize) {
           await configRef().update(claim);
           cfg = await loadConfig();
           setTimeout(function() {
-            alert('This device is now the admin device.\n\nOpen Admin to manage stores, staff, and approve other devices.');
+            notify('Tally', 'This device is now the admin device.\n\nOpen Admin to manage stores, staff, and approve other devices.');
           }, 1200);
         } catch (e) {}
       }
