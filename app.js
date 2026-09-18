@@ -1,4 +1,4 @@
-  const APP_BUILD = '202609180257';
+  const APP_BUILD = '202609181820';
 // Tally — application code
 // Split out of the single-file build so edits stay local and one mistake
 // can't silently delete unrelated features.
@@ -1108,6 +1108,27 @@ function calc(units, caseSize) {
     }
   }
 
+  // Firebase refuses a write if ANY property is undefined, and it rejects the
+  // whole payload — one stray field blocks every count in the store. Strip
+  // them on the way out rather than trusting every code path to behave.
+  function cleanForSave(value) {
+    if (Array.isArray(value)) {
+      return value.map(function (v) { return cleanForSave(v); });
+    }
+    if (value && typeof value === 'object') {
+      const out = {};
+      Object.keys(value).forEach(function (k) {
+        const v = value[k];
+        if (v === undefined) return;                 // drop it
+        if (typeof v === 'number' && !isFinite(v)) return;   // NaN / Infinity too
+        out[k] = cleanForSave(v);
+      });
+      return out;
+    }
+    if (typeof value === 'number' && !isFinite(value)) return null;
+    return value === undefined ? null : value;
+  }
+
   function saveItems() {
     // Refuse to push an empty list over a list we know had items, unless the
     // user actually emptied it themselves. Silent wipes are unrecoverable
@@ -1136,7 +1157,7 @@ function calc(units, caseSize) {
     const writeGuard = new Promise(function (_, reject) {
       setTimeout(function () { reject(new Error('timed out waiting for the database')); }, 12000);
     });
-    Promise.race([itemsRef.set({ list: items }), writeGuard]).then(function() {
+    Promise.race([itemsRef.set({ list: cleanForSave(items) }), writeGuard]).then(function() {
       noteSave(true);
       hasPending = false;
       suppressRemote = false;
@@ -1149,9 +1170,21 @@ function calc(units, caseSize) {
     }).catch(function(err) {
       noteSave(false, err);
       lastSyncError = (err && (err.code || err.message)) || 'unknown';
+      const msg = String((err && err.message) || '');
       const denied = err && (err.code === 'PERMISSION_DENIED' ||
-                             /permission/i.test(err.message || ''));
+                             /permission/i.test(msg));
+      const badData = /undefined|invalid|contains an invalid key/i.test(msg);
       saveLocal();
+      if (badData) {
+        // Keep it queued — the data is safe locally and the next write is clean
+        hasPending = true;
+        suppressRemote = true;
+        setOfflineBanner();
+        setSyncStatus('Save rejected \u2014 retrying', false);
+        console.warn('Tally: rejected payload —', msg);
+        setTimeout(function () { flushPending(); }, 1500);
+        return;
+      }
       if (denied) {
         // Queuing won't help — the database is refusing the write. Say so
         // plainly instead of pretending we're offline and retrying forever.
@@ -1186,7 +1219,7 @@ function calc(units, caseSize) {
   function flushPending() {
     if (!hasPending || !isOnline || !isConfigured || !itemsRef) return;
     setOfflineBanner();
-    itemsRef.set({ list: items }).then(function () {
+    itemsRef.set({ list: cleanForSave(items) }).then(function () {
       hasPending = false;
       suppressRemote = false;
       saveLocal();
@@ -1394,7 +1427,7 @@ function calc(units, caseSize) {
 
   async function saveCategories() {
     if (!isConfigured || !roomCode) return;
-    try { await catsRef().set(categories); }
+    try { await catsRef().set(cleanForSave(categories)); }
     catch (e) { noteSaveFailure('categories', e); }
   }
 
@@ -2055,7 +2088,7 @@ function calc(units, caseSize) {
 
   async function saveRecipes() {
     if (!isConfigured || !roomCode) return;
-    try { await recipesRef().set(recipes); }
+    try { await recipesRef().set(cleanForSave(recipes)); }
     catch (e) { noteSaveFailure('recipes', e); }
   }
 
@@ -2089,7 +2122,7 @@ function calc(units, caseSize) {
 
   async function saveComponents() {
     if (!isConfigured || !roomCode) return;
-    try { await componentsRef().set(components); }
+    try { await componentsRef().set(cleanForSave(components)); }
     catch (e) { noteSaveFailure('component links', e); }
   }
 
@@ -5576,7 +5609,7 @@ function calc(units, caseSize) {
       const lastTs = keys.length ? (val[keys[0]].ts || 0) : 0;
       if (Date.now() - lastTs < SNAPSHOT_INTERVAL) return;
 
-      await snapshotsRef().push({
+      await snapshotsRef().push(cleanForSave({
         ts: Date.now(),
         by: myName || 'auto',
         itemCount: items.length,
@@ -5600,7 +5633,7 @@ function calc(units, caseSize) {
             useBy: it.useBy || null
           };
         })
-      });
+      }));
 
       const all = await snapshotsRef().get();
       const av = all.val() || {};
@@ -5632,7 +5665,8 @@ function calc(units, caseSize) {
       return {
         name: it.name, units: it.units, caseSize: it.caseSize, mode: it.mode || 'case',
         note: it.note || null, category: it.category || null, productCode: it.productCode || null,
-        lowStockValue: it.lowStockValue, lowStockMode: it.lowStockMode,
+        lowStockValue: it.lowStockValue == null ? null : it.lowStockValue,
+        lowStockMode: it.lowStockMode || null,
         barcodes: Array.isArray(it.barcodes) ? it.barcodes : [],
         packType: it.packType || null, recipe: it.recipe || null,
         variable: !!it.variable, lastVariant: it.lastVariant || null,
