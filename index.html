@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Tally">
 <meta name="theme-color" content="#17110e">
-<link rel="stylesheet" href="styles.css?v=202609170337">
+<link rel="stylesheet" href="styles.css?v=202609180257">
 </head>
 <body>
 
@@ -151,12 +151,18 @@
 
 <div class="scan-overlay" id="barcodeGate" style="display:none;">
   <video id="barcodeVideo" playsinline muted></video>
-  <div class="scan-frame"></div>
+  <div class="scan-target" id="scanTarget">
+    <span class="sc tl"></span><span class="sc tr"></span>
+    <span class="sc bl"></span><span class="sc br"></span>
+    <span class="scan-line"></span>
+  </div>
   <div class="scan-top" id="barcodeTitle">Point at a barcode</div>
+  <div class="scan-hint" id="scanHint">Fill the box with the barcode</div>
   <div class="scan-bottom">
     <div class="scan-msg" id="barcodeMsg"></div>
     <div class="scan-actions">
       <button type="button" class="scan-close" id="barcodeClose">Close</button>
+      <button type="button" class="scan-torch" id="torchBtn" style="display:none;">&#128161;</button>
       <button type="button" class="scan-done" id="batchDoneBtn" style="display:none;">Done &middot; <span id="batchCount">0</span></button>
     </div>
   </div>
@@ -211,7 +217,7 @@
   <div class="admin-panel" id="adminPanel" style="display:none;">
     <div class="admin-head">
       <span class="admin-title">Admin</span>
-      <span class="build-tag">build 202609170337</span>
+      <span class="build-tag">build 202609180257</span>
       <button type="button" class="admin-lock" id="adminLogoutBtn">Lock</button>
     </div>
 
@@ -334,6 +340,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 
-<script src="app.js?v=202609170337"></script>
+<script src="app.js?v=202609180257"></script>
 </body>
 </html>

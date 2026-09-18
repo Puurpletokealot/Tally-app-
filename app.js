@@ -1,4 +1,4 @@
-  const APP_BUILD = '202609170337';
+  const APP_BUILD = '202609180257';
 // Tally — application code
 // Split out of the single-file build so edits stay local and one mistake
 // can't silently delete unrelated features.
@@ -6173,6 +6173,7 @@ function calc(units, caseSize) {
   let batchTally = {};   // { itemIndex: casesScanned } collected in batch mode
   let batchCodes = {};   // { itemIndex: last raw scan, for its use-by date }
   let bcResolution = '';
+  let bcTorchOn = false;
   let bcCanvas = null;
   let bcFrames = 0;
   let batchUnknown = []; // codes scanned that match no item
@@ -6405,6 +6406,104 @@ function calc(units, caseSize) {
   }
 
   // Native detector when the device has one, decoder otherwise. Never hangs.
+  // Find the barcode inside a photo before trying to read it.
+  //
+  // A phone photo is tall; the barcode is a thin strip across it. The decoder
+  // samples a limited number of horizontal lines spread over the whole image,
+  // so on a 2500px-tall photo it often never crosses the ~150px of bars.
+  //
+  // Bars are VERTICAL: the same edge positions repeat on the row below. Text
+  // and packaging noise do not do that. Scoring rows on that repetition finds
+  // the barcode and lets us hand the decoder just that strip.
+  function locateBarcodeBand(src) {
+    const MAXW = 900;
+    const scale = Math.min(1, MAXW / src.width);
+    const W = Math.max(1, Math.round(src.width * scale));
+    const H = Math.max(1, Math.round(src.height * scale));
+
+    const small = document.createElement('canvas');
+    small.width = W; small.height = H;
+    const g = small.getContext('2d', { willReadFrequently: true });
+    g.drawImage(src, 0, 0, W, H);
+    const data = g.getImageData(0, 0, W, H).data;
+
+    const gray = new Uint8Array(W * H);
+    for (let i = 0, p = 0; p < W * H; i += 4, p++) {
+      gray[p] = (data[i] * 299 + data[i + 1] * 587 + data[i + 2] * 114) / 1000 | 0;
+    }
+
+    // edge positions per row
+    const rowEdges = [];
+    for (let y = 0; y < H; y++) {
+      let lo = 255, hi = 0;
+      for (let x = 0; x < W; x++) {
+        const v = gray[y * W + x];
+        if (v < lo) lo = v;
+        if (v > hi) hi = v;
+      }
+      if (hi - lo < 50) { rowEdges.push(null); continue; }
+      const mid = (lo + hi) / 2;
+      const marks = new Uint8Array(W);
+      let prev = null, count = 0;
+      for (let x = 0; x < W; x++) {
+        const cur = gray[y * W + x] > mid;
+        if (prev !== null && cur !== prev) { marks[x] = 1; count++; }
+        prev = cur;
+      }
+      rowEdges.push(count >= 25 ? marks : null);
+    }
+
+    // how many edges line up with the row a few below
+    const score = new Float32Array(H);
+    for (let y = 0; y + 4 < H; y++) {
+      const a = rowEdges[y], b = rowEdges[y + 4];
+      if (!a || !b) continue;
+      let match = 0;
+      for (let x = 1; x < W - 1; x++) {
+        if (a[x] && (b[x] || b[x - 1] || b[x + 1])) match++;
+      }
+      score[y] = match;
+    }
+
+    // smooth and take the strongest run
+    const k = 6;
+    const sm = new Float32Array(H);
+    let peak = 0;
+    for (let y = 0; y < H; y++) {
+      let s = 0, n = 0;
+      for (let j = Math.max(0, y - k); j <= Math.min(H - 1, y + k); j++) { s += score[j]; n++; }
+      sm[y] = s / n;
+      if (sm[y] > peak) peak = sm[y];
+    }
+    if (peak < 25) return null;
+
+    const thr = peak * 0.5;
+    let best = null, run = null;
+    for (let y = 0; y < H; y++) {
+      if (sm[y] >= thr) run = run ? [run[0], y] : [y, y];
+      else {
+        if (run && (!best || (run[1] - run[0]) > (best[1] - best[0]))) best = run;
+        run = null;
+      }
+    }
+    if (run && (!best || (run[1] - run[0]) > (best[1] - best[0]))) best = run;
+    if (!best) return null;
+
+    const pad = Math.max(8, Math.round((best[1] - best[0]) * 0.4));
+    const y0 = Math.max(0, Math.round((best[0] - pad) / scale));
+    const y1 = Math.min(src.height, Math.round((best[1] + pad) / scale));
+    if (y1 - y0 < 12) return null;
+    return { y0: y0, y1: y1 };
+  }
+
+  function cropBand(src, y0, y1) {
+    const out = document.createElement('canvas');
+    out.width = src.width;
+    out.height = Math.max(1, y1 - y0);
+    out.getContext('2d').drawImage(src, 0, y0, src.width, out.height, 0, 0, src.width, out.height);
+    return out;
+  }
+
   function rotateCanvas90(src) {
     const out = document.createElement('canvas');
     out.width = src.height;
@@ -6455,6 +6554,56 @@ function calc(units, caseSize) {
 
   // `only` restricts the work to a single pass, which the live loop uses so it
   // can stay responsive — it cycles through the passes across frames instead.
+  // Full strategy for a still photo: locate the barcode, read just that strip,
+  // and if that fails sweep overlapping bands down the image.
+  async function decodePhoto(canvas, onProgress) {
+    function say(s) { if (onProgress) onProgress(s); }
+
+    // 1. the located strip — by far the most likely to work
+    try {
+      const band = locateBarcodeBand(canvas);
+      if (band) {
+        say('Found the barcode, reading it\u2026');
+        const strip = cropBand(canvas, band.y0, band.y1);
+        let r = await decodeFrame(strip);
+        if (r) return r;
+        // same strip, stretched wider — helps when the bars are thin
+        const big = document.createElement('canvas');
+        big.width = Math.min(4000, strip.width * 2);
+        big.height = strip.height;
+        const bg = big.getContext('2d');
+        bg.imageSmoothingEnabled = true;
+        bg.drawImage(strip, 0, 0, big.width, big.height);
+        r = await decodeFrame(big);
+        if (r) return r;
+      }
+    } catch (e) {
+      console.warn('Tally: locator failed —', e && e.message);
+    }
+
+    // 2. the whole image as shot
+    say('Reading the whole photo\u2026');
+    let r = await decodeFrame(canvas);
+    if (r) return r;
+
+    // 3. sweep overlapping horizontal bands
+    say('Scanning the photo in strips\u2026');
+    const BANDS = 9;
+    const bh = Math.max(60, Math.round(canvas.height / BANDS * 1.8));
+    for (let i = 0; i < BANDS; i++) {
+      const y0 = Math.round(i * Math.max(0, canvas.height - bh) / Math.max(1, BANDS - 1));
+      const strip = cropBand(canvas, y0, Math.min(canvas.height, y0 + bh));
+      r = await decodeFrame(strip, 0);
+      if (r) return r;
+      r = await decodeFrame(strip, 2);
+      if (r) return r;
+    }
+
+    // 4. last resort — rotated, for a label photographed sideways
+    say('Trying it sideways\u2026');
+    return await decodeFrame(canvas, 1);
+  }
+
   async function decodeFrame(canvas, only) {
     if (bcDetector) {
       try {
@@ -6485,7 +6634,9 @@ function calc(units, caseSize) {
     bcMode = mode || 'count';
     bcLinkIdx = (linkIdx == null ? null : linkIdx);
     bcBusy = false;
-    bcSay('Fill the frame with the barcode \u2014 case labels are wide');
+    bcFrames = 0;
+    markTargetFound(false);
+    bcSay('');
     document.getElementById('barcodeTitle').textContent =
       bcMode === 'link' ? 'Scan the code to link'
       : bcMode === 'batch' ? 'Scan everything \u2014 nothing saves yet'
@@ -6532,6 +6683,28 @@ function calc(units, caseSize) {
         if (caps.zoom && caps.zoom.min !== undefined) advanced.push({ zoom: Math.max(caps.zoom.min, 1) });
         if (advanced.length) { try { await track.applyConstraints({ advanced: advanced }); } catch (e) {} }
       }
+
+      // Torch, where the camera supports it — stockrooms and freezers are dim
+      try {
+        const caps2 = track && track.getCapabilities ? track.getCapabilities() : {};
+        const tb = document.getElementById('torchBtn');
+        if (tb) {
+          if (caps2.torch) {
+            tb.style.display = '';
+            tb.classList.remove('on');
+            bcTorchOn = false;
+            tb.onclick = async function () {
+              bcTorchOn = !bcTorchOn;
+              try {
+                await track.applyConstraints({ advanced: [{ torch: bcTorchOn }] });
+                tb.classList.toggle('on', bcTorchOn);
+              } catch (e) { bcTorchOn = false; }
+            };
+          } else {
+            tb.style.display = 'none';
+          }
+        }
+      } catch (e) {}
 
       const got = track && track.getSettings ? track.getSettings() : {};
       bcResolution = (got.width || 0) + '\u00d7' + (got.height || 0);
@@ -6595,49 +6768,103 @@ function calc(units, caseSize) {
     if (!bcCanvas) bcCanvas = document.createElement('canvas');
     const gate = document.getElementById('barcodeGate');
 
-    // For a 1D barcode only HORIZONTAL resolution matters — every extra row of
-    // pixels is wasted work. So each attempt grabs a thin strip at full width
-    // rather than a tall block, and we rotate the strip when hunting for codes
-    // that sit vertically in the frame.
-    function grab(kind, vw, vh) {
+    // The photo work showed why live scanning failed: the decoder reads
+    // horizontal lines, and on a full frame most of them miss a thin barcode.
+    // So we sample exactly what the on-screen box covers, at full width.
+    function grabTarget(vw, vh) {
       const ctx2 = bcCanvas.getContext('2d', { willReadFrequently: true });
-      if (kind === 'vertical') {
-        // narrow centre column, turned on its side
-        const bandW = Math.max(120, Math.round(vw * 0.16));
-        const sx = Math.round((vw - bandW) / 2);
-        bcCanvas.width = vh;
-        bcCanvas.height = bandW;
-        ctx2.save();
-        ctx2.translate(vh / 2, bandW / 2);
-        ctx2.rotate(Math.PI / 2);
-        ctx2.drawImage(video, sx, 0, bandW, vh, -bandW / 2, -vh / 2, bandW, vh);
-        ctx2.restore();
-        return;
-      }
-      // horizontal strip through the middle
-      const bandH = Math.max(120, Math.min(220, Math.round(vh * 0.28)));
+      const bandH = Math.round(vh * 0.26);         // matches .scan-target height
       const sy = Math.round((vh - bandH) / 2);
       bcCanvas.width = vw;
       bcCanvas.height = bandH;
       ctx2.drawImage(video, 0, sy, vw, bandH, 0, 0, vw, bandH);
+      return bcCanvas;
+    }
+
+    function grabFull(vw, vh) {
+      const full = document.createElement('canvas');
+      const s = Math.min(1, 1280 / vw);
+      full.width = Math.round(vw * s);
+      full.height = Math.round(vh * s);
+      full.getContext('2d', { willReadFrequently: true })
+        .drawImage(video, 0, 0, full.width, full.height);
+      return full;
+    }
+
+    function grabVertical(vw, vh) {
+      const ctx2 = bcCanvas.getContext('2d', { willReadFrequently: true });
+      const bandW = Math.round(vw * 0.3);
+      const sx = Math.round((vw - bandW) / 2);
+      bcCanvas.width = vh;
+      bcCanvas.height = bandW;
+      ctx2.save();
+      ctx2.translate(vh / 2, bandW / 2);
+      ctx2.rotate(Math.PI / 2);
+      ctx2.drawImage(video, sx, 0, bandW, vh, -bandW / 2, -vh / 2, bandW, vh);
+      ctx2.restore();
+      return bcCanvas;
     }
 
     async function tick() {
       if (!gate || gate.style.display === 'none') return;
       const vw = video.videoWidth || 0, vh = video.videoHeight || 0;
+
       if (vw && vh && !bcBusy) {
-        const step = bcFrames % 3;
+        const step = bcFrames % 4;
+        bcFrames++;
         try {
-          grab(step === 1 ? 'vertical' : 'horizontal', vw, vh);
-          bcFrames++;
-          // step 0: plain strip, 1: vertical strip, 2: contrast-hardened strip
-          const text = await decodeFrame(bcCanvas, step === 2 ? 2 : 0);
+          let text = null;
+
+          if (step === 0) {
+            // straight read of the target box
+            text = await decodeFrame(grabTarget(vw, vh), 0);
+          } else if (step === 1) {
+            // same box, contrast hardened — shiny labels and freezer frost
+            text = await decodeFrame(grabTarget(vw, vh), 2);
+          } else if (step === 2) {
+            // let the locator find the bars anywhere in frame
+            const full = grabFull(vw, vh);
+            const band = locateBarcodeBand(full);
+            if (band) {
+              markTargetFound(true);
+              text = await decodeFrame(cropBand(full, band.y0, band.y1));
+            } else {
+              markTargetFound(false);
+            }
+          } else {
+            // a code standing on end
+            text = await decodeFrame(grabVertical(vw, vh), 0);
+          }
+
           if (text) handleBarcode(text);
         } catch (e) {}
       }
-      bcLoop = setTimeout(tick, 120);
+      bcLoop = setTimeout(tick, 110);
     }
     tick();
+  }
+
+  // Corners turn green the moment the bars are spotted, before it decodes —
+  // so you know it can see the barcode and just needs a steadier moment.
+  // A quick green pulse so a read is unmistakable without looking at the text
+  function flashScan() {
+    const t = document.getElementById('scanTarget');
+    if (!t) return;
+    t.classList.add('hit');
+    setTimeout(function () { t.classList.remove('hit'); }, 420);
+    buzz([30, 30, 30]);
+  }
+
+  function markTargetFound(found) {
+    const t = document.getElementById('scanTarget');
+    if (!t) return;
+    t.classList.toggle('found', !!found);
+    const hint = document.getElementById('scanHint');
+    if (hint) {
+      hint.textContent = found
+        ? 'Got it \u2014 hold still'
+        : 'Fill the box with the barcode';
+    }
   }
 
   function closeBarcode() {
@@ -6645,6 +6872,9 @@ function calc(units, caseSize) {
     if (gate) gate.style.display = 'none';
     if (bcLoop) { clearTimeout(bcLoop); bcLoop = null; }
     bcDetector = null;
+    bcTorchOn = false;
+    const tb = document.getElementById('torchBtn');
+    if (tb) { tb.classList.remove('on'); tb.style.display = 'none'; }
     if (bcZxing) {
       try { if (bcZxing.reset) bcZxing.reset(); } catch (e) {}
       bcZxing = null;
@@ -6817,9 +7047,11 @@ function calc(units, caseSize) {
     saveItems();
     const c2 = calc(item.units, item.caseSize);
     const ex = gs1Extras(code);
-    bcSay('+1 case  ' + item.name + '  \u2192 ' + c2.decimalCases + ' cs' +
+    flashScan();
+    bcSay('\u2714 ' + item.name + '  +1 ' + packOf(item).one + '  \u2192 ' +
+          c2.decimalCases + ' ' + packLabel(item, c2.decimalCases) +
           (ex && ex.useBy ? '   use by ' + ex.useBy.toLocaleDateString('en-US',
-            { month: 'short', day: 'numeric', year: 'numeric' }) : ''), true);
+            { month: 'short', day: 'numeric' }) : ''), true);
     setTimeout(function () { bcBusy = false; }, 1100);
   }
 
@@ -6997,32 +7229,18 @@ function calc(units, caseSize) {
         }
 
         const img = await loadImageFile(file);
+
+        // Keep plenty of horizontal detail — thin bars need it — but cap the
+        // total size so a 12MP photo doesn't stall the phone.
         const cv = document.createElement('canvas');
-        const ctx2 = cv.getContext('2d', { willReadFrequently: true });
+        const scale = Math.min(1, 2400 / Math.max(img.width, img.height));
+        cv.width = Math.round(img.width * scale);
+        cv.height = Math.round(img.height * scale);
+        cv.getContext('2d', { willReadFrequently: true })
+          .drawImage(img, 0, 0, cv.width, cv.height);
 
-        // Try the whole image, then progressively tighter horizontal bands.
-        // A label photographed at an angle often decodes in one strip when the
-        // full frame won't.
-        const attempts = [
-          { scale: 1,    top: 0,    height: 1 },
-          { scale: 1,    top: 0.25, height: 0.5 },
-          { scale: 0.6,  top: 0,    height: 1 },
-          { scale: 1,    top: 0,    height: 0.5 },
-          { scale: 1,    top: 0.5,  height: 0.5 },
-          { scale: 1.6,  top: 0.2,  height: 0.6 }
-        ];
-
-        for (let i = 0; i < attempts.length && !text; i++) {
-          const a = attempts[i];
-          const sy = Math.round(img.height * a.top);
-          const sh = Math.max(40, Math.round(img.height * a.height));
-          cv.width = Math.round(img.width * a.scale);
-          cv.height = Math.round(sh * a.scale);
-          ctx2.drawImage(img, 0, sy, img.width, sh, 0, 0, cv.width, cv.height);
-          const st = document.getElementById('photoStatus');
-          if (st) st.textContent = 'Decoding\u2026 pass ' + (i + 1) + ' of ' + attempts.length;
-          text = await decodeFrame(cv);
-        }
+        const st = document.getElementById('photoStatus');
+        text = await decodePhoto(cv, function (msg) { if (st) st.textContent = msg; });
       } catch (e) {
         console.warn('Tally: photo decode failed —', e && e.message);
       }
@@ -7331,20 +7549,20 @@ function calc(units, caseSize) {
       '<div class="audit-item-name">Scan barcodes</div>' +
       '<div class="audit-sub">How do you want to count?</div>' +
       '<div class="scan-choice">' +
-        '<button type="button" class="scan-source" id="bcPhotoMain">' +
-          '<span class="scan-icon">&#128247;</span>' +
-          '<span><b style="display:block;">Photograph the label</b>' +
-          '<i style="font-style:normal;font-size:11px;color:var(--text-dim);">Most reliable \u2014 uses the full camera. Best for case labels.</i></span>' +
-        '</button>' +
         '<button type="button" class="scan-source" id="bcOneBtn">' +
-          '<span class="scan-icon">1\u20E3</span>' +
-          '<span><b style="display:block;">Live scan, one by one</b>' +
-          '<i style="font-style:normal;font-size:11px;color:var(--text-dim);">Each scan adds a case right away</i></span>' +
+          '<span class="scan-icon">&#128247;</span>' +
+          '<span><b style="display:block;">Scan and go</b>' +
+          '<i style="font-style:normal;font-size:11px;color:var(--text-dim);">Point at each box \u2014 adds a case as it reads</i></span>' +
         '</button>' +
         '<button type="button" class="scan-source" id="bcBatchBtn">' +
           '<span class="scan-icon">&#128230;</span>' +
-          '<span><b style="display:block;">Live scan, whole delivery</b>' +
-          '<i style="font-style:normal;font-size:11px;color:var(--text-dim);">Collect the lot, then edit before saving</i></span>' +
+          '<span><b style="display:block;">Scan a whole delivery</b>' +
+          '<i style="font-style:normal;font-size:11px;color:var(--text-dim);">Keep scanning, review the lot before saving</i></span>' +
+        '</button>' +
+        '<button type="button" class="scan-source" id="bcPhotoMain">' +
+          '<span class="scan-icon">&#128248;</span>' +
+          '<span><b style="display:block;">Photograph it instead</b>' +
+          '<i style="font-style:normal;font-size:11px;color:var(--text-dim);">If a label will not read live</i></span>' +
         '</button>' +
       '</div>' +
       '<div class="join-hint">Batch is better for a full delivery &mdash; nothing changes until you review it.<br><br>' +
