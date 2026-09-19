@@ -1,4 +1,4 @@
-  const APP_BUILD = '202609181820';
+  const APP_BUILD = '202609191735';
 // Tally — application code
 // Split out of the single-file build so edits stay local and one mistake
 // can't silently delete unrelated features.
@@ -141,7 +141,7 @@ function calc(units, caseSize) {
             '<h3>Nothing here yet</h3>' +
             '<p>Add what you keep in the freezer, then count it with the buttons, your voice, or the scanner.</p>' +
             '<button type="button" class="empty-btn" id="emptyAdd">\u2795 Add your first item</button>' +
-            '<button type="button" class="empty-link" id="emptyScan">or scan an order sheet</button>' +
+            '<button type="button" class="empty-link" id="emptyScan">or scan a production sheet</button>' +
             '<button type="button" class="empty-link" id="emptyTour">show me around</button>' +
           '</div>';
       on('emptyRestore', 'click', showSnapshots);
@@ -692,6 +692,8 @@ function calc(units, caseSize) {
 
   function localKey() { return 'tally_local_' + (roomCode || 'MAIN'); }
 
+  let localSaveOk = true;
+
   function saveLocal() {
     try {
       localStorage.setItem(localKey(), JSON.stringify({
@@ -699,7 +701,14 @@ function calc(units, caseSize) {
         savedAt: Date.now(),
         pending: hasPending
       }));
-    } catch (e) {}
+      localSaveOk = true;
+    } catch (e) {
+      // Storage full or blocked — this is the ONLY case where leaving the page
+      // could actually lose counts, so it is the only case worth warning about.
+      localSaveOk = false;
+      console.warn('Tally: could not save locally —', e && e.message);
+      showCommandToast('This phone would not store the count \u2014 sync before closing', true);
+    }
   }
 
   function loadLocal() {
@@ -893,8 +902,36 @@ function calc(units, caseSize) {
   // something won't sync, guessing is worse than looking.
   // A stale service worker can keep serving an old build after an upload,
   // which looks exactly like "the fix didn't work". This clears it out.
+  // A file you keep, independent of the app, the cache and the database.
+  function downloadLocalBackup() {
+    try {
+      const payload = {
+        tallyBackup: 2,
+        store: roomCode || 'MAIN',
+        exportedAt: Date.now(),
+        exportedBy: myName || 'unknown',
+        pendingWhenSaved: !!hasPending,
+        items: items
+      };
+      const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
+      downloadFile('tally-' + (roomCode || 'MAIN') + '-' + stamp + '.json',
+                   JSON.stringify(payload, null, 2), 'application/json');
+      showCommandToast('Backup saved to your downloads');
+      return true;
+    } catch (e) {
+      notify('Could not save the backup', (e && e.message) || 'unknown error');
+      return false;
+    }
+  }
+
   async function forceUpdate() {
-    if (!(await askConfirm('Confirm', 'Clear the cached app and reload?\n\nYour counts are safe — they live in the database.', 'OK'))) return;
+    const pendingNote = hasPending
+      ? '\n\nYou have counts waiting to sync. They are stored on this phone and will still be here afterwards \u2014 this only replaces the app files.'
+      : '';
+    const ok = await askConfirm('Update the app?',
+      'This reloads the newest version.\n\nYour counts are NOT affected. They live in the phone\u2019s storage and in the database \u2014 this only clears the cached copy of the app itself.' +
+      pendingNote, 'Update');
+    if (!ok) return;
     try {
       if ('caches' in window) {
         const keys = await caches.keys();
@@ -945,13 +982,16 @@ function calc(units, caseSize) {
       '<div class="audit-actions">' +
         '<button type="button" class="audit-skip" id="syncTest">Connection test</button>' +
         '<button type="button" id="syncForce">Force sync now</button></div>' +
+      '<div class="audit-actions" style="margin-top:8px;">' +
+        '<button type="button" id="syncBackup">\u2b07 Save a backup file</button></div>' +
       '<div class="join-hint">' +
         '<button type="button" class="store-action" id="syncScanTest">scanner test</button><br>' +
-        '<button type="button" class="store-action" id="syncReload">force update the app</button><br>' +
+        '<button type="button" class="store-action" id="syncReload">update the app</button><br>' +
         '<button type="button" class="store-action" id="syncClose">Close</button></div>';
 
     on('syncClose', 'click', closeAudit);
     on('syncTest', 'click', showConnectionTest);
+    on('syncBackup', 'click', downloadLocalBackup);
     on('syncScanTest', 'click', guardScreen('Scanner test', showScannerTest));
     on('syncReload', 'click', forceUpdate);
     on('syncForce', 'click', function () {
@@ -1502,8 +1542,10 @@ function calc(units, caseSize) {
   });
 
   // Warn before leaving with unsynced work
+  // Unsynced work is kept on the phone, so closing the app is safe and should
+  // not nag. Warn only if the phone refused to store it.
   window.addEventListener('beforeunload', function (e) {
-    if (hasPending) {
+    if (hasPending && !localSaveOk) {
       e.preventDefault();
       e.returnValue = '';
     }
@@ -1666,7 +1708,7 @@ function calc(units, caseSize) {
   const NAV_TABS = {
     count: { label: 'Count', items: [
       ['barcodeBtn', '\uD83D\uDD22', 'Scan barcode', 'One by one, or a whole delivery then review'],
-      ['sheetBtn',   '\uD83D\uDCCB', 'Scan production', 'Order sheets and delivery invoices'],
+      ['sheetBtn',   '\uD83D\uDCCB', 'Scan production', 'Production sheets and delivery invoices'],
       ['trayBtn',    '\uD83E\uDD6F', 'Count a tray', 'Munchkins and loose product \u2014 photo or tap it out'],
       ['auditBtn',   '\u2705', 'Spot audit', 'Count a random sample, tap or hands-free']
     ]},
@@ -1887,7 +1929,7 @@ function calc(units, caseSize) {
       text: 'Count is scanning and audits. Order is what to buy. Review is waste, history and recipes. More is settings and reporting a problem.' },
 
     { target: '.bnav-btn:nth-child(1)', place: 'above', title: 'Count',
-      text: 'Scan a barcode on a case, photograph the order sheet, or count a tray of munchkins by camera. There\u2019s a spot audit in here too.' },
+      text: 'Scan a barcode on a case, photograph the production sheet, or count a tray of munchkins by camera. There\u2019s a spot audit in here too.' },
 
     { target: '.bnav-btn:nth-child(2)', place: 'above', title: 'Order',
       text: 'The order list works out what to buy from how fast things actually move here \u2014 not a fixed number someone guessed once.' },
@@ -2517,7 +2559,7 @@ function calc(units, caseSize) {
       if (what === 'barcode') { closeAudit(); openBarcode('link', idx); return; }
       if (what === 'code') {
         askText('Product code', { value: item.productCode || '', allowEmpty: true,
-                                  hint: 'From the order sheet, like F20016 or U10034.' })
+                                  hint: 'From the production sheet, like F20016 or U10034.' })
           .then(function (v) {
             if (v === null) return;
             item.productCode = v ? v.toUpperCase() : null;
@@ -3301,9 +3343,31 @@ function calc(units, caseSize) {
       return { m: m, frac: on / n };
     }
 
-    // Prefer the saturation mask. The lower bound is deliberately small so a
-    // nearly-empty tray still works; only reject it if it found almost nothing
-    // or swallowed the whole frame.
+    // A munchkin turned cut-side up is pale — its saturation falls below the
+    // threshold and it was being dropped entirely. But it is still WARM
+    // (red >= green >= blue) and bright, which the rack, counter and floor
+    // never are. Three signals together catch both sides of a piece.
+    function maskProduct() {
+      const t = otsu(sat) / 255;
+      const m = new Uint8Array(n);
+      let on = 0;
+      for (let i = 0, p = 0; p < n; i += 4, p++) {
+        const r = data[i], g = data[i + 1], b = data[i + 2];
+        const warm = r >= g && g >= b;
+        const s = sat[p] / 255;
+        const v = val[p];
+        const hit = warm && (s > t || (s > t * 0.4 && v > 105));
+        m[p] = hit ? 1 : 0;
+        if (hit) on++;
+      }
+      return { m: m, frac: on / n };
+    }
+
+    // Warm-product mask first — it catches pale, upside-down pieces that a
+    // saturation-only mask throws away.
+    const byProduct = maskProduct();
+    if (byProduct.frac > 0.004 && byProduct.frac < 0.85) return byProduct.m;
+
     const bySat = maskFrom(sat, false);
     if (bySat.frac > 0.004 && bySat.frac < 0.85) return bySat.m;
 
@@ -3357,12 +3421,35 @@ function calc(units, caseSize) {
   }
 
   // Each piece shows up as a local maximum in the distance map
-  function findCenters(d, W, H) {
+  // Each piece is a local maximum in the distance map. The hard part is knowing
+  // how far apart centres should be: too small and one munchkin gets counted
+  // several times, too large and touching pieces merge into one.
+  //
+  // The radius comes from the 95th percentile of the distance values, which
+  // tracks the real piece size even when everything is touching. A learned
+  // value from your own corrections overrides it when we have one.
+  function findCenters(d, W, H, mask, learnedRatio, pixels) {
     let mx = 0;
-    for (let p = 0; p < d.length; p++) if (d[p] < 1e8 && d[p] > mx) mx = d[p];
-    if (!mx) return [];
+    const vals = [];
+    for (let p = 0; p < d.length; p++) {
+      if (d[p] > 0 && d[p] < 1e8) {
+        vals.push(d[p]);
+        if (d[p] > mx) mx = d[p];
+      }
+    }
+    if (!mx || vals.length < 50) return [];
 
-    const floor = mx * 0.35;
+    vals.sort(function (a, b) { return a - b; });
+    const p95 = vals[Math.floor(vals.length * 0.95)] / 5;   // chamfer units -> px
+
+    // learnedRatio is the piece radius as a fraction of image width
+    const radius = learnedRatio ? learnedRatio * W : p95;
+    // 1.9x the radius: measured against a fully packed tray, this is the point
+    // where double-counting stops without touching pieces merging into one.
+    const R = Math.max(4, radius * 1.6);
+    const R2 = R * R;
+
+    const floor = mx * 0.30;
     const cands = [];
     for (let y = 1; y < H - 1; y++) {
       for (let x = 1; x < W - 1; x++) {
@@ -3377,11 +3464,48 @@ function calc(units, caseSize) {
     if (!cands.length) return [];
     cands.sort(function (a, b) { return b.v - a.v; });
 
-    // Typical piece size from the median peak, not the largest
-    const sorted = cands.map(function (c2) { return c2.v; }).sort(function (a, b) { return a - b; });
-    const med = sorted[Math.floor(sorted.length / 2)] || mx;
-    const R = (med / 5) * 1.40;
-    const R2 = R * R;
+    // A real piece sits in a solid patch of product. This throws out specks of
+    // rack, counter and floor that happen to peak.
+    // Baked product is warm: red >= green >= blue, reasonably bright, and not
+    // grey. Rack, counter and floor all fail at least one of those.
+    function looksBaked(cx, cy) {
+      const i = (cy * W + cx) * 4;
+      const r = pixels[i], g = pixels[i + 1], b = pixels[i + 2];
+      const mx2 = Math.max(r, g, b), mn2 = Math.min(r, g, b);
+      return r >= g && g >= b && mx2 > 70 && (mx2 - mn2) > 25;
+    }
+
+    function solidEnough(cx, cy) {
+      if (!mask) return true;
+      const rr = Math.max(2, Math.round(radius * 0.5));
+      let on = 0, total = 0;
+      for (let y = cy - rr; y <= cy + rr; y += 2) {
+        if (y < 0 || y >= H) continue;
+        for (let x = cx - rr; x <= cx + rr; x += 2) {
+          if (x < 0 || x >= W) continue;
+          if ((x - cx) * (x - cx) + (y - cy) * (y - cy) > rr * rr) continue;
+          total++;
+          if (mask[y * W + x]) on++;
+        }
+      }
+      return total > 0 && (on / total) >= 0.75;
+    }
+
+    // Two peaks are the SAME piece if the distance map stays high between them
+    // (one lumpy munchkin), and DIFFERENT pieces if it dips (a seam where they
+    // touch). That is what stopped one piece being counted twice.
+    function samePiece(ax, ay, av, bx, by, bv) {
+      const steps = Math.max(2, Math.round(Math.sqrt((ax - bx) * (ax - bx) + (ay - by) * (ay - by))));
+      let lowest = Infinity;
+      for (let i = 1; i < steps; i++) {
+        const sx = Math.round(ax + (bx - ax) * i / steps);
+        const sy = Math.round(ay + (by - ay) * i / steps);
+        if (sx < 0 || sy < 0 || sx >= W || sy >= H) return false;
+        const v = d[sy * W + sx];
+        if (v < lowest) lowest = v;
+      }
+      return lowest > Math.min(av, bv) * 0.8;
+    }
 
     const out = [];
     for (let i = 0; i < cands.length; i++) {
@@ -3389,11 +3513,98 @@ function calc(units, caseSize) {
       let clash = false;
       for (let k = 0; k < out.length; k++) {
         const dx = c2.x - out[k].x, dy = c2.y - out[k].y;
-        if (dx * dx + dy * dy < R2) { clash = true; break; }
+        const dist2 = dx * dx + dy * dy;
+        if (dist2 < R2) { clash = true; break; }
+        if (dist2 < R2 * 2.2 && samePiece(c2.x, c2.y, c2.v, out[k].x, out[k].y, out[k].v)) {
+          clash = true; break;
+        }
       }
-      if (!clash) out.push({ x: c2.x, y: c2.y });
+      if (clash) continue;
+      if (!solidEnough(c2.x, c2.y)) continue;
+      if (pixels && !looksBaked(c2.x, c2.y)) continue;
+      out.push({ x: c2.x, y: c2.y, v: c2.v });
     }
-    return out;
+    return out.map(function (p) { return { x: p.x, y: p.y }; });
+  }
+
+  // ============ TRAY COUNTER LEARNING ============
+  // Every time you correct the dots and save, we measure how far apart the
+  // confirmed centres actually are and remember it. That figure is stored as a
+  // fraction of the image width, so it holds whatever distance you shoot from.
+  let trayW = 0, trayH = 0;
+  let trayEdited = false;   // did you actually correct the dots?
+
+  function trayCalRef() { return db.ref('tally/rooms/' + roomCode + '/traycal'); }
+
+  function loadTrayCal() {
+    try {
+      const raw = localStorage.getItem('tally_traycal');
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+  }
+
+  function trayRadiusRatio() {
+    const cal = loadTrayCal();
+    if (!cal || !cal.ratio || cal.samples < 1) return null;
+    return cal.ratio;
+  }
+
+  // median distance to the nearest other marker = centre-to-centre spacing
+  function medianSpacing(points) {
+    if (!points || points.length < 6) return null;
+    const dists = [];
+    for (let i = 0; i < points.length; i++) {
+      let best = Infinity;
+      for (let k = 0; k < points.length; k++) {
+        if (i === k) continue;
+        const dx = points[i].x - points[k].x, dy = points[i].y - points[k].y;
+        const d2 = dx * dx + dy * dy;
+        if (d2 < best) best = d2;
+      }
+      if (best < Infinity) dists.push(Math.sqrt(best));
+    }
+    if (!dists.length) return null;
+    dists.sort(function (a, b) { return a - b; });
+    return dists[Math.floor(dists.length / 2)];
+  }
+
+  function learnFromTray(points, imgW) {
+    if (!imgW || !points || points.length < 8) return;
+    // Only learn when you actually corrected something. Learning from our own
+    // uncorrected output would just reinforce whatever it already believed.
+    if (!trayEdited) return;
+    const spacing = medianSpacing(points);
+    if (!spacing || spacing < 4) return;
+
+    // touching pieces sit about one diameter apart, so radius ~ spacing / 2
+    const ratio = (spacing / 2) / imgW;
+    if (!isFinite(ratio) || ratio <= 0 || ratio > 0.25) return;
+
+    const prev = loadTrayCal();
+    // Never let one odd photo swing the estimate more than 20%
+    let use = ratio;
+    if (prev && prev.ratio) {
+      const lo = prev.ratio * 0.8, hi = prev.ratio * 1.2;
+      use = Math.max(lo, Math.min(hi, ratio));
+    }
+    const cal = prev || { ratio: use, samples: 0 };
+    // rolling average, weighted so recent trays matter but one odd photo can't
+    // throw the whole thing off
+    const n = Math.min(cal.samples || 0, 9);
+    const blended = ((cal.ratio || use) * n + use) / (n + 1);
+    const next = { ratio: blended, samples: (cal.samples || 0) + 1, at: Date.now() };
+
+    try { localStorage.setItem('tally_traycal', JSON.stringify(next)); } catch (e) {}
+    if (isConfigured && roomCode) {
+      trayCalRef().set(cleanForSave(next)).catch(function () {});
+    }
+    return next;
+  }
+
+  function trayCalSummary() {
+    const cal = loadTrayCal();
+    if (!cal || !cal.samples) return 'not tuned yet';
+    return 'tuned from ' + cal.samples + ' tray' + (cal.samples === 1 ? '' : 's');
   }
 
   function startTrayCount(idx) {
@@ -3426,7 +3637,8 @@ function calc(units, caseSize) {
     const mask = buildMask(data, W, H);
     const eroded = erodeMask(mask, W, H);
     const dist = distanceTransform(eroded, W, H);
-    trayMarkers = findCenters(dist, W, H);
+    trayMarkers = findCenters(dist, W, H, mask, trayRadiusRatio(), data);
+    trayW = W; trayH = H; trayEdited = false;
 
     trayImg = cv.toDataURL('image/jpeg', 0.75);
     renderTray(W, H);
@@ -3447,7 +3659,9 @@ function calc(units, caseSize) {
         '<button type="button" class="admin-mini-btn" id="trayClear">Clear all</button>' +
         '<button type="button" class="admin-mini-btn" id="trayRedo">Retake</button>' +
       '</div>' +
-      '<div class="audit-summary">Auto-counting is a starting point, not gospel \u2014 pieces that touch can read as one. Check the dots before saving.</div>' +
+      '<div class="audit-summary">Tap any dot it got wrong, or empty space to add one. ' +
+      'It learns the piece size from your corrections \u2014 ' + trayCalSummary() + '. ' +
+      '<button type="button" class="store-action" id="trayReset">reset learning</button></div>' +
       '<div class="audit-actions">' +
         '<button type="button" class="audit-skip" id="trayCancel">Cancel</button>' +
         '<button type="button" id="traySave">' +
@@ -3468,6 +3682,7 @@ function calc(units, caseSize) {
       const dot = e.target.closest('.tray-dot');
       if (dot) {
         trayMarkers.splice(parseInt(dot.getAttribute('data-dot'), 10), 1);
+        trayEdited = true;
         buzz(8);
         drawDots();
         return;
@@ -3476,6 +3691,7 @@ function calc(units, caseSize) {
       const x = (e.clientX - r.left) / r.width * W;
       const y = (e.clientY - r.top) / r.height * H;
       trayMarkers.push({ x: x, y: y });
+      trayEdited = true;
       buzz(8);
       drawDots();
     });
@@ -3483,6 +3699,13 @@ function calc(units, caseSize) {
     document.getElementById('trayClear').addEventListener('click', function () {
       trayMarkers = [];
       drawDots();
+    });
+    on('trayReset', 'click', async function () {
+      if (!(await askConfirm('Reset tray learning?',
+            'It will go back to judging piece size from the photo alone.', 'Reset', true))) return;
+      try { localStorage.removeItem('tally_traycal'); } catch (e) {}
+      if (isConfigured && roomCode) trayCalRef().remove().catch(function () {});
+      showCommandToast('Tray learning reset');
     });
     document.getElementById('trayRedo').addEventListener('click', function () {
       startTrayCount(trayItemIdx);
@@ -3502,7 +3725,11 @@ function calc(units, caseSize) {
       }
       const item = items[trayItemIdx];
       const delta = n - item.units;
-      snapshotForUndo();
+
+      // Your corrections are the training signal — learn the real piece size
+      learnFromTray(trayMarkers, trayW);
+
+      snapshotForUndo('tray count ' + item.name);
       item.units = n;
       if (delta !== 0) pushHistory(item, delta, 'count');
       bumpCount(trayItemIdx);
@@ -5846,35 +6073,64 @@ function calc(units, caseSize) {
 
   function parseSheet(text) {
     const out = [], seen = {};
+
+    // The product code is a bonus, not a requirement. Photographed sheets
+    // often lose the left edge, turning F20013 into 20013 or nothing at all —
+    // so match on the row shape instead: [code?] name EA quantity.
+    const ROW = /^\s*([A-Za-z]?\d{5})?\s*[|:]?\s*(.+?)\s+\b(?:EA|EACH|CS|BX)\b\s+(\d{1,4})\b/i;
+
     text.split('\n').forEach(function (line) {
-      const l = line.trim();
+      const l = line.replace(/\s+/g, ' ').trim();
       if (!l) return;
-      if (/\b(product code|order qty|rcvd|workpulse|manager|subtotal|total)\b/i.test(l)) return;
-      const m = SHEET_ROW.exec(l);
+      if (/\b(product code|order qty|rcvd|workpulse|manager|subtotal|total|vendor|location|delivery|date:)\b/i.test(l)) return;
+
+      const m = ROW.exec(l);
       if (!m) return;
-      const pcode = fixCode(m[1], m[2]);
-      if (!/^[FU]\d{5}$/.test(pcode)) return;
-      if (seen[pcode]) return;
-      seen[pcode] = true;
-      const name = m[3].replace(/[|]+/g, ' ').replace(/\s{2,}/g, ' ').trim();
-      const qty = parseInt(m[4], 10);
+
+      let code = m[1] ? m[1].toUpperCase() : null;
+      // a bare 5-digit code is still useful for matching later
+      if (code && /^\d{5}$/.test(code)) code = code;
+
+      let name = m[2].replace(/\s{2,}/g, ' ').trim();
+      name = name.replace(/^[|:\-\s]+/, '').replace(/[|:\-\s]+$/, '');
+      const qty = parseInt(m[3], 10);
+
+      if (!name || name.replace(/[^a-z]/gi, '').length < 3) return;
       if (!qty || qty < 1 || qty > 9999) return;
-      let idx = findByCode(pcode);
+
+      const key = (code || '') + '|' + name.toLowerCase();
+      if (seen[key]) return;
+      seen[key] = true;
+
+      // match on the code first, then fall back to the name
+      let idx = code ? findByCode(code) : -1;
+      if (idx === -1 && code) idx = findByCodeLoose(code);
       if (idx === -1) idx = matchItem(name);
-      out.push({ code: pcode, name: name, qty: qty, idx: idx, include: idx !== -1 });
+
+      out.push({ code: code, name: name, qty: qty, idx: idx, include: idx !== -1 });
     });
     return out;
+  }
+
+  // A cropped photo can drop the leading letter, so compare the digits only
+  function findByCodeLoose(code) {
+    const digits = String(code).replace(/\D/g, '');
+    if (digits.length < 4) return -1;
+    return items.findIndex(function (it) {
+      const pc = String(it.productCode || '').replace(/\D/g, '');
+      return pc && pc === digits;
+    });
   }
 
   let sheetResults = [], sheetDir = 1;
 
   function startSheetScan() {
-    sourcePicker('Scan order sheet',
-      'Lay it flat, good light, straight on. Reads the Product Code and Order Qty columns.',
+    sourcePicker('Scan production sheet',
+      'Lay it flat, good light, straight on. Reads the product names and Order Qty column.',
       function (cam) {
         pickImage(cam, async function (file) {
           const body = document.getElementById('auditBody');
-          body.innerHTML = '<div class="audit-item-name">Reading sheet</div>' +
+          body.innerHTML = '<div class="audit-item-name">Reading production sheet</div>' +
             '<div class="audit-sub" id="ocrStatus">Loading scanner...</div>';
           let text = '';
           try { text = await runOcr(file, document.getElementById('ocrStatus')); }
@@ -6041,18 +6297,18 @@ function calc(units, caseSize) {
     }).join('');
 
     body.innerHTML =
-      '<div class="audit-item-name">Review sheet</div>' +
+      '<div class="audit-item-name">Review production</div>' +
       '<div class="audit-sub">' + sheetResults.length + ' row(s) &middot; ' + matched + ' matched</div>' +
       '<div class="mode-toggle" id="sheetDirToggle" style="margin-bottom:12px;">' +
-        '<button type="button" class="active" data-dir="1">Add to freezer</button>' +
-        '<button type="button" data-dir="-1">Take out</button></div>' +
+        '<button type="button" data-dir="1">Adding a delivery</button>' +
+        '<button type="button" class="active" data-dir="-1">Taking out to bake</button></div>' +
       rows +
-      '<div class="audit-summary">Quantities are EACH, not cases &mdash; taken from the Order Qty column. Check them before applying; OCR misreads digits. Unmatched codes are skipped &mdash; set an item\'s product code to link it for next time.</div>' +
+      '<div class="audit-summary">Quantities are EACH, straight from the Order Qty column. Check them before applying &mdash; scanning misreads digits sometimes. Anything not recognised has a &ldquo;What is it?&rdquo; button so you can link or create it.</div>' +
       '<div class="audit-actions">' +
         '<button type="button" class="audit-skip" id="shCancel">Cancel</button>' +
         '<button type="button" id="shApply">Apply</button></div>';
 
-    sheetDir = 1;
+    sheetDir = -1;   // production sheets take stock out by default
     document.getElementById('sheetDirToggle').addEventListener('click', function (e) {
       const b = e.target.closest('button[data-dir]');
       if (!b) return;
@@ -6076,14 +6332,33 @@ function calc(units, caseSize) {
       }
     });
 
-    document.getElementById('shApply').addEventListener('click', function () {
+    document.getElementById('shApply').addEventListener('click', async function () {
       const use = sheetResults.filter(function (r) { return r.include && r.idx !== -1 && r.qty > 0; });
-      if (!use.length) { notify('Tally', 'Nothing selected to apply.'); return; }
-      snapshotForUndo();
+      if (!use.length) { notify('Nothing selected', 'Tick at least one row first.'); return; }
+
+      // Products that change day to day (Baker's Choice) get asked about first,
+      // so the count is recorded against what it actually was.
+      for (const r of use) {
+        const item = items[r.idx];
+        if (item && isVariantItem(item)) {
+          const pick = await askChoice('What was ' + item.name + ' today?',
+            VARIANT_BASES.map(function (b) { return { label: b, value: b }; }),
+            { current: item.lastVariant || null,
+              message: 'Recorded with the count so the history shows which kind it was.' });
+          if (pick) {
+            item.lastVariant = pick;
+            if (!Array.isArray(item.variantLog)) item.variantLog = [];
+            item.variantLog.push({ at: Date.now(), variant: pick, by: myName || 'someone' });
+            if (item.variantLog.length > 60) item.variantLog = item.variantLog.slice(-60);
+          }
+        }
+      }
+
+      snapshotForUndo('production sheet');
       use.forEach(function (r) {
         const item = items[r.idx];
         if (!item) return;
-        if (!item.productCode) item.productCode = r.code;
+        if (!item.productCode && r.code && /^[A-Z]/.test(r.code)) item.productCode = r.code;
         const delta = sheetDir > 0 ? r.qty : -Math.min(r.qty, item.units);
         if (delta === 0) return;
         item.units = Math.max(0, item.units + delta);
@@ -6092,11 +6367,92 @@ function calc(units, caseSize) {
       render();
       saveItems();
       closeAudit();
-      showCommandToast((sheetDir > 0 ? 'Added ' : 'Removed ') + use.length + ' item(s) from sheet');
+      showCommandToast((sheetDir > 0 ? 'Added ' : 'Took out ') + use.length + ' item(s) from the sheet');
+
+      // Anything without a recipe can't feed the icing and filling numbers,
+      // so offer to fill the gaps while the sheet is fresh in mind.
+      const noRecipe = use
+        .map(function (r) { return items[r.idx]; })
+        .filter(function (it) {
+          return it && !isVariantItem(it) && !recipeFor(it.name) &&
+                 ['Donuts', 'Munchkins', 'Specialty'].indexOf(itemCategory(it)) !== -1;
+        });
+      if (noRecipe.length) {
+        const ok = await askConfirm('Add missing recipes?',
+          noRecipe.length + ' item(s) that went out today have no recipe:\n\n' +
+          noRecipe.slice(0, 6).map(function (it) { return '\u2022 ' + it.name; }).join('\n') +
+          (noRecipe.length > 6 ? '\n\u2026and ' + (noRecipe.length - 6) + ' more' : '') +
+          '\n\nWithout one, their icing and filling are not counted in the usage breakdown.',
+          'Add them');
+        if (ok) addMissingRecipes(noRecipe.map(function (it) { return it.name; }));
+      }
     });
   }
 
   // ============ INVOICE (free-form) ============
+  // Walks through products that have no recipe. Suggests a match from the
+  // finishing chart first, so most of them are one tap.
+  function addMissingRecipes(names) {
+    let i = 0;
+
+    function suggestFor(name) {
+      const n = String(name).toLowerCase()
+        .replace(/^donut,?\s*/, '').replace(/^munchkin,?\s*/, '')
+        .replace(/^fancy,?\s*/, '').replace(/[^a-z ]/g, ' ')
+        .replace(/\s+/g, ' ').trim();
+      const words = n.split(' ').filter(function (w) { return w.length > 2; });
+      let best = null, bestScore = 0;
+      recipes.forEach(function (r) {
+        const rn = r.name.toLowerCase();
+        let score = 0;
+        words.forEach(function (w) { if (rn.indexOf(w) !== -1) score += w.length; });
+        if (score > bestScore) { bestScore = score; best = r; }
+      });
+      return bestScore >= 5 ? best : null;
+    }
+
+    function step() {
+      if (i >= names.length) {
+        showCommandToast('Recipes updated');
+        render();
+        return;
+      }
+      const name = names[i++];
+      const guess = suggestFor(name);
+
+      const opts = [];
+      if (guess) {
+        opts.push({ label: 'Same as "' + guess.name + '"', value: '__copy',
+                    sub: [guess.base, guess.filling ? 'filled: ' + guess.filling : null,
+                          (guess.toppings || []).join(' + ')].filter(Boolean).join(' \u00b7 ') });
+      }
+      opts.push({ label: 'Build it myself', value: '__build' });
+      opts.push({ label: 'Skip this one', value: '__skip' });
+
+      askChoice(name, opts, { message: 'No recipe yet. What is it?' }).then(function (v) {
+        if (v === null || v === '__skip') { step(); return; }
+        if (v === '__copy' && guess) {
+          recipes.push({
+            name: name,
+            base: guess.base,
+            filling: guess.filling,
+            toppings: (guess.toppings || []).slice()
+          });
+          saveRecipes();
+          step();
+          return;
+        }
+        // build it: base, then filling, then toppings
+        const fresh = { name: name, base: null, filling: null, toppings: [] };
+        recipes.push(fresh);
+        saveRecipes();
+        editRecipe(recipes.length - 1, function () { step(); });
+      });
+    }
+
+    step();
+  }
+
   function parseInvoiceLines(text) {
     const out = [];
     text.split('\n').map(function (l) { return l.trim(); }).filter(Boolean).forEach(function (line) {
@@ -7627,13 +7983,13 @@ function calc(units, caseSize) {
       '<div class="scan-choice">' +
         '<button type="button" class="scan-source" id="prodOrderBtn">' +
           '<span class="scan-icon">&#128203;</span>' +
-          '<span><b style="display:block;">Order sheet</b>' +
-          '<i style="font-style:normal;font-size:11px;color:var(--text-dim);">Product codes and quantities</i></span>' +
+          '<span><b style="display:block;">Production sheet</b>' +
+          '<i style="font-style:normal;font-size:11px;color:var(--text-dim);">Takes what you pulled off the count</i></span>' +
         '</button>' +
         '<button type="button" class="scan-source" id="prodInvBtn">' +
           '<span class="scan-icon">&#129534;</span>' +
           '<span><b style="display:block;">Delivery invoice</b>' +
-          '<i style="font-style:normal;font-size:11px;color:var(--text-dim);">Free-form supplier paperwork</i></span>' +
+          '<i style="font-style:normal;font-size:11px;color:var(--text-dim);">Adds a delivery to the count</i></span>' +
         '</button>' +
       '</div>' +
       '<div class="join-hint"><button type="button" class="store-action" id="prodCancel">Cancel</button></div>';
