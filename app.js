@@ -1,4 +1,4 @@
-  const APP_BUILD = '202609191735';
+  const APP_BUILD = '202609200240';
 // Tally — application code
 // Split out of the single-file build so edits stay local and one mistake
 // can't silently delete unrelated features.
@@ -6077,12 +6077,14 @@ function calc(units, caseSize) {
     // The product code is a bonus, not a requirement. Photographed sheets
     // often lose the left edge, turning F20013 into 20013 or nothing at all —
     // so match on the row shape instead: [code?] name EA quantity.
-    const ROW = /^\s*([A-Za-z]?\d{5})?\s*[|:]?\s*(.+?)\s+\b(?:EA|EACH|CS|BX)\b\s+(\d{1,4})\b/i;
+    // The UOM column is optional: photographed sheets turn EA into FA, E4 or
+    // nothing at all. What always survives is [code?] name ... quantity.
+    const ROW = /^\s*([A-Za-z]?\d{4,6})?\s*[|:]?\s*([A-Za-z][A-Za-z0-9 ,.'\/&()-]{2,60}?)\s+(?:[A-Z0-9]{1,4}\s+)?(\d{1,4})(?:\s+(\d{1,4}))?\s*[\d.,OoIl]*\s*$/;
 
     text.split('\n').forEach(function (line) {
       const l = line.replace(/\s+/g, ' ').trim();
       if (!l) return;
-      if (/\b(product code|order qty|rcvd|workpulse|manager|subtotal|total|vendor|location|delivery|date:)\b/i.test(l)) return;
+      if (/\b(product code|order qty|rcvd|workpulse|manager|subtotal|total|vendor|location|delivery|date:|highway|llc|,fl,|price)\b/i.test(l)) return;
 
       const m = ROW.exec(l);
       if (!m) return;
@@ -6098,7 +6100,9 @@ function calc(units, caseSize) {
       if (!name || name.replace(/[^a-z]/gi, '').length < 3) return;
       if (!qty || qty < 1 || qty > 9999) return;
 
-      const key = (code || '') + '|' + name.toLowerCase();
+      // the same row turns up in overlapping bands — keep it once, and treat a
+      // clipped code as the same product as the full one
+      const key = name.toLowerCase().replace(/[^a-z0-9]/g, '');
       if (seen[key]) return;
       seen[key] = true;
 
@@ -6124,6 +6128,77 @@ function calc(units, caseSize) {
 
   let sheetResults = [], sheetDir = 1;
 
+  // A full page of small table rows is the worst case for on-device OCR: it
+  // reads the top few lines and gives up on the rest. Two things fix it —
+  // clean the image up first, then read it in horizontal bands so each pass
+  // only has a handful of rows to deal with.
+  async function prepareSheetImage(file) {
+    const img = await loadImageFile(file);
+    const target = 2400;                       // enough detail for small print
+    const scale = Math.min(2, Math.max(1, target / img.width));
+    const cv = document.createElement('canvas');
+    cv.width = Math.round(img.width * scale);
+    cv.height = Math.round(img.height * scale);
+    const g = cv.getContext('2d', { willReadFrequently: true });
+    g.imageSmoothingEnabled = true;
+    g.drawImage(img, 0, 0, cv.width, cv.height);
+
+    // grey, then stretch the contrast so faint print separates from paper
+    const im = g.getImageData(0, 0, cv.width, cv.height);
+    const d = im.data;
+    let lo = 255, hi = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      const v = (d[i] * 299 + d[i + 1] * 587 + d[i + 2] * 114) / 1000;
+      if (v < lo) lo = v;
+      if (v > hi) hi = v;
+    }
+    const span = Math.max(1, hi - lo);
+    for (let i = 0; i < d.length; i += 4) {
+      const v = (d[i] * 299 + d[i + 1] * 587 + d[i + 2] * 114) / 1000;
+      let out = (v - lo) / span * 255;
+      out = out < 0 ? 0 : out > 255 ? 255 : out;
+      d[i] = d[i + 1] = d[i + 2] = out;
+    }
+    g.putImageData(im, 0, 0);
+    return cv;
+  }
+
+  function sheetBand(src, y0, y1) {
+    const out = document.createElement('canvas');
+    out.width = src.width;
+    out.height = Math.max(1, y1 - y0);
+    out.getContext('2d').drawImage(src, 0, y0, src.width, out.height, 0, 0, src.width, out.height);
+    return out;
+  }
+
+  // Read the whole page, then band by band, and keep every distinct row found.
+  async function ocrSheet(file, onProgress) {
+    const cv = await prepareSheetImage(file);
+    function say(s) { if (onProgress) onProgress(s); }
+
+    say('Reading the page\u2026');
+    let text = await runOcr(cv, null);
+    let rows = parseSheet(text);
+
+    // A production sheet has plenty of rows. If we only found a handful, the
+    // OCR gave up partway — go back over it in overlapping bands.
+    const BANDS = 5;
+    const bandH = Math.round(cv.height / BANDS * 1.45);
+    for (let i = 0; i < BANDS; i++) {
+      say('Reading section ' + (i + 1) + ' of ' + BANDS + ' \u2014 ' + rows.length + ' rows so far');
+      const y0 = Math.round(i * Math.max(0, cv.height - bandH) / Math.max(1, BANDS - 1));
+      try {
+        const part = await runOcr(sheetBand(cv, y0, Math.min(cv.height, y0 + bandH)), null);
+        text += '\n' + part;
+        rows = parseSheet(text);          // recheck so we can stop early
+      } catch (e) {}
+      // a full sheet is ~30 rows; once we have that there is nothing left to find
+      if (rows.length >= 30) break;
+    }
+
+    return { text: text, rows: rows };
+  }
+
   function startSheetScan() {
     sourcePicker('Scan production sheet',
       'Lay it flat, good light, straight on. Reads the product names and Order Qty column.',
@@ -6132,10 +6207,17 @@ function calc(units, caseSize) {
           const body = document.getElementById('auditBody');
           body.innerHTML = '<div class="audit-item-name">Reading production sheet</div>' +
             '<div class="audit-sub" id="ocrStatus">Loading scanner...</div>';
-          let text = '';
-          try { text = await runOcr(file, document.getElementById('ocrStatus')); }
-          catch (e) { ocrFailScreen('Scanner could not run. Check your connection and try again.'); return; }
-          sheetResults = parseSheet(text);
+          let text = '', rows = [];
+          try {
+            const st = document.getElementById('ocrStatus');
+            const res = await ocrSheet(file, function (msg) { if (st) st.textContent = msg; });
+            text = res.text;
+            rows = res.rows;
+          } catch (e) {
+            ocrFailScreen('Scanner could not run. Check your connection and try again.');
+            return;
+          }
+          sheetResults = rows;
           renderSheetReview(text);
         });
       });
